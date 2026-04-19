@@ -1,0 +1,137 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function isTutor(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid)) &&
+        userDoc(uid).data.role == 'tutor';
+    }
+
+    function validRole(role) {
+      return role in ['unknown', 'student', 'tutor'];
+    }
+
+    function validRoleTransition(oldRole, newRole) {
+      return oldRole == newRole ||
+        (oldRole == 'unknown' && (newRole == 'student' || newRole == 'tutor'));
+    }
+
+    function validUserPayload(data, uid) {
+      return data.keys().hasOnly([
+          'uid',
+          'email',
+          'displayName',
+          'photoUrl',
+          'role',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.uid == uid &&
+        data.email is string &&
+        data.email.size() <= 200 &&
+        data.displayName is string &&
+        data.displayName.size() <= 80 &&
+        data.photoUrl is string &&
+        data.photoUrl.size() <= 1000 &&
+        validRole(data.role);
+    }
+
+    function validTutorPayload(data, uid) {
+      return data.keys().hasOnly([
+          'uid',
+          'displayName',
+          'photoUrl',
+          'geo',
+          'bio',
+          'subjects',
+          'pricePerHour',
+          'experienceYears',
+          'experienceDescription',
+          'locationLabel',
+          'rating',
+          'totalReviews',
+          'isActive',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.uid == uid &&
+        data.displayName is string &&
+        data.displayName.size() <= 80 &&
+        data.photoUrl is string &&
+        data.photoUrl.size() <= 1000 &&
+        data.geo is map &&
+        data.geo.keys().hasOnly(['geohash', 'geopoint']) &&
+        data.geo.geohash is string &&
+        data.geo.geohash.size() >= 1 &&
+        data.geo.geohash.size() <= 12 &&
+        data.geo.geopoint is latlng &&
+        data.bio is string &&
+        data.bio.size() <= 2000 &&
+        data.subjects is list &&
+        data.subjects.size() <= 12 &&
+        data.pricePerHour is number &&
+        data.pricePerHour >= 0 &&
+        data.pricePerHour <= 5000000 &&
+        data.experienceYears is int &&
+        data.experienceYears >= 0 &&
+        data.experienceYears <= 60 &&
+        data.experienceDescription is string &&
+        data.experienceDescription.size() <= 1200 &&
+        data.locationLabel is string &&
+        data.locationLabel.size() <= 240 &&
+        data.rating is number &&
+        data.rating >= 0 &&
+        data.rating <= 5 &&
+        data.totalReviews is int &&
+        data.totalReviews >= 0 &&
+        data.isActive is bool;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+
+      allow create: if isOwner(uid) &&
+        validUserPayload(request.resource.data, uid);
+
+      allow update: if isOwner(uid) &&
+        validUserPayload(request.resource.data, uid) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        validRoleTransition(resource.data.role, request.resource.data.role);
+
+      allow delete: if false;
+    }
+
+    match /tutors/{uid} {
+      allow read: if signedIn();
+
+      allow create: if isOwner(uid) &&
+        isTutor(uid) &&
+        validTutorPayload(request.resource.data, uid) &&
+        request.resource.data.rating == 0 &&
+        request.resource.data.totalReviews == 0;
+
+      allow update: if isOwner(uid) &&
+        isTutor(uid) &&
+        validTutorPayload(request.resource.data, uid) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.rating == resource.data.rating &&
+        request.resource.data.totalReviews == resource.data.totalReviews;
+
+      allow delete: if false;
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "educonnect-ops-scripts",
+  "private": true,
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "migrate:tutors:geo:dry": "node migrate_tutors_geo.js",
+    "migrate:tutors:geo:apply": "node migrate_tutors_geo.js --apply"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

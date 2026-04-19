@@ -1,0 +1,235 @@
+import 'dart:async';
+
+import 'package:educonnect/core/providers/backend_providers.dart';
+import 'package:educonnect/features/auth/domain/models/app_user_profile.dart';
+import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
+import 'package:educonnect/features/auth/domain/models/auth_user.dart';
+import 'package:educonnect/features/home/domain/models/tutor_summary.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+final userRepositoryProvider = Provider<UserRepository>((ref) {
+  return UserRepository(client: ref.watch(supabaseClientProvider));
+});
+
+class UserRepository {
+  UserRepository({required SupabaseClient client}) : _client = client;
+
+  final SupabaseClient _client;
+
+  Future<AppUserProfile?> fetchUserProfile(String uid) async {
+    try {
+      final map = await _client
+          .from('users')
+          .select('uid,email,display_name,photo_url,role')
+          .eq('uid', uid)
+          .maybeSingle();
+      if (map == null) {
+        return null;
+      }
+      return AppUserProfile.fromMap(uid, map);
+    } on PostgrestException catch (error) {
+      if (error.code == 'PGRST116') {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
+  Stream<AppUserProfile?> watchUserProfile(String uid) {
+    return _client.from('users').stream(primaryKey: ['uid']).eq('uid', uid).map(
+      (rows) {
+        if (rows.isEmpty) {
+          return null;
+        }
+        return AppUserProfile.fromMap(uid, rows.first);
+      },
+    );
+  }
+
+  Stream<List<TutorSummary>> watchActiveTutors({int limit = 25}) {
+    return _client
+        .from('tutors')
+        .stream(primaryKey: ['uid'])
+        .eq('is_active', true)
+        .order('rating', ascending: false)
+        .map((rows) {
+          final limitedRows = rows.take(limit).toList();
+          return limitedRows.map(_mapTutorSummary).toList();
+        });
+  }
+
+  Stream<List<TutorSummary>> watchNearbyTutors({
+    required double latitude,
+    required double longitude,
+    required double radiusKm,
+    int maxResults = 500,
+  }) async* {
+    yield await _fetchNearbyTutors(
+      latitude: latitude,
+      longitude: longitude,
+      radiusKm: radiusKm,
+      maxResults: maxResults,
+    );
+
+    yield* Stream<int>.periodic(
+      const Duration(seconds: 20),
+      (tick) => tick,
+    ).asyncMap((_) {
+      return _fetchNearbyTutors(
+        latitude: latitude,
+        longitude: longitude,
+        radiusKm: radiusKm,
+        maxResults: maxResults,
+      );
+    });
+  }
+
+  Future<void> upsertFromAuthUser(AppAuthUser user) async {
+    await _client.from('users').upsert({
+      'uid': user.uid,
+      'email': user.email,
+      'display_name': user.displayName,
+      'photo_url': user.photoUrl,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'uid');
+  }
+
+  Future<void> setRole({required String uid, required AppUserRole role}) async {
+    await _client.from('users').upsert({
+      'uid': uid,
+      'role': role.value,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'uid');
+
+    if (role != AppUserRole.tutor) {
+      return;
+    }
+
+    final user = await _client
+        .from('users')
+        .select('display_name,photo_url')
+        .eq('uid', uid)
+        .maybeSingle();
+
+    await _client.from('tutors').upsert({
+      'uid': uid,
+      'display_name': (user?['display_name'] as String?) ?? '',
+      'photo_url': (user?['photo_url'] as String?) ?? '',
+      'subjects': <String>['IPAS'],
+      'bio': '',
+      'price_per_hour': 0,
+      'experience_years': 0,
+      'experience_description': '',
+      'location_label': '',
+      'rating': 0,
+      'total_reviews': 0,
+      'is_active': true,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'uid');
+  }
+
+  Future<List<TutorSummary>> _fetchNearbyTutors({
+    required double latitude,
+    required double longitude,
+    required double radiusKm,
+    required int maxResults,
+  }) async {
+    final rows = await _client.rpc(
+      'get_nearby_tutors',
+      params: {
+        'p_latitude': latitude,
+        'p_longitude': longitude,
+        'p_radius_km': radiusKm,
+        'p_limit': maxResults,
+      },
+    );
+
+    if (rows is! List) {
+      return <TutorSummary>[];
+    }
+
+    return rows
+        .whereType<Map<String, dynamic>>()
+        .map(_mapTutorSummary)
+        .toList();
+  }
+
+  TutorSummary _mapTutorSummary(Map<String, dynamic> map) {
+    final subjects = (map['subjects'] as List<dynamic>? ?? <dynamic>[])
+        .map((item) => item.toString())
+        .toList();
+
+    final uid = (map['uid'] as String?) ?? '';
+    return TutorSummary(
+      uid: uid,
+      name: _readString(map, 'display_name', fallbackKey: 'name').isNotEmpty
+          ? _readString(map, 'display_name', fallbackKey: 'name')
+          : 'Tutor ${uid.length >= 6 ? uid.substring(0, 6) : uid}',
+      photoUrl: _readString(map, 'photo_url', fallbackKey: 'photoUrl'),
+      subjects: subjects,
+      rating: _readNum(map, 'rating').toDouble(),
+      totalReviews: _readNum(
+        map,
+        'total_reviews',
+        fallbackKey: 'totalReviews',
+      ).toInt(),
+      pricePerHour: _readNum(
+        map,
+        'price_per_hour',
+        fallbackKey: 'pricePerHour',
+      ),
+      isActive: _readBool(map, 'is_active', fallbackKey: 'isActive'),
+      latitude: _readDouble(map, 'latitude'),
+      longitude: _readDouble(map, 'longitude'),
+      distanceFromUserKm: map['distance_km'] is num
+          ? (map['distance_km'] as num).toDouble()
+          : null,
+    );
+  }
+
+  String _readString(
+    Map<String, dynamic> map,
+    String key, {
+    String? fallbackKey,
+  }) {
+    final primary = map[key];
+    if (primary is String) {
+      return primary;
+    }
+    if (fallbackKey == null) {
+      return '';
+    }
+    final fallback = map[fallbackKey];
+    return fallback is String ? fallback : '';
+  }
+
+  num _readNum(Map<String, dynamic> map, String key, {String? fallbackKey}) {
+    final primary = map[key];
+    if (primary is num) {
+      return primary;
+    }
+    if (fallbackKey == null) {
+      return 0;
+    }
+    final fallback = map[fallbackKey];
+    return fallback is num ? fallback : 0;
+  }
+
+  double _readDouble(Map<String, dynamic> map, String key) {
+    final value = map[key];
+    return value is num ? value.toDouble() : 0;
+  }
+
+  bool _readBool(Map<String, dynamic> map, String key, {String? fallbackKey}) {
+    final primary = map[key];
+    if (primary is bool) {
+      return primary;
+    }
+    if (fallbackKey == null) {
+      return false;
+    }
+    final fallback = map[fallbackKey];
+    return fallback is bool ? fallback : false;
+  }
+}
