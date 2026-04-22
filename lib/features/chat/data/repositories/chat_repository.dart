@@ -1,4 +1,5 @@
 import 'package:educonnect/core/providers/backend_providers.dart';
+import 'package:educonnect/core/utils/resilient_stream.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
 import 'package:educonnect/features/chat/domain/models/chat_message.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,40 +15,46 @@ class ChatRepository {
   final SupabaseClient _client;
 
   Stream<List<ChatMessage>> watchBookingMessages(String bookingId) {
-    return _client
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('booking_id', bookingId)
-        .order('created_at')
-        .map((rows) => rows.map(ChatMessage.fromMap).toList());
+    return resilientStream(
+      () => _client
+          .from('messages')
+          .stream(primaryKey: ['id'])
+          .eq('booking_id', bookingId)
+          .order('created_at')
+          .map((rows) => rows.map(ChatMessage.fromMap).toList()),
+    );
   }
 
   Stream<int> watchUnreadCount(String uid) {
-    return _client
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('receiver_uid', uid)
-        .map(
-          (rows) => rows
-              .where((row) => row['read_at'] == null || row['read_at'] == '')
-              .length,
-        );
+    return resilientStream(
+      () => _client
+          .from('messages')
+          .stream(primaryKey: ['id'])
+          .eq('receiver_uid', uid)
+          .map(
+            (rows) => rows
+                .where((row) => row['read_at'] == null || row['read_at'] == '')
+                .length,
+          ),
+    );
   }
 
   Stream<int> watchUnreadByBooking({
     required String bookingId,
     required String receiverUid,
   }) {
-    return _client
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('booking_id', bookingId)
-        .map(
-          (rows) => rows
-              .where((row) => row['receiver_uid'] == receiverUid)
-              .where((row) => row['read_at'] == null || row['read_at'] == '')
-              .length,
-        );
+    return resilientStream(
+      () => _client
+          .from('messages')
+          .stream(primaryKey: ['id'])
+          .eq('booking_id', bookingId)
+          .map(
+            (rows) => rows
+                .where((row) => row['receiver_uid'] == receiverUid)
+                .where((row) => row['read_at'] == null || row['read_at'] == '')
+                .length,
+          ),
+    );
   }
 
   Future<void> sendMessage({

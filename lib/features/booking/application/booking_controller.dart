@@ -1,7 +1,11 @@
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/booking/data/repositories/booking_repository.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
+import 'package:educonnect/features/booking/domain/models/booking_session.dart';
 import 'package:educonnect/features/booking/domain/models/booking_status.dart';
+import 'package:educonnect/features/booking/domain/models/booking_weekly_slot.dart';
+import 'package:educonnect/features/booking/domain/models/session_change_request.dart';
+import 'package:educonnect/features/booking/domain/models/session_learning_record.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final bookingLoadingProvider = StateProvider<bool>((ref) => false);
@@ -51,6 +55,96 @@ final tutorAwaitingPaymentCountProvider = Provider<int>((ref) {
       .length;
 });
 
+final bookingSessionsProvider = StreamProvider.autoDispose
+    .family<List<BookingSession>, String>((ref, bookingId) {
+      return ref
+          .watch(bookingRepositoryProvider)
+          .watchBookingSessions(bookingId);
+    });
+
+final myStudentSessionsProvider = StreamProvider<List<BookingSession>>((ref) {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) {
+    return const Stream<List<BookingSession>>.empty();
+  }
+  return ref
+      .watch(bookingRepositoryProvider)
+      .watchStudentBookingSessions(user.uid);
+});
+
+final myTutorSessionsProvider = StreamProvider<List<BookingSession>>((ref) {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) {
+    return const Stream<List<BookingSession>>.empty();
+  }
+  return ref
+      .watch(bookingRepositoryProvider)
+      .watchTutorBookingSessions(user.uid);
+});
+
+final myTutorPendingHomeworkProvider =
+    StreamProvider<List<SessionLearningRecord>>((ref) {
+      final user = ref.watch(authStateProvider).value;
+      if (user == null) {
+        return const Stream<List<SessionLearningRecord>>.empty();
+      }
+      return ref
+          .watch(bookingRepositoryProvider)
+          .watchTutorPendingHomeworkRecords(user.uid);
+    });
+
+final sessionChangeRequestsProvider = StreamProvider.autoDispose
+    .family<List<SessionChangeRequest>, String>((ref, bookingId) {
+      return ref
+          .watch(bookingRepositoryProvider)
+          .watchBookingSessionChangeRequests(bookingId);
+    });
+
+final sessionLearningRecordsProvider = StreamProvider.autoDispose
+    .family<List<SessionLearningRecord>, String>((ref, bookingId) {
+      return ref
+          .watch(bookingRepositoryProvider)
+          .watchSessionLearningRecords(bookingId);
+    });
+
+final studentUpcomingBookingsProvider = Provider<List<BookingItem>>((ref) {
+  final items = ref.watch(myStudentBookingsProvider).valueOrNull ?? const [];
+  final now = DateTime.now();
+  return items
+      .where((item) => isStudentUpcomingBooking(item, now: now))
+      .toList()
+    ..sort((a, b) => a.sessionStart.compareTo(b.sessionStart));
+});
+
+final studentHistoryBookingsProvider = Provider<List<BookingItem>>((ref) {
+  final items = ref.watch(myStudentBookingsProvider).valueOrNull ?? const [];
+  final now = DateTime.now();
+  return items
+      .where((item) => !isStudentUpcomingBooking(item, now: now))
+      .toList()
+    ..sort((a, b) => b.sessionStart.compareTo(a.sessionStart));
+});
+
+final tutorIncomingRequestsProvider = Provider<List<BookingItem>>((ref) {
+  final items = ref.watch(myTutorBookingsProvider).valueOrNull ?? const [];
+  return items.where((item) => item.status == BookingStatus.pending).toList()
+    ..sort((a, b) => a.sessionStart.compareTo(b.sessionStart));
+});
+
+final tutorActiveScheduleProvider = Provider<List<BookingItem>>((ref) {
+  final items = ref.watch(myTutorBookingsProvider).valueOrNull ?? const [];
+  final now = DateTime.now();
+  return items.where((item) => isTutorActiveBooking(item, now: now)).toList()
+    ..sort((a, b) => a.sessionStart.compareTo(b.sessionStart));
+});
+
+final tutorHistoryBookingsProvider = Provider<List<BookingItem>>((ref) {
+  final items = ref.watch(myTutorBookingsProvider).valueOrNull ?? const [];
+  final now = DateTime.now();
+  return items.where((item) => isTutorHistoryBooking(item, now: now)).toList()
+    ..sort((a, b) => b.sessionStart.compareTo(a.sessionStart));
+});
+
 final bookingControllerProvider = Provider<BookingController>((ref) {
   return BookingController(ref);
 });
@@ -73,7 +167,9 @@ class BookingController {
   Future<void> createBooking({
     required String tutorUid,
     required String subject,
-    required DateTime sessionStart,
+    required DateTime packageStartDate,
+    required int packageMonths,
+    required List<BookingWeeklySlot> weeklySlots,
     required int durationMinutes,
     required String message,
   }) async {
@@ -83,7 +179,9 @@ class BookingController {
         studentUid: studentUid,
         tutorUid: tutorUid,
         subject: subject,
-        sessionStart: sessionStart,
+        packageStartDate: packageStartDate,
+        packageMonths: packageMonths,
+        weeklySlots: weeklySlots,
         durationMinutes: durationMinutes,
         message: message,
       ),
@@ -93,10 +191,25 @@ class BookingController {
   Future<void> respondBooking({
     required String bookingId,
     required BookingStatus status,
-  }) {
-    return _runLoadingTask(
-      () =>
-          _repository.updateBookingStatus(bookingId: bookingId, status: status),
+  }) async {
+    final actorUid = _requireUid();
+    final current = await _repository.fetchBookingById(bookingId);
+    if (current == null) {
+      throw StateError('Booking tidak ditemukan.');
+    }
+
+    if (!canTransitionBookingStatus(from: current.status, to: status)) {
+      throw StateError(
+        'Transisi status tidak valid: ${current.status.label} -> ${status.label}.',
+      );
+    }
+
+    await _runLoadingTask(
+      () => _repository.updateBookingStatus(
+        bookingId: bookingId,
+        status: status,
+        actorUid: actorUid,
+      ),
     );
   }
 
@@ -110,6 +223,133 @@ class BookingController {
     );
   }
 
+  Future<void> processSmartSessionReminders() async {
+    final studentUid = _requireUid();
+    await _repository.processStudentSessionReminders(studentUid);
+  }
+
+  Future<void> markSessionDoneByTutor(String sessionId) {
+    return _runLoadingTask(() => _repository.markSessionDoneByTutor(sessionId));
+  }
+
+  Future<void> confirmSessionByStudent({
+    required String sessionId,
+    int? rating,
+    String review = '',
+  }) {
+    return _runLoadingTask(
+      () => _repository.confirmSessionByStudent(
+        sessionId: sessionId,
+        rating: rating,
+        review: review,
+      ),
+    );
+  }
+
+  Future<void> disputeSessionByStudent(String sessionId) {
+    return _runLoadingTask(
+      () => _repository.disputeSessionByStudent(sessionId),
+    );
+  }
+
+  Future<void> resolveDisputeByTutor(String sessionId) {
+    return _runLoadingTask(() => _repository.resolveDisputeByTutor(sessionId));
+  }
+
+  Future<void> confirmSessionPresence(String sessionId) {
+    return _runLoadingTask(
+      () => _repository.confirmSessionPresenceByStudent(sessionId),
+    );
+  }
+
+  Future<void> requestSessionCancel({
+    required String sessionId,
+    required String reason,
+  }) async {
+    final uid = _requireUid();
+    await _runLoadingTask(
+      () => _repository.requestSessionCancel(
+        sessionId: sessionId,
+        requesterUid: uid,
+        reason: reason,
+      ),
+    );
+  }
+
+  Future<void> requestSessionReschedule({
+    required String sessionId,
+    required DateTime proposedStart,
+    required DateTime proposedEnd,
+    required String reason,
+  }) async {
+    final uid = _requireUid();
+    await _runLoadingTask(
+      () => _repository.requestSessionReschedule(
+        sessionId: sessionId,
+        requesterUid: uid,
+        proposedStart: proposedStart,
+        proposedEnd: proposedEnd,
+        reason: reason,
+      ),
+    );
+  }
+
+  Future<void> saveTutorLearningRecord({
+    required String bookingId,
+    required String sessionId,
+    required String studentUid,
+    required String materialSummary,
+    required String materialNotes,
+    required String homeworkTitle,
+    required String homeworkDescription,
+  }) async {
+    final tutorUid = _requireUid();
+    await _runLoadingTask(
+      () => _repository.upsertTutorLearningRecord(
+        bookingId: bookingId,
+        sessionId: sessionId,
+        tutorUid: tutorUid,
+        studentUid: studentUid,
+        materialSummary: materialSummary,
+        materialNotes: materialNotes,
+        homeworkTitle: homeworkTitle,
+        homeworkDescription: homeworkDescription,
+      ),
+    );
+  }
+
+  Future<void> submitHomework({
+    required String sessionId,
+    required String submissionText,
+  }) async {
+    await _runLoadingTask(
+      () => _repository.submitHomeworkByStudent(
+        sessionId: sessionId,
+        submissionText: submissionText,
+      ),
+    );
+  }
+
+  Future<void> markHomeworkReviewed({required String sessionId}) async {
+    await _runLoadingTask(
+      () => _repository.markHomeworkReviewedByTutor(sessionId: sessionId),
+    );
+  }
+
+  Future<void> respondSessionChangeRequest({
+    required String requestId,
+    required bool approved,
+  }) async {
+    final uid = _requireUid();
+    await _runLoadingTask(
+      () => _repository.respondSessionChangeRequest(
+        requestId: requestId,
+        reviewerUid: uid,
+        approved: approved,
+      ),
+    );
+  }
+
   Future<T> _runLoadingTask<T>(Future<T> Function() action) async {
     _ref.read(bookingLoadingProvider.notifier).state = true;
     try {
@@ -117,5 +357,57 @@ class BookingController {
     } finally {
       _ref.read(bookingLoadingProvider.notifier).state = false;
     }
+  }
+}
+
+bool isStudentUpcomingBooking(BookingItem item, {DateTime? now}) {
+  final reference = now ?? DateTime.now();
+  final activeStatus =
+      item.status == BookingStatus.pending ||
+      item.status == BookingStatus.awaitingPayment ||
+      item.status == BookingStatus.paid;
+  return activeStatus && item.sessionEnd.isAfter(reference);
+}
+
+bool isTutorActiveBooking(BookingItem item, {DateTime? now}) {
+  final reference = now ?? DateTime.now();
+  final activeStatus =
+      item.status == BookingStatus.awaitingPayment ||
+      item.status == BookingStatus.paid;
+  return activeStatus && item.sessionEnd.isAfter(reference);
+}
+
+bool isTutorHistoryBooking(BookingItem item, {DateTime? now}) {
+  final reference = now ?? DateTime.now();
+  if (item.status == BookingStatus.pending) {
+    return item.sessionEnd.isBefore(reference);
+  }
+  if (isTutorActiveBooking(item, now: reference)) {
+    return false;
+  }
+  return true;
+}
+
+bool canTransitionBookingStatus({
+  required BookingStatus from,
+  required BookingStatus to,
+}) {
+  if (from == to) {
+    return true;
+  }
+
+  switch (from) {
+    case BookingStatus.pending:
+      return to == BookingStatus.awaitingPayment ||
+          to == BookingStatus.rejected ||
+          to == BookingStatus.cancelled;
+    case BookingStatus.awaitingPayment:
+      return to == BookingStatus.paid || to == BookingStatus.cancelled;
+    case BookingStatus.paid:
+      return to == BookingStatus.completed || to == BookingStatus.cancelled;
+    case BookingStatus.rejected:
+    case BookingStatus.completed:
+    case BookingStatus.cancelled:
+      return false;
   }
 }

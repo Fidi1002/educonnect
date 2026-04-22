@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:educonnect/core/providers/backend_providers.dart';
+import 'package:educonnect/core/utils/resilient_stream.dart';
 import 'package:educonnect/features/tutor/domain/models/tutor_profile.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -27,16 +28,18 @@ class TutorProfileRepository {
   }
 
   Stream<TutorProfile?> watchTutorProfile(String uid) {
-    return _client
-        .from('tutors')
-        .stream(primaryKey: ['uid'])
-        .eq('uid', uid)
-        .map((rows) {
-          if (rows.isEmpty) {
-            return null;
-          }
-          return _mapToProfile(uid: uid, tutorMap: rows.first);
-        });
+    return resilientStream(
+      () => _client
+          .from('tutors')
+          .stream(primaryKey: ['uid'])
+          .eq('uid', uid)
+          .map((rows) {
+            if (rows.isEmpty) {
+              return null;
+            }
+            return _mapToProfile(uid: uid, tutorMap: rows.first);
+          }),
+    );
   }
 
   Future<void> upsertTutorProfile(TutorProfile profile) async {
@@ -128,6 +131,10 @@ class TutorProfileRepository {
       totalReviews:
           (tutorMap['total_reviews'] as int?) ??
           (tutorMap['totalReviews'] as int?) ??
+          0,
+      consistencyScore:
+          (tutorMap['consistency_score'] as num?)?.toDouble() ??
+          (tutorMap['consistencyScore'] as num?)?.toDouble() ??
           0,
       isActive:
           (tutorMap['is_active'] as bool?) ??

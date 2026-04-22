@@ -9,9 +9,16 @@ import 'package:educonnect/features/booking/presentation/pages/student_bookings_
 import 'package:educonnect/features/booking/presentation/pages/tutor_bookings_page.dart';
 import 'package:educonnect/features/chat/presentation/pages/chat_page.dart';
 import 'package:educonnect/features/chat/presentation/pages/inbox_page.dart';
+import 'package:educonnect/features/home/presentation/pages/student_ebook_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_home_page.dart';
+import 'package:educonnect/features/home/presentation/pages/student_profile_page.dart';
+import 'package:educonnect/features/home/presentation/pages/student_shell_page.dart';
+import 'package:educonnect/features/home/presentation/pages/student_study_calendar_page.dart';
 import 'package:educonnect/features/home/presentation/pages/tutor_home_page.dart';
 import 'package:educonnect/features/home/presentation/pages/tutor_list_page.dart';
+import 'package:educonnect/features/home/presentation/pages/tutor_students_page.dart';
+import 'package:educonnect/features/home/presentation/pages/tutor_study_calendar_page.dart';
+import 'package:educonnect/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:educonnect/features/tutor/presentation/pages/tutor_detail_page.dart';
 import 'package:educonnect/features/tutor/presentation/pages/tutor_profile_form_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -77,23 +84,53 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: RoleOnboardingPage.routeName,
         builder: (context, state) => const RoleOnboardingPage(),
       ),
-      GoRoute(
-        path: StudentHomePage.routePath,
-        name: StudentHomePage.routeName,
-        builder: (context, state) => const StudentHomePage(),
-      ),
-      GoRoute(
-        path: TutorListPage.routePath,
-        name: TutorListPage.routeName,
-        builder: (context, state) => const TutorListPage(),
-      ),
-      GoRoute(
-        path: TutorDetailPage.routePath,
-        name: TutorDetailPage.routeName,
-        builder: (context, state) {
-          final tutorId = state.pathParameters['tutorId'] ?? '';
-          return TutorDetailPage(tutorId: tutorId);
+      ShellRoute(
+        builder: (context, state, child) {
+          return StudentShellPage(
+            currentLocation: state.matchedLocation,
+            child: child,
+          );
         },
+        routes: [
+          GoRoute(
+            path: StudentHomePage.routePath,
+            name: StudentHomePage.routeName,
+            builder: (context, state) => const StudentHomePage(),
+          ),
+          GoRoute(
+            path: TutorListPage.routePath,
+            name: TutorListPage.routeName,
+            builder: (context, state) => const TutorListPage(),
+          ),
+          GoRoute(
+            path: TutorDetailPage.routePath,
+            name: TutorDetailPage.routeName,
+            builder: (context, state) {
+              final tutorId = state.pathParameters['tutorId'] ?? '';
+              return TutorDetailPage(tutorId: tutorId);
+            },
+          ),
+          GoRoute(
+            path: StudentBookingsPage.routePath,
+            name: StudentBookingsPage.routeName,
+            builder: (context, state) => const StudentBookingsPage(),
+          ),
+          GoRoute(
+            path: StudentEbookPage.routePath,
+            name: StudentEbookPage.routeName,
+            builder: (context, state) => const StudentEbookPage(),
+          ),
+          GoRoute(
+            path: StudentProfilePage.routePath,
+            name: StudentProfilePage.routeName,
+            builder: (context, state) => const StudentProfilePage(),
+          ),
+          GoRoute(
+            path: StudentStudyCalendarPage.routePath,
+            name: StudentStudyCalendarPage.routeName,
+            builder: (context, state) => const StudentStudyCalendarPage(),
+          ),
+        ],
       ),
       GoRoute(
         path: TutorHomePage.routePath,
@@ -101,9 +138,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const TutorHomePage(),
       ),
       GoRoute(
-        path: StudentBookingsPage.routePath,
-        name: StudentBookingsPage.routeName,
-        builder: (context, state) => const StudentBookingsPage(),
+        path: TutorStudyCalendarPage.routePath,
+        name: TutorStudyCalendarPage.routeName,
+        builder: (context, state) => const TutorStudyCalendarPage(),
+      ),
+      GoRoute(
+        path: TutorStudentsPage.routePath,
+        name: TutorStudentsPage.routeName,
+        builder: (context, state) => const TutorStudentsPage(),
+      ),
+      GoRoute(
+        path: NotificationsPage.routePath,
+        name: NotificationsPage.routeName,
+        builder: (context, state) => const NotificationsPage(),
       ),
       GoRoute(
         path: TutorBookingsPage.routePath,

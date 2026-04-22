@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:educonnect/core/providers/backend_providers.dart';
+import 'package:educonnect/core/utils/resilient_stream.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_profile.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/auth/domain/models/auth_user.dart';
@@ -37,26 +38,32 @@ class UserRepository {
   }
 
   Stream<AppUserProfile?> watchUserProfile(String uid) {
-    return _client.from('users').stream(primaryKey: ['uid']).eq('uid', uid).map(
-      (rows) {
-        if (rows.isEmpty) {
-          return null;
-        }
-        return AppUserProfile.fromMap(uid, rows.first);
-      },
+    return resilientStream(
+      () => _client
+          .from('users')
+          .stream(primaryKey: ['uid'])
+          .eq('uid', uid)
+          .map((rows) {
+            if (rows.isEmpty) {
+              return null;
+            }
+            return AppUserProfile.fromMap(uid, rows.first);
+          }),
     );
   }
 
   Stream<List<TutorSummary>> watchActiveTutors({int limit = 25}) {
-    return _client
-        .from('tutors')
-        .stream(primaryKey: ['uid'])
-        .eq('is_active', true)
-        .order('rating', ascending: false)
-        .map((rows) {
-          final limitedRows = rows.take(limit).toList();
-          return limitedRows.map(_mapTutorSummary).toList();
-        });
+    return resilientStream(
+      () => _client
+          .from('tutors')
+          .stream(primaryKey: ['uid'])
+          .eq('is_active', true)
+          .order('rating', ascending: false)
+          .map((rows) {
+            final limitedRows = rows.take(limit).toList();
+            return limitedRows.map(_mapTutorSummary).toList();
+          }),
+    );
   }
 
   Stream<List<TutorSummary>> watchNearbyTutors({
@@ -182,6 +189,11 @@ class UserRepository {
       isActive: _readBool(map, 'is_active', fallbackKey: 'isActive'),
       latitude: _readDouble(map, 'latitude'),
       longitude: _readDouble(map, 'longitude'),
+      consistencyScore: _readNum(
+        map,
+        'consistency_score',
+        fallbackKey: 'consistencyScore',
+      ).toDouble(),
       distanceFromUserKm: map['distance_km'] is num
           ? (map['distance_km'] as num).toDouble()
           : null,

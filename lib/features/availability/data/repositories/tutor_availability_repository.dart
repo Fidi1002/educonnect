@@ -1,4 +1,5 @@
 import 'package:educonnect/core/providers/backend_providers.dart';
+import 'package:educonnect/core/utils/resilient_stream.dart';
 import 'package:educonnect/features/availability/domain/models/tutor_availability_slot.dart';
 import 'package:educonnect/features/booking/domain/models/booking_status.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,13 +19,15 @@ class TutorAvailabilityRepository {
   final SupabaseClient _client;
 
   Stream<List<TutorAvailabilitySlot>> watchTutorAvailability(String tutorUid) {
-    return _client
-        .from('tutor_availability')
-        .stream(primaryKey: ['id'])
-        .eq('tutor_uid', tutorUid)
-        .order('weekday')
-        .order('start_time')
-        .map((rows) => rows.map(TutorAvailabilitySlot.fromMap).toList());
+    return resilientStream(
+      () => _client
+          .from('tutor_availability')
+          .stream(primaryKey: ['id'])
+          .eq('tutor_uid', tutorUid)
+          .order('weekday')
+          .order('start_time')
+          .map((rows) => rows.map(TutorAvailabilitySlot.fromMap).toList()),
+    );
   }
 
   Future<void> addAvailabilitySlot({
@@ -44,6 +47,22 @@ class TutorAvailabilityRepository {
 
   Future<void> removeAvailabilitySlot(String slotId) {
     return _client.from('tutor_availability').delete().eq('id', slotId);
+  }
+
+  Future<List<TutorAvailabilitySlot>> fetchTutorAvailability(
+    String tutorUid,
+  ) async {
+    final rows = await _client
+        .from('tutor_availability')
+        .select()
+        .eq('tutor_uid', tutorUid)
+        .eq('is_active', true)
+        .order('weekday')
+        .order('start_time');
+    return (rows as List<dynamic>)
+        .whereType<Map<String, dynamic>>()
+        .map(TutorAvailabilitySlot.fromMap)
+        .toList(growable: false);
   }
 
   Future<List<DateTime>> fetchAvailableStartTimes({

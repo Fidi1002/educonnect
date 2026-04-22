@@ -356,6 +356,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
         geohash: existing?.geohash ?? '',
         rating: existing?.rating ?? 0,
         totalReviews: existing?.totalReviews ?? 0,
+        consistencyScore: existing?.consistencyScore ?? 0,
         isActive: true,
       );
       await controller.saveProfile(profile);

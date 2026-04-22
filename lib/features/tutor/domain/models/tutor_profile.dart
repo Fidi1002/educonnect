@@ -14,6 +14,7 @@ class TutorProfile {
     required this.geohash,
     required this.rating,
     required this.totalReviews,
+    required this.consistencyScore,
     required this.isActive,
   });
 
@@ -31,6 +32,7 @@ class TutorProfile {
   final String geohash;
   final double rating;
   final int totalReviews;
+  final double consistencyScore;
   final bool isActive;
 
   factory TutorProfile.empty(String uid) {
@@ -49,6 +51,7 @@ class TutorProfile {
       geohash: '',
       rating: 0,
       totalReviews: 0,
+      consistencyScore: 0,
       isActive: true,
     );
   }

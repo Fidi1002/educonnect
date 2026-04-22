@@ -193,6 +193,22 @@ class _TutorTile extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text('Mulai dari Rp ${tutor.pricePerHour}/jam'),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: const Color(0xFFE8DBF4),
+              ),
+              child: Text(
+                'Consistency ${tutor.consistencyScore.toStringAsFixed(0)}%',
+                style: const TextStyle(
+                  color: Color(0xFF4B176E),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
           ],
         ),
         trailing: CircleAvatar(

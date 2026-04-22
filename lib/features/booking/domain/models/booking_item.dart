@@ -1,4 +1,5 @@
 import 'package:educonnect/features/booking/domain/models/booking_status.dart';
+import 'package:educonnect/features/booking/domain/models/booking_weekly_slot.dart';
 
 class BookingItem {
   const BookingItem({
@@ -15,6 +16,11 @@ class BookingItem {
     required this.paidAt,
     required this.studentName,
     required this.tutorName,
+    required this.packageMonths,
+    required this.sessionsPerWeek,
+    required this.packageStartDate,
+    required this.packageEndDate,
+    required this.weeklySchedule,
   });
 
   final String id;
@@ -30,6 +36,11 @@ class BookingItem {
   final DateTime? paidAt;
   final String studentName;
   final String tutorName;
+  final int packageMonths;
+  final int sessionsPerWeek;
+  final DateTime packageStartDate;
+  final DateTime packageEndDate;
+  final List<BookingWeeklySlot> weeklySchedule;
 
   DateTime get sessionEnd =>
       sessionStart.add(Duration(minutes: durationMinutes));
@@ -37,6 +48,7 @@ class BookingItem {
   factory BookingItem.fromMap(Map<String, dynamic> map) {
     final student = map['student'] as Map<String, dynamic>?;
     final tutor = map['tutor'] as Map<String, dynamic>?;
+    final weeklyScheduleRaw = map['weekly_schedule'] as List<dynamic>? ?? [];
     return BookingItem(
       id: (map['id'] as String?) ?? '',
       studentUid: (map['student_uid'] as String?) ?? '',
@@ -55,6 +67,22 @@ class BookingItem {
       paidAt: DateTime.tryParse(map['paid_at'] as String? ?? '')?.toLocal(),
       studentName: (student?['display_name'] as String?) ?? 'Murid',
       tutorName: (tutor?['display_name'] as String?) ?? 'Tutor',
+      packageMonths: (map['package_months'] as int?) ?? 1,
+      sessionsPerWeek: (map['sessions_per_week'] as int?) ?? 2,
+      packageStartDate:
+          DateTime.tryParse(
+            map['package_start_date'] as String? ?? '',
+          )?.toLocal() ??
+          DateTime.now(),
+      packageEndDate:
+          DateTime.tryParse(
+            map['package_end_date'] as String? ?? '',
+          )?.toLocal() ??
+          DateTime.now().add(const Duration(days: 30)),
+      weeklySchedule: weeklyScheduleRaw
+          .whereType<Map<String, dynamic>>()
+          .map(BookingWeeklySlot.fromMap)
+          .toList(growable: false),
     );
   }
 }

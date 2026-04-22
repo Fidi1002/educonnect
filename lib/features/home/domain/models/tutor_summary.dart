@@ -10,6 +10,7 @@ class TutorSummary {
     required this.isActive,
     required this.latitude,
     required this.longitude,
+    required this.consistencyScore,
     this.distanceFromUserKm,
   });
 
@@ -23,6 +24,7 @@ class TutorSummary {
   final bool isActive;
   final double latitude;
   final double longitude;
+  final double consistencyScore;
   final double? distanceFromUserKm;
 
   bool matchesKeyword(String query) {

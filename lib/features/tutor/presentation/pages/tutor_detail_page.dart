@@ -1,5 +1,7 @@
 import 'package:educonnect/features/availability/data/repositories/tutor_availability_repository.dart';
+import 'package:educonnect/features/availability/domain/models/tutor_availability_slot.dart';
 import 'package:educonnect/features/booking/application/booking_controller.dart';
+import 'package:educonnect/features/booking/domain/models/booking_weekly_slot.dart';
 import 'package:educonnect/features/tutor/application/tutor_profile_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +18,9 @@ class TutorDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tutorAsync = ref.watch(tutorProfileByIdProvider(tutorId));
+    final availabilityAsync = ref.watch(
+      tutorAvailabilityByTutorProvider(tutorId),
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Detail Tutor')),
@@ -25,107 +30,194 @@ class TutorDetailPage extends ConsumerWidget {
             return const Center(child: Text('Profil tutor tidak tersedia.'));
           }
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
+          return Column(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: profile.photoUrl.isNotEmpty
-                      ? Image.network(
-                          profile.photoUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, _, _) {
-                            return Container(
-                              color: Colors.grey.shade300,
-                              child: const Icon(Icons.broken_image, size: 44),
-                            );
-                          },
-                        )
-                      : Container(
-                          color: Colors.grey.shade300,
-                          child: const Icon(Icons.person, size: 60),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                profile.displayName,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  const Icon(Icons.star, size: 18, color: Colors.amber),
-                  const SizedBox(width: 6),
-                  Text(profile.rating.toStringAsFixed(1)),
-                  const SizedBox(width: 6),
-                  Text('(${profile.totalReviews} ulasan)'),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.location_on_outlined, size: 18),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      profile.locationLabel.isEmpty
-                          ? 'Lokasi belum diisi tutor'
-                          : profile.locationLabel,
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(12),
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: profile.photoUrl.isNotEmpty
+                            ? Image.network(
+                                profile.photoUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, _, _) {
+                                  return Container(
+                                    color: Colors.grey.shade300,
+                                    child: const Icon(
+                                      Icons.broken_image,
+                                      size: 44,
+                                    ),
+                                  );
+                                },
+                              )
+                            : Container(
+                                color: Colors.grey.shade300,
+                                child: const Icon(Icons.person, size: 60),
+                              ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const Divider(height: 28),
-              Text(
-                'Mata Pelajaran',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: profile.subjects
-                    .map((item) => Chip(label: Text(item)))
-                    .toList(),
-              ),
-              const Divider(height: 28),
-              Text(
-                'Jam & Pengalaman',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Text('Harga: Rp ${profile.pricePerHour} / jam'),
-              const SizedBox(height: 4),
-              Text('Pengalaman: ${profile.experienceYears} tahun'),
-              const SizedBox(height: 4),
-              Text(profile.experienceDescription),
-              const Divider(height: 28),
-              Text(
-                'Deskripsi',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Text(profile.bio),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: () => _showCreateBookingDialog(
-                  context: context,
-                  ref: ref,
-                  tutorUid: tutorId,
-                  subjects: profile.subjects,
+                    Transform.translate(
+                      offset: const Offset(0, -16),
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.black12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              profile.displayName,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '${profile.rating.toStringAsFixed(1)} / 5',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: List<Widget>.generate(
+                                5,
+                                (index) => Icon(
+                                  Icons.star,
+                                  size: 16,
+                                  color: profile.rating >= index + 1
+                                      ? Colors.amber
+                                      : Colors.amber.shade200,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                color: const Color(0xFFE8DBF4),
+                              ),
+                              child: Text(
+                                'Consistency ${profile.consistencyScore.toStringAsFixed(0)}%',
+                                style: const TextStyle(
+                                  color: Color(0xFF4B176E),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(
+                                  Icons.location_on_outlined,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    profile.locationLabel.isEmpty
+                                        ? 'Lokasi belum diisi tutor'
+                                        : profile.locationLabel,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 20),
+                            _SectionTitle(
+                              context: context,
+                              title: 'Mata Pelajaran',
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: profile.subjects
+                                  .map(
+                                    (item) => Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 18,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: Colors.black26,
+                                        ),
+                                      ),
+                                      child: Text(item),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                            const Divider(height: 20),
+                            _SectionTitle(
+                              context: context,
+                              title: 'Jam Tersedia',
+                            ),
+                            const SizedBox(height: 8),
+                            availabilityAsync.when(
+                              data: (slots) {
+                                if (slots.isEmpty) {
+                                  return const Text('Tutor belum set jadwal.');
+                                }
+                                return Column(
+                                  children: slots
+                                      .map(
+                                        (slot) => _AvailabilityRow(slot: slot),
+                                      )
+                                      .toList(),
+                                );
+                              },
+                              loading: () => const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                                child: LinearProgressIndicator(),
+                              ),
+                              error: (_, _) =>
+                                  const Text('Jadwal tidak tersedia saat ini.'),
+                            ),
+                            const Divider(height: 20),
+                            _SectionTitle(context: context, title: 'Deskripsi'),
+                            const SizedBox(height: 8),
+                            Text(
+                              profile.bio.isEmpty
+                                  ? profile.experienceDescription
+                                  : profile.bio,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                child: const Text('Ajukan Booking'),
+              ),
+              SafeArea(
+                top: false,
+                minimum: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => _showCreateBookingDialog(
+                      context: context,
+                      ref: ref,
+                      tutorUid: tutorId,
+                      subjects: profile.subjects,
+                    ),
+                    child: const Text('Submit'),
+                  ),
+                ),
               ),
             ],
           );
@@ -171,47 +263,45 @@ class TutorDetailPage extends ConsumerWidget {
   }) async {
     final messageController = TextEditingController();
     final durationOptions = <int>[60, 90, 120];
+    final packageOptions = <int>[1, 2, 3, 6];
     var selectedSubject = subjects.isNotEmpty ? subjects.first : 'Umum';
     var selectedDuration = durationOptions.first;
-    DateTime? selectedDate;
-    DateTime? selectedDateTime;
-    var availableStartTimes = <DateTime>[];
-    var loadingTimes = false;
-
-    Future<void> loadAvailableTimes(StateSetter setState) async {
-      if (selectedDate == null) {
-        return;
-      }
-      setState(() {
-        loadingTimes = true;
-        availableStartTimes = <DateTime>[];
-        selectedDateTime = null;
-      });
-      try {
-        final times = await ref
-            .read(tutorAvailabilityRepositoryProvider)
-            .fetchAvailableStartTimes(
-              tutorUid: tutorUid,
-              date: selectedDate!,
-              durationMinutes: selectedDuration,
-            );
-        setState(() {
-          availableStartTimes = times;
-        });
-      } finally {
-        setState(() {
-          loadingTimes = false;
-        });
-      }
-    }
+    var selectedPackageMonths = 1;
+    DateTime? packageStartDate;
+    var selectedSlots = <BookingWeeklySlot>[];
+    var availableWeeklySlots = <BookingWeeklySlot>[];
+    var loadingSlots = true;
 
     final submit = await showDialog<bool>(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            if (loadingSlots && availableWeeklySlots.isEmpty) {
+              Future<void>.microtask(() async {
+                final rawSlots = await ref
+                    .read(tutorAvailabilityRepositoryProvider)
+                    .fetchTutorAvailability(tutorUid);
+                if (!context.mounted) {
+                  return;
+                }
+                setState(() {
+                  availableWeeklySlots = rawSlots
+                      .map(
+                        (slot) => BookingWeeklySlot(
+                          weekday: slot.weekday,
+                          startTime: slot.startTime,
+                          endTime: slot.endTime,
+                        ),
+                      )
+                      .toList(growable: false);
+                  loadingSlots = false;
+                });
+              });
+            }
+
             return AlertDialog(
-              title: const Text('Buat Booking Kelas'),
+              title: const Text('Buat Booking Paket'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -256,9 +346,27 @@ class TutorDetailPage extends ConsumerWidget {
                         setState(() {
                           selectedDuration = value;
                         });
-                        if (selectedDate != null) {
-                          loadAvailableTimes(setState);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<int>(
+                      initialValue: selectedPackageMonths,
+                      decoration: const InputDecoration(labelText: 'Paket'),
+                      items: packageOptions
+                          .map(
+                            (item) => DropdownMenuItem(
+                              value: item,
+                              child: Text('$item bulan'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
                         }
+                        setState(() {
+                          selectedPackageMonths = value;
+                        });
                       },
                     ),
                     const SizedBox(height: 10),
@@ -268,7 +376,7 @@ class TutorDetailPage extends ConsumerWidget {
                           context: context,
                           firstDate: DateTime.now(),
                           lastDate: DateTime.now().add(
-                            const Duration(days: 90),
+                            const Duration(days: 120),
                           ),
                           initialDate: DateTime.now(),
                         );
@@ -276,72 +384,83 @@ class TutorDetailPage extends ConsumerWidget {
                           return;
                         }
                         setState(() {
-                          selectedDate = DateTime(
+                          packageStartDate = DateTime(
                             date.year,
                             date.month,
                             date.day,
                           );
-                          selectedDateTime = null;
-                          availableStartTimes = <DateTime>[];
                         });
-                        await loadAvailableTimes(setState);
                       },
                       icon: const Icon(Icons.calendar_today_outlined),
                       label: Text(
-                        selectedDate == null
-                            ? 'Pilih tanggal belajar'
-                            : '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}',
+                        packageStartDate == null
+                            ? 'Pilih tanggal mulai paket'
+                            : '${packageStartDate!.day}/${packageStartDate!.month}/${packageStartDate!.year}',
                       ),
                     ),
-                    if (selectedDate != null) ...[
-                      const SizedBox(height: 10),
-                      if (loadingTimes)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else if (availableStartTimes.isEmpty)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainerHigh,
-                          ),
-                          child: const Text(
-                            'Tidak ada slot tersedia untuk tanggal ini. Pilih tanggal lain atau minta tutor update jadwal.',
-                          ),
-                        )
-                      else ...[
-                        Text(
-                          'Pilih jam tersedia',
-                          style: Theme.of(context).textTheme.labelLarge,
+                    const SizedBox(height: 12),
+                    Text(
+                      'Pilih 2 jadwal per minggu',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 6),
+                    if (loadingSlots)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (availableWeeklySlots.isEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHigh,
                         ),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: availableStartTimes.map((time) {
-                            final isSelected =
-                                selectedDateTime?.isAtSameMomentAs(time) ??
-                                false;
-                            final label =
-                                '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-                            return ChoiceChip(
-                              label: Text(label),
-                              selected: isSelected,
-                              onSelected: (_) {
-                                setState(() {
-                                  selectedDateTime = time;
-                                });
-                              },
-                            );
-                          }).toList(),
+                        child: const Text(
+                          'Tutor belum mengisi jadwal ketersediaan. Minta tutor update jadwal dulu.',
                         ),
-                      ],
-                    ],
+                      )
+                    else
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: availableWeeklySlots.map((slot) {
+                          final key =
+                              '${slot.weekday}-${slot.startTime}-${slot.endTime}';
+                          final isSelected = selectedSlots.any(
+                            (item) =>
+                                '${item.weekday}-${item.startTime}-${item.endTime}' ==
+                                key,
+                          );
+                          return FilterChip(
+                            label: Text(
+                              '${slot.weekdayLabel} ${slot.timeLabel}',
+                            ),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  if (selectedSlots.length >= 2) {
+                                    return;
+                                  }
+                                  selectedSlots = [...selectedSlots, slot];
+                                } else {
+                                  selectedSlots = selectedSlots
+                                      .where(
+                                        (item) =>
+                                            '${item.weekday}-${item.startTime}-${item.endTime}' !=
+                                            key,
+                                      )
+                                      .toList();
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: messageController,
@@ -360,7 +479,8 @@ class TutorDetailPage extends ConsumerWidget {
                   child: const Text('Batal'),
                 ),
                 FilledButton(
-                  onPressed: selectedDateTime == null
+                  onPressed:
+                      selectedSlots.length != 2 || packageStartDate == null
                       ? null
                       : () => Navigator.pop(context, true),
                   child: const Text('Kirim'),
@@ -372,7 +492,10 @@ class TutorDetailPage extends ConsumerWidget {
       },
     );
 
-    if (submit != true || selectedDateTime == null || !context.mounted) {
+    if (submit != true ||
+        packageStartDate == null ||
+        selectedSlots.length != 2 ||
+        !context.mounted) {
       messageController.dispose();
       return;
     }
@@ -383,7 +506,9 @@ class TutorDetailPage extends ConsumerWidget {
           .createBooking(
             tutorUid: tutorUid,
             subject: selectedSubject,
-            sessionStart: selectedDateTime!,
+            packageStartDate: packageStartDate!,
+            packageMonths: selectedPackageMonths,
+            weeklySlots: selectedSlots,
             durationMinutes: selectedDuration,
             message: messageController.text,
           );
@@ -406,5 +531,50 @@ class TutorDetailPage extends ConsumerWidget {
     } finally {
       messageController.dispose();
     }
+  }
+}
+
+final tutorAvailabilityByTutorProvider = FutureProvider.autoDispose
+    .family<List<TutorAvailabilitySlot>, String>((ref, tutorUid) {
+      return ref
+          .watch(tutorAvailabilityRepositoryProvider)
+          .fetchTutorAvailability(tutorUid);
+    });
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.context, required this.title});
+
+  final BuildContext context;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: Theme.of(
+        this.context,
+      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+    );
+  }
+}
+
+class _AvailabilityRow extends StatelessWidget {
+  const _AvailabilityRow({required this.slot});
+
+  final TutorAvailabilitySlot slot;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.access_time, size: 16),
+          const SizedBox(width: 8),
+          Expanded(child: Text(slot.weekdayLabel)),
+          Text('${slot.startLabel} - ${slot.endLabel}'),
+        ],
+      ),
+    );
   }
 }
