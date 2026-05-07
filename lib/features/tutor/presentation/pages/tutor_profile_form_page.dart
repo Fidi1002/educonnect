@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/core/providers/backend_providers.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/tutor/application/tutor_profile_controller.dart';
@@ -68,7 +69,12 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
       body: profileAsync.when(
         data: (profile) {
           if (currentUser == null) {
-            return const Center(child: Text('User belum login.'));
+            return const AppEmptyState(
+              message: 'User belum login.',
+              hint: 'Silakan login kembali untuk mengelola profil tutor.',
+              icon: Icons.lock_outline,
+              fullScreen: true,
+            );
           }
 
           _syncInitialData(
@@ -246,8 +252,13 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Gagal memuat data: $error')),
+        loading: () => const AppLoadingState(message: 'Memuat profil tutor...'),
+        error: (error, _) => AppErrorState(
+          message: 'Gagal memuat data profil tutor.',
+          detail: error.toString(),
+          onRetry: () => ref.invalidate(myTutorProfileProvider),
+          fullScreen: true,
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/booking/application/booking_controller.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
@@ -7,9 +8,18 @@ import 'package:educonnect/features/booking/domain/models/booking_status.dart';
 import 'package:educonnect/features/booking/domain/models/session_change_request.dart';
 import 'package:educonnect/features/booking/domain/models/session_learning_record.dart';
 import 'package:educonnect/features/chat/presentation/pages/chat_page.dart';
+import 'package:educonnect/features/tutor/presentation/widgets/tutor_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+enum _TutorBookingQuickFilter {
+  all,
+  needsAttention,
+  awaitingPayment,
+  active,
+  completed,
+}
 
 class TutorBookingsPage extends ConsumerStatefulWidget {
   const TutorBookingsPage({super.key});
@@ -23,7 +33,15 @@ class TutorBookingsPage extends ConsumerStatefulWidget {
 
 class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
   final Map<String, GlobalKey> _sessionAnchorKeys = <String, GlobalKey>{};
+  final TextEditingController _searchController = TextEditingController();
   String? _lastAutoScrolledSessionId;
+  _TutorBookingQuickFilter _quickFilter = _TutorBookingQuickFilter.all;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,25 +58,31 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
           );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Jadwal Saya (Tutor)')),
+      appBar: AppBar(title: const Text('Kelola Booking Murid')),
       body: bookingsAsync.when(
         data: (items) {
           final now = DateTime.now();
           final requests =
               items
                   .where((item) => item.status == BookingStatus.pending)
+                  .where(_matchesQuickFilter)
+                  .where(_matchesSearch)
                   .toList()
                 ..sort((a, b) => a.sessionStart.compareTo(b.sessionStart));
           _bringFocusedBookingToFront(requests, focusedBookingId);
           final active =
               items
                   .where((item) => isTutorActiveBooking(item, now: now))
+                  .where(_matchesQuickFilter)
+                  .where(_matchesSearch)
                   .toList()
                 ..sort((a, b) => a.sessionStart.compareTo(b.sessionStart));
           _bringFocusedBookingToFront(active, focusedBookingId);
           final history =
               items
                   .where((item) => isTutorHistoryBooking(item, now: now))
+                  .where(_matchesQuickFilter)
+                  .where(_matchesSearch)
                   .toList()
                 ..sort((a, b) => b.sessionStart.compareTo(a.sessionStart));
           _bringFocusedBookingToFront(history, focusedBookingId);
@@ -78,6 +102,91 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
             initialIndex: initialTab,
             child: Column(
               children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _searchController,
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          hintText: 'Cari murid atau mapel...',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchController.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {});
+                                  },
+                                  icon: const Icon(Icons.close),
+                                ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 38,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            _FilterChipButton(
+                              label: 'Semua',
+                              selected:
+                                  _quickFilter == _TutorBookingQuickFilter.all,
+                              onTap: () => setState(
+                                () =>
+                                    _quickFilter = _TutorBookingQuickFilter.all,
+                              ),
+                            ),
+                            _FilterChipButton(
+                              label: 'Butuh Aksi',
+                              selected:
+                                  _quickFilter ==
+                                  _TutorBookingQuickFilter.needsAttention,
+                              onTap: () => setState(
+                                () => _quickFilter =
+                                    _TutorBookingQuickFilter.needsAttention,
+                              ),
+                            ),
+                            _FilterChipButton(
+                              label: 'Menunggu Bayar',
+                              selected:
+                                  _quickFilter ==
+                                  _TutorBookingQuickFilter.awaitingPayment,
+                              onTap: () => setState(
+                                () => _quickFilter =
+                                    _TutorBookingQuickFilter.awaitingPayment,
+                              ),
+                            ),
+                            _FilterChipButton(
+                              label: 'Aktif',
+                              selected:
+                                  _quickFilter ==
+                                  _TutorBookingQuickFilter.active,
+                              onTap: () => setState(
+                                () => _quickFilter =
+                                    _TutorBookingQuickFilter.active,
+                              ),
+                            ),
+                            _FilterChipButton(
+                              label: 'Selesai',
+                              selected:
+                                  _quickFilter ==
+                                  _TutorBookingQuickFilter.completed,
+                              onTap: () => setState(
+                                () => _quickFilter =
+                                    _TutorBookingQuickFilter.completed,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const TabBar(
                   isScrollable: true,
                   tabs: [
@@ -120,27 +229,14 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline),
-                const SizedBox(height: 8),
-                const Text('Gagal memuat jadwal tutor.'),
-                const SizedBox(height: 8),
-                Text(error.toString(), textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: () => ref.invalidate(myTutorBookingsProvider),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Coba lagi'),
-                ),
-              ],
-            ),
-          ),
+        loading: () => const AppLoadingState(
+          message: 'Memuat jadwal tutor...',
+          fullScreen: false,
+        ),
+        error: (error, _) => AppErrorState(
+          message: 'Gagal memuat jadwal tutor.',
+          detail: error.toString(),
+          onRetry: () => ref.invalidate(myTutorBookingsProvider),
         ),
       ),
     );
@@ -186,6 +282,36 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
     items.insert(0, focused);
   }
 
+  bool _matchesSearch(BookingItem item) {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) {
+      return true;
+    }
+    final haystacks = <String>[
+      item.subject,
+      item.studentName,
+      item.tutorName,
+      item.message,
+    ];
+    return haystacks.any((value) => value.toLowerCase().contains(query));
+  }
+
+  bool _matchesQuickFilter(BookingItem item) {
+    switch (_quickFilter) {
+      case _TutorBookingQuickFilter.all:
+        return true;
+      case _TutorBookingQuickFilter.needsAttention:
+        return item.status == BookingStatus.pending ||
+            item.status == BookingStatus.awaitingPayment;
+      case _TutorBookingQuickFilter.awaitingPayment:
+        return item.status == BookingStatus.awaitingPayment;
+      case _TutorBookingQuickFilter.active:
+        return item.status == BookingStatus.paid;
+      case _TutorBookingQuickFilter.completed:
+        return item.status == BookingStatus.completed;
+    }
+  }
+
   Future<void> _handleRespond({
     required String bookingId,
     required BookingStatus status,
@@ -209,6 +335,30 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
         SnackBar(content: Text('Aksi booking gagal: ${error.toString()}')),
       );
     }
+  }
+}
+
+class _FilterChipButton extends StatelessWidget {
+  const _FilterChipButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) => onTap(),
+      ),
+    );
   }
 }
 
@@ -529,35 +679,53 @@ class _TutorBookingList extends ConsumerWidget {
       );
     }
 
-    return ListView.separated(
+    final pendingCount = items
+        .where((item) => item.status == BookingStatus.pending)
+        .length;
+    final waitingPaymentCount = items
+        .where((item) => item.status == BookingStatus.awaitingPayment)
+        .length;
+    final activeCount = items
+        .where((item) => item.status == BookingStatus.paid)
+        .length;
+
+    return ListView(
       padding: const EdgeInsets.all(16),
-      itemCount: items.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final item = items[index];
-        final sessionsAsync = ref.watch(bookingSessionsProvider(item.id));
-        final requestsAsync = ref.watch(sessionChangeRequestsProvider(item.id));
-        final learningAsync = ref.watch(
-          sessionLearningRecordsProvider(item.id),
-        );
-        final currentUid = ref.watch(authStateProvider).value?.uid ?? '';
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+      children: [
+        _TutorActionSummaryCard(
+          totalCount: items.length,
+          pendingCount: pendingCount,
+          waitingPaymentCount: waitingPaymentCount,
+          activeCount: activeCount,
+        ),
+        const SizedBox(height: 12),
+        ...List.generate(items.length, (index) {
+          final item = items[index];
+          final sessionsAsync = ref.watch(bookingSessionsProvider(item.id));
+          final requestsAsync = ref.watch(sessionChangeRequestsProvider(item.id));
+          final learningAsync = ref.watch(
+            sessionLearningRecordsProvider(item.id),
+          );
+          final currentUid = ref.watch(authStateProvider).value?.uid ?? '';
+          return Padding(
+            padding: EdgeInsets.only(bottom: index == items.length - 1 ? 0 : 10),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        item.subject,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.subject,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        TutorStatusBadge.booking(status: item.status),
+                      ],
                     ),
-                    Chip(label: Text(item.status.label)),
-                  ],
-                ),
                 Text(
                   'Murid: ${item.studentName.isEmpty ? item.studentUid : item.studentName}',
                 ),
@@ -616,6 +784,9 @@ class _TutorBookingList extends ConsumerWidget {
                         final canMarkDone =
                             session.status == BookingSessionStatus.scheduled &&
                             session.sessionEnd.isBefore(DateTime.now());
+                        final canMarkStudentNoShow =
+                            session.status == BookingSessionStatus.scheduled &&
+                            session.sessionEnd.isBefore(DateTime.now());
                         final canRequestChange =
                             request == null &&
                             session.status == BookingSessionStatus.scheduled &&
@@ -642,16 +813,21 @@ class _TutorBookingList extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '${session.sessionStart.day}/${session.sessionStart.month} '
-                                '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
-                                ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '${session.sessionStart.day}/${session.sessionStart.month} '
+                                      '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
+                                      ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  TutorStatusBadge.session(status: session.status),
+                                ],
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                'Status: ${session.status.label}',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
                               Builder(
                                 builder: (context) {
                                   if (learningRecord == null) {
@@ -699,12 +875,17 @@ class _TutorBookingList extends ConsumerWidget {
                               ),
                               if (request != null) ...[
                                 const SizedBox(height: 6),
-                                Text(
-                                  'Request ${request.requestType} menunggu persetujuan',
-                                  style: const TextStyle(
-                                    color: Color(0xFF8C4BC0),
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    TutorStatusBadge.custom(
+                                      label:
+                                          'Request ${request.requestType} menunggu persetujuan',
+                                      background: const Color(0xFFF2E8FF),
+                                      foreground: const Color(0xFF7B2CBF),
+                                    ),
+                                  ],
                                 ),
                                 if (request.targetUid == currentUid) ...[
                                   const SizedBox(height: 8),
@@ -746,50 +927,104 @@ class _TutorBookingList extends ConsumerWidget {
                                 ],
                               ],
                               if (canMarkDone) ...[
-                                const SizedBox(height: 8),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: FilledButton(
-                                    onPressed: isLoading
-                                        ? null
-                                        : () async {
-                                            try {
-                                              await ref
-                                                  .read(
-                                                    bookingControllerProvider,
-                                                  )
-                                                  .markSessionDoneByTutor(
-                                                    session.id,
+                                  const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: FilledButton(
+                                        onPressed: isLoading
+                                            ? null
+                                            : () async {
+                                                try {
+                                                  await ref
+                                                      .read(
+                                                        bookingControllerProvider,
+                                                      )
+                                                      .markSessionDoneByTutor(
+                                                        session.id,
+                                                      );
+                                                  if (!context.mounted) {
+                                                    return;
+                                                  }
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Pertemuan ditandai selesai. Menunggu konfirmasi murid.',
+                                                      ),
+                                                    ),
                                                   );
-                                              if (!context.mounted) {
-                                                return;
-                                              }
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'Pertemuan ditandai selesai. Menunggu konfirmasi murid.',
-                                                  ),
-                                                ),
-                                              );
-                                            } on Exception catch (error) {
-                                              if (!context.mounted) {
-                                                return;
-                                              }
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    'Gagal update sesi: ${error.toString()}',
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          },
-                                    child: const Text('Tandai Sesi Selesai'),
-                                  ),
+                                                } on Exception catch (error) {
+                                                  if (!context.mounted) {
+                                                    return;
+                                                  }
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'Gagal update sesi: ${error.toString()}',
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                              },
+                                        child: const Text('Tandai Sesi Selesai'),
+                                      ),
+                                    ),
+                                    if (canMarkStudentNoShow) ...[
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: isLoading
+                                              ? null
+                                              : () async {
+                                                  try {
+                                                    await ref
+                                                        .read(
+                                                          bookingControllerProvider,
+                                                        )
+                                                        .markStudentNoShow(
+                                                          session.id,
+                                                        );
+                                                    if (!context.mounted) {
+                                                      return;
+                                                    }
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'Sesi ditandai murid tidak hadir.',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  } on Exception catch (error) {
+                                                    if (!context.mounted) {
+                                                      return;
+                                                    }
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'Gagal menandai no-show: ${error.toString()}',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                },
+                                          icon: const Icon(
+                                            Icons.person_off_outlined,
+                                          ),
+                                          label: const Text(
+                                            'Murid Tidak Hadir',
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ],
                               if (session.status ==
@@ -974,30 +1209,21 @@ class _TutorBookingList extends ConsumerWidget {
                     ],
                   )
                 else if (item.status == BookingStatus.paid)
-                  Row(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: isLoading
-                              ? null
-                              : () => onRespond(
-                                  bookingId: item.id,
-                                  status: BookingStatus.completed,
-                                  successMessage: 'Kelas ditandai selesai.',
-                                ),
-                          child: const Text('Tandai Selesai'),
-                        ),
+                      Text(
+                        'Booking akan selesai otomatis saat seluruh sesi sudah mencapai status final.',
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => context.pushNamed(
-                            ChatPage.routeName,
-                            pathParameters: {'bookingId': item.id},
-                          ),
-                          icon: const Icon(Icons.chat_bubble_outline),
-                          label: const Text('Chat'),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => context.pushNamed(
+                          ChatPage.routeName,
+                          pathParameters: {'bookingId': item.id},
                         ),
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        label: const Text('Chat'),
                       ),
                     ],
                   )
@@ -1010,11 +1236,81 @@ class _TutorBookingList extends ConsumerWidget {
                     icon: const Icon(Icons.chat_bubble_outline),
                     label: const Text('Buka Chat'),
                   ),
-              ],
+                  ],
+                ),
+              ),
             ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+class _TutorActionSummaryCard extends StatelessWidget {
+  const _TutorActionSummaryCard({
+    required this.totalCount,
+    required this.pendingCount,
+    required this.waitingPaymentCount,
+    required this.activeCount,
+  });
+
+  final int totalCount;
+  final int pendingCount;
+  final int waitingPaymentCount;
+  final int activeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: TutorUi.softPanelDecoration(radius: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Booking Butuh Aksi',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
-        );
-      },
+          const SizedBox(height: 6),
+          Text(
+            pendingCount == 0 && waitingPaymentCount == 0
+                ? 'Semua booking cukup terkendali sekarang. Kamu bisa fokus ke sesi aktif.'
+                : 'Prioritaskan permintaan baru dan booking yang sedang menunggu pembayaran murid.',
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              TutorMetricPill(
+                label: 'Total',
+                value: '$totalCount',
+                background: const Color(0xFFE5ECF0),
+                foreground: const Color(0xFF21425B),
+              ),
+              TutorMetricPill(
+                label: 'Permintaan',
+                value: '$pendingCount',
+                background: const Color(0xFFFFE9D5),
+                foreground: const Color(0xFF9A4D00),
+              ),
+              TutorMetricPill(
+                label: 'Menunggu Bayar',
+                value: '$waitingPaymentCount',
+                background: const Color(0xFFF7DCE0),
+                foreground: const Color(0xFFA6334A),
+              ),
+              TutorMetricPill(
+                label: 'Aktif',
+                value: '$activeCount',
+                background: const Color(0xFFE0F2E7),
+                foreground: const Color(0xFF206A42),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,6 +1,8 @@
 import 'package:educonnect/features/auth/application/auth_controller.dart';
+import 'package:educonnect/features/home/presentation/pages/student_learning_journal_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class StudentProfilePage extends ConsumerWidget {
   const StudentProfilePage({super.key});
@@ -92,9 +94,11 @@ class StudentProfilePage extends ConsumerWidget {
                     ),
                     _ProfileMenuTile(
                       icon: Icons.history,
-                      title: 'Your Activity',
-                      subtitle: 'Manage your activity',
-                      onTap: () {},
+                      title: 'Jurnal Belajar',
+                      subtitle: 'Lihat progres belajar, materi, dan PR',
+                      onTap: () => context.pushNamed(
+                        StudentLearningJournalPage.routeName,
+                      ),
                     ),
                     _ProfileMenuTile(
                       icon: Icons.logout,

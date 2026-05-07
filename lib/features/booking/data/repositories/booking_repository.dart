@@ -24,6 +24,7 @@ class BookingRepository {
   static const Duration _lateCancelThreshold = Duration(hours: 12);
 
   Stream<List<BookingItem>> watchStudentBookings(String studentUid) {
+    unawaited(_expireStaleBookings());
     return resilientStream(
       () => _client
           .from('bookings')
@@ -35,6 +36,7 @@ class BookingRepository {
   }
 
   Stream<BookingItem?> watchBookingById(String bookingId) {
+    unawaited(_expireStaleBookings(bookingId: bookingId));
     return resilientStream(
       () => _client
           .from('bookings')
@@ -50,6 +52,7 @@ class BookingRepository {
   }
 
   Future<BookingItem?> fetchBookingById(String bookingId) async {
+    await _expireStaleBookings(bookingId: bookingId);
     final row = await _client
         .from('bookings')
         .select(
@@ -69,6 +72,7 @@ class BookingRepository {
     String tutorUid, {
     bool pendingOnly = false,
   }) {
+    unawaited(_expireStaleBookings());
     return resilientStream(
       () => _client
           .from('bookings')
@@ -103,9 +107,11 @@ class BookingRepository {
       );
     }
 
+    final normalizedSlots = _normalizeWeeklySlots(weeklySlots);
+
     final sessionStartLocal = _computeFirstSessionStart(
       packageStartDate: packageStartDate,
-      slot: weeklySlots.first,
+      slots: normalizedSlots,
     );
     final startUtc = sessionStartLocal.toUtc();
     final endUtc = startUtc.add(Duration(minutes: durationMinutes));
@@ -129,7 +135,7 @@ class BookingRepository {
         packageStartDate.month + 1,
         packageStartDate.day,
       ).subtract(const Duration(days: 1)),
-      slots: weeklySlots,
+      slots: normalizedSlots,
     );
     final month1Amount = (sessionPrice * sessionCountMonth1).round();
 
@@ -148,7 +154,7 @@ class BookingRepository {
       final cycleSessionCount = _countSessionsInRange(
         startDate: cycleStart,
         endDate: cycleEnd,
-        slots: weeklySlots,
+        slots: normalizedSlots,
       );
       final amount = (sessionPrice * cycleSessionCount).round();
       transactionPayload.add({
@@ -161,15 +167,6 @@ class BookingRepository {
         'due_at': cycleStart.toUtc().toIso8601String(),
       });
     }
-
-    final generatedSessions = _generateSessionsForPackage(
-      studentUid: studentUid,
-      tutorUid: tutorUid,
-      packageStartDate: packageStartDate,
-      packageEndDate: packageEndDate,
-      weeklySlots: weeklySlots,
-      durationMinutes: durationMinutes,
-    );
 
     await _client.rpc(
       'create_booking_with_cycles_and_sessions',
@@ -184,11 +181,11 @@ class BookingRepository {
         'p_total_amount': month1Amount,
         'p_package_months': packageMonths,
         'p_sessions_per_week': 2,
-        'p_weekly_schedule': weeklySlots.map((slot) => slot.toMap()).toList(),
+        'p_weekly_schedule': normalizedSlots.map((slot) => slot.toMap()).toList(),
         'p_package_start_date': _dateOnly(packageStartDate),
         'p_package_end_date': _dateOnly(packageEndDate),
         'p_transactions': transactionPayload,
-        'p_sessions': generatedSessions,
+        'p_sessions': const <Map<String, dynamic>>[],
       },
     );
   }
@@ -198,6 +195,7 @@ class BookingRepository {
     required BookingStatus status,
     required String actorUid,
   }) async {
+    await _expireStaleBookings(bookingId: bookingId);
     final bookingRow = await _client
         .from('bookings')
         .select('id,student_uid,tutor_uid')
@@ -274,67 +272,29 @@ class BookingRepository {
     required String bookingId,
     required String studentUid,
   }) async {
-    final bookingRow = await _client
-        .from('bookings')
-        .select('id,student_uid,status,total_amount,tutor_uid')
-        .eq('id', bookingId)
-        .maybeSingle();
-
-    if (bookingRow == null) {
-      throw const PostgrestException(message: 'Booking tidak ditemukan.');
-    }
-
-    if ((bookingRow['student_uid'] as String?) != studentUid) {
+    await _expireStaleBookings(bookingId: bookingId);
+    final paymentResult = await _client.rpc(
+      'complete_dummy_booking_payment',
+      params: {'p_booking_id': bookingId},
+    );
+    final paymentMap = switch (paymentResult) {
+      final List<dynamic> rows when rows.isNotEmpty && rows.first is Map =>
+        Map<String, dynamic>.from(rows.first as Map),
+      final Map<dynamic, dynamic> row => Map<String, dynamic>.from(row),
+      _ => const <String, dynamic>{},
+    };
+    final paidStudentUid = paymentMap['student_uid'] as String? ?? '';
+    if (paidStudentUid != studentUid) {
       throw const PostgrestException(message: 'Booking ini bukan milik kamu.');
     }
-
-    final status = BookingStatusX.fromValue(bookingRow['status'] as String?);
-    if (status != BookingStatus.awaitingPayment) {
-      throw const PostgrestException(
-        message: 'Booking belum siap dibayar atau sudah diproses.',
-      );
+    final tutorUid = paymentMap['tutor_uid'] as String? ?? '';
+    await _ensureBookingSessionsGenerated(
+      bookingId: bookingId,
+      paymentResult: paymentMap,
+    );
+    if (tutorUid.isEmpty) {
+      return;
     }
-
-    final pendingCycleRow = await _client
-        .from('transactions')
-        .select('id,cycle_number,amount')
-        .eq('booking_id', bookingId)
-        .eq('student_uid', studentUid)
-        .eq('payment_status', 'pending')
-        .order('cycle_number')
-        .limit(1)
-        .maybeSingle();
-
-    if (pendingCycleRow == null) {
-      throw const PostgrestException(
-        message: 'Tidak ada tagihan aktif yang perlu dibayar.',
-      );
-    }
-
-    final now = DateTime.now().toUtc().toIso8601String();
-    await _client
-        .from('bookings')
-        .update({
-          'status': BookingStatus.paid.value,
-          'paid_at': now,
-          'total_amount': (pendingCycleRow['amount'] as num?) ?? 0,
-          'updated_at': now,
-        })
-        .eq('id', bookingId);
-
-    await _client
-        .from('transactions')
-        .update({
-          'payment_method': 'dummy',
-          'payment_status': 'paid',
-          'payment_ref': 'DUMMY-${DateTime.now().millisecondsSinceEpoch}',
-          'paid_at': now,
-          'updated_at': now,
-        })
-        .eq('booking_id', bookingId)
-        .eq('cycle_number', (pendingCycleRow['cycle_number'] as int?) ?? 1);
-
-    final tutorUid = bookingRow['tutor_uid'] as String? ?? '';
     await _createNotification(
       userUid: tutorUid,
       actorUid: studentUid,
@@ -358,6 +318,7 @@ class BookingRepository {
   }
 
   Stream<List<BookingSession>> watchStudentBookingSessions(String studentUid) {
+    unawaited(_expireStaleBookings());
     return resilientStream(
       () => _client
           .from('booking_sessions')
@@ -369,6 +330,7 @@ class BookingRepository {
   }
 
   Stream<List<BookingSession>> watchTutorBookingSessions(String tutorUid) {
+    unawaited(_expireStaleBookings());
     return resilientStream(
       () => _client
           .from('booking_sessions')
@@ -408,6 +370,19 @@ class BookingRepository {
           .from('session_learning_records')
           .stream(primaryKey: ['id'])
           .eq('booking_id', bookingId)
+          .order('updated_at', ascending: false)
+          .map((rows) => rows.map(SessionLearningRecord.fromMap).toList()),
+    );
+  }
+
+  Stream<List<SessionLearningRecord>> watchStudentLearningRecords(
+    String studentUid,
+  ) {
+    return resilientStream(
+      () => _client
+          .from('session_learning_records')
+          .stream(primaryKey: ['id'])
+          .eq('student_uid', studentUid)
           .order('updated_at', ascending: false)
           .map((rows) => rows.map(SessionLearningRecord.fromMap).toList()),
     );
@@ -695,6 +670,7 @@ class BookingRepository {
     );
 
     await _recalculateTutorConsistency(session['tutor_uid'] as String? ?? '');
+    await _syncBookingCompletionState(session['booking_id'] as String? ?? '');
   }
 
   Future<void> markSessionDoneByTutor(String sessionId) async {
@@ -725,6 +701,104 @@ class BookingRepository {
     await _recalculateTutorConsistency(row['tutor_uid'] as String? ?? '');
   }
 
+  Future<void> markStudentNoShowByTutor(String sessionId) async {
+    final row = await _client
+        .from('booking_sessions')
+        .select('id,booking_id,student_uid,tutor_uid,session_end,status')
+        .eq('id', sessionId)
+        .maybeSingle();
+    if (row == null) {
+      throw const PostgrestException(message: 'Sesi tidak ditemukan.');
+    }
+
+    final status = BookingSessionStatusX.fromValue(row['status'] as String?);
+    if (status != BookingSessionStatus.scheduled) {
+      throw const PostgrestException(
+        message: 'No-show hanya bisa ditandai pada sesi terjadwal.',
+      );
+    }
+
+    final sessionEnd =
+        DateTime.tryParse(row['session_end'] as String? ?? '')?.toUtc() ??
+        DateTime.now().toUtc();
+    final nowUtc = DateTime.now().toUtc();
+    if (sessionEnd.isAfter(nowUtc)) {
+      throw const PostgrestException(
+        message: 'Tunggu sesi berakhir sebelum menandai murid tidak hadir.',
+      );
+    }
+
+    await _client
+        .from('booking_sessions')
+        .update({
+          'status': BookingSessionStatus.studentNoShow.value,
+          'updated_at': nowUtc.toIso8601String(),
+        })
+        .eq('id', sessionId);
+
+    await _createNotification(
+      userUid: row['student_uid'] as String? ?? '',
+      actorUid: row['tutor_uid'] as String? ?? '',
+      category: 'session_change',
+      title: 'Sesi Ditandai Murid Tidak Hadir',
+      body: 'Tutor menandai bahwa kamu tidak hadir pada sesi ini.',
+      targetType: 'booking_session',
+      targetId: sessionId,
+    );
+
+    await _recalculateTutorConsistency(row['tutor_uid'] as String? ?? '');
+    await _syncBookingCompletionState(row['booking_id'] as String? ?? '');
+  }
+
+  Future<void> markTutorNoShowByStudent(String sessionId) async {
+    final row = await _client
+        .from('booking_sessions')
+        .select('id,booking_id,student_uid,tutor_uid,session_end,status')
+        .eq('id', sessionId)
+        .maybeSingle();
+    if (row == null) {
+      throw const PostgrestException(message: 'Sesi tidak ditemukan.');
+    }
+
+    final status = BookingSessionStatusX.fromValue(row['status'] as String?);
+    if (status != BookingSessionStatus.scheduled) {
+      throw const PostgrestException(
+        message: 'No-show hanya bisa ditandai pada sesi terjadwal.',
+      );
+    }
+
+    final sessionEnd =
+        DateTime.tryParse(row['session_end'] as String? ?? '')?.toUtc() ??
+        DateTime.now().toUtc();
+    final nowUtc = DateTime.now().toUtc();
+    if (sessionEnd.isAfter(nowUtc)) {
+      throw const PostgrestException(
+        message: 'Tunggu sesi berakhir sebelum menandai tutor tidak hadir.',
+      );
+    }
+
+    await _client
+        .from('booking_sessions')
+        .update({
+          'status': BookingSessionStatus.tutorNoShow.value,
+          'updated_at': nowUtc.toIso8601String(),
+        })
+        .eq('id', sessionId);
+
+    await _createNotification(
+      userUid: row['tutor_uid'] as String? ?? '',
+      actorUid: row['student_uid'] as String? ?? '',
+      category: 'session_change',
+      title: 'Sesi Ditandai Tutor Tidak Hadir',
+      body: 'Murid menandai bahwa tutor tidak hadir pada sesi ini.',
+      targetType: 'booking_session',
+      targetId: sessionId,
+    );
+
+    await _recalculateTutorConsistency(row['tutor_uid'] as String? ?? '');
+    await _syncBookingCompletionState(row['booking_id'] as String? ?? '');
+  }
+
   Future<void> confirmSessionByStudent({
     required String sessionId,
     required int? rating,
@@ -732,11 +806,22 @@ class BookingRepository {
   }) async {
     final row = await _client
         .from('booking_sessions')
-        .select('id,tutor_uid')
+        .select('id,booking_id,tutor_uid,status')
         .eq('id', sessionId)
         .maybeSingle();
     if (row == null) {
       throw const PostgrestException(message: 'Sesi tidak ditemukan.');
+    }
+
+    final status = BookingSessionStatusX.fromValue(row['status'] as String?);
+    if (status != BookingSessionStatus.donePendingConfirmation) {
+      throw const PostgrestException(
+        message: 'Sesi ini belum siap untuk dikonfirmasi.',
+      );
+    }
+
+    if (rating != null && (rating < 1 || rating > 5)) {
+      throw const PostgrestException(message: 'Rating harus di antara 1-5.');
     }
 
     final now = DateTime.now().toUtc().toIso8601String();
@@ -753,16 +838,24 @@ class BookingRepository {
 
     await _recalculateTutorRating(row['tutor_uid'] as String? ?? '');
     await _recalculateTutorConsistency(row['tutor_uid'] as String? ?? '');
+    await _syncBookingCompletionState(row['booking_id'] as String? ?? '');
   }
 
   Future<void> disputeSessionByStudent(String sessionId) async {
     final row = await _client
         .from('booking_sessions')
-        .select('id,tutor_uid,student_uid')
+        .select('id,booking_id,tutor_uid,student_uid,status')
         .eq('id', sessionId)
         .maybeSingle();
     if (row == null) {
       throw const PostgrestException(message: 'Sesi tidak ditemukan.');
+    }
+
+    final status = BookingSessionStatusX.fromValue(row['status'] as String?);
+    if (status != BookingSessionStatus.donePendingConfirmation) {
+      throw const PostgrestException(
+        message: 'Sesi ini belum bisa di-dispute.',
+      );
     }
 
     final now = DateTime.now().toUtc().toIso8601String();
@@ -785,12 +878,13 @@ class BookingRepository {
     );
 
     await _recalculateTutorConsistency(row['tutor_uid'] as String? ?? '');
+    await _syncBookingCompletionState(row['booking_id'] as String? ?? '');
   }
 
   Future<void> resolveDisputeByTutor(String sessionId) async {
     final row = await _client
         .from('booking_sessions')
-        .select('id,student_uid,tutor_uid,status')
+        .select('id,booking_id,student_uid,tutor_uid,status')
         .eq('id', sessionId)
         .maybeSingle();
     if (row == null) {
@@ -822,6 +916,7 @@ class BookingRepository {
     );
 
     await _recalculateTutorConsistency(row['tutor_uid'] as String? ?? '');
+    await _syncBookingCompletionState(row['booking_id'] as String? ?? '');
   }
 
   Future<void> confirmSessionPresenceByStudent(String sessionId) async {
@@ -1158,6 +1253,63 @@ class BookingRepository {
         .eq('uid', tutorUid);
   }
 
+  Future<void> _syncBookingCompletionState(String bookingId) async {
+    if (bookingId.isEmpty) {
+      return;
+    }
+
+    final booking = await _client
+        .from('bookings')
+        .select('id,status,student_uid,tutor_uid')
+        .eq('id', bookingId)
+        .maybeSingle();
+    if (booking == null) {
+      return;
+    }
+
+    final bookingStatus = BookingStatusX.fromValue(booking['status'] as String?);
+    if (bookingStatus == BookingStatus.completed ||
+        bookingStatus == BookingStatus.cancelled ||
+        bookingStatus == BookingStatus.rejected) {
+      return;
+    }
+
+    final sessionRows = await _client
+        .from('booking_sessions')
+        .select('status')
+        .eq('booking_id', bookingId);
+    final sessions = (sessionRows as List<dynamic>)
+        .whereType<Map<String, dynamic>>()
+        .map((row) => BookingSessionStatusX.fromValue(row['status'] as String?))
+        .toList(growable: false);
+
+    if (sessions.isEmpty || sessions.any((status) => !status.isTerminal)) {
+      return;
+    }
+
+    await _client
+        .from('bookings')
+        .update({
+          'status': BookingStatus.completed.value,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', bookingId);
+
+    final studentUid = booking['student_uid'] as String? ?? '';
+    final tutorUid = booking['tutor_uid'] as String? ?? '';
+    if (studentUid.isNotEmpty && tutorUid.isNotEmpty) {
+      await _createNotification(
+        userUid: studentUid,
+        actorUid: tutorUid,
+        category: 'booking',
+        title: 'Booking Selesai',
+        body: 'Seluruh sesi pada paket ini sudah mencapai status final.',
+        targetType: 'booking',
+        targetId: bookingId,
+      );
+    }
+  }
+
   List<Map<String, dynamic>> _generateSessionsForPackage({
     required String studentUid,
     required String tutorUid,
@@ -1217,6 +1369,31 @@ class BookingRepository {
 
   DateTime _computeFirstSessionStart({
     required DateTime packageStartDate,
+    required List<BookingWeeklySlot> slots,
+  }) {
+    if (slots.isEmpty) {
+      return DateTime(
+        packageStartDate.year,
+        packageStartDate.month,
+        packageStartDate.day,
+      );
+    }
+
+    DateTime? earliest;
+    for (final slot in slots) {
+      final candidate = _computeFirstSessionStartForSlot(
+        packageStartDate: packageStartDate,
+        slot: slot,
+      );
+      if (earliest == null || candidate.isBefore(earliest)) {
+        earliest = candidate;
+      }
+    }
+    return earliest!;
+  }
+
+  DateTime _computeFirstSessionStartForSlot({
+    required DateTime packageStartDate,
     required BookingWeeklySlot slot,
   }) {
     final baseDate = DateTime(
@@ -1233,6 +1410,89 @@ class BookingRepository {
       firstDate.day,
       hm.$1,
       hm.$2,
+    );
+  }
+
+  List<BookingWeeklySlot> _normalizeWeeklySlots(List<BookingWeeklySlot> slots) {
+    final normalized = [...slots];
+    normalized.sort((left, right) {
+      final weekdayCompare = left.weekday.compareTo(right.weekday);
+      if (weekdayCompare != 0) {
+        return weekdayCompare;
+      }
+      final leftHm = _parseHm(left.startTime);
+      final rightHm = _parseHm(right.startTime);
+      final hourCompare = leftHm.$1.compareTo(rightHm.$1);
+      if (hourCompare != 0) {
+        return hourCompare;
+      }
+      return leftHm.$2.compareTo(rightHm.$2);
+    });
+    return normalized;
+  }
+
+  Future<void> _ensureBookingSessionsGenerated({
+    required String bookingId,
+    required Map<String, dynamic> paymentResult,
+  }) async {
+    final existingSessions = await _client
+        .from('booking_sessions')
+        .select('id')
+        .eq('booking_id', bookingId)
+        .limit(1);
+    if (existingSessions.isNotEmpty) {
+      return;
+    }
+
+    final studentUid = paymentResult['student_uid'] as String? ?? '';
+    final tutorUid = paymentResult['tutor_uid'] as String? ?? '';
+    final durationMinutes = paymentResult['duration_minutes'] as int? ?? 60;
+    final packageStartDateRaw = paymentResult['package_start_date'] as String?;
+    final packageEndDateRaw = paymentResult['package_end_date'] as String?;
+    final weeklyScheduleRaw =
+        paymentResult['weekly_schedule'] as List<dynamic>? ?? const [];
+    final packageStartDate = DateTime.tryParse(packageStartDateRaw ?? '');
+    final packageEndDate = DateTime.tryParse(packageEndDateRaw ?? '');
+    if (studentUid.isEmpty ||
+        tutorUid.isEmpty ||
+        packageStartDate == null ||
+        packageEndDate == null ||
+        weeklyScheduleRaw.isEmpty) {
+      return;
+    }
+
+    final weeklySlots = _normalizeWeeklySlots(
+      weeklyScheduleRaw
+          .whereType<Map>()
+          .map(
+            (slot) => BookingWeeklySlot.fromMap(
+              Map<String, dynamic>.from(slot),
+            ),
+          )
+          .toList(growable: false),
+    );
+    final generatedSessions = _generateSessionsForPackage(
+      studentUid: studentUid,
+      tutorUid: tutorUid,
+      packageStartDate: packageStartDate,
+      packageEndDate: packageEndDate,
+      weeklySlots: weeklySlots,
+      durationMinutes: durationMinutes,
+    ).map((session) => {...session, 'booking_id': bookingId}).toList();
+    if (generatedSessions.isEmpty) {
+      return;
+    }
+
+    await _client.from('booking_sessions').upsert(
+      generatedSessions,
+      onConflict: 'booking_id,session_start',
+    );
+  }
+
+  Future<void> _expireStaleBookings({String? bookingId}) async {
+    await _client.rpc(
+      'expire_stale_bookings',
+      params: {'p_booking_id': bookingId},
     );
   }
 

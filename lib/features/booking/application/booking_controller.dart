@@ -62,7 +62,7 @@ final bookingSessionsProvider = StreamProvider.autoDispose
           .watchBookingSessions(bookingId);
     });
 
-final myStudentSessionsProvider = StreamProvider<List<BookingSession>>((ref) {
+final myStudentSessionsStreamProvider = StreamProvider<List<BookingSession>>((ref) {
   final user = ref.watch(authStateProvider).value;
   if (user == null) {
     return const Stream<List<BookingSession>>.empty();
@@ -72,7 +72,7 @@ final myStudentSessionsProvider = StreamProvider<List<BookingSession>>((ref) {
       .watchStudentBookingSessions(user.uid);
 });
 
-final myTutorSessionsProvider = StreamProvider<List<BookingSession>>((ref) {
+final myTutorSessionsStreamProvider = StreamProvider<List<BookingSession>>((ref) {
   final user = ref.watch(authStateProvider).value;
   if (user == null) {
     return const Stream<List<BookingSession>>.empty();
@@ -80,6 +80,32 @@ final myTutorSessionsProvider = StreamProvider<List<BookingSession>>((ref) {
   return ref
       .watch(bookingRepositoryProvider)
       .watchTutorBookingSessions(user.uid);
+});
+
+final myStudentSessionsProvider = Provider<AsyncValue<List<BookingSession>>>((
+  ref,
+) {
+  final bookings = ref.watch(myStudentBookingsProvider);
+  final sessions = ref.watch(myStudentSessionsStreamProvider);
+  return sessions.whenData(
+    (items) => _filterSessionsByVisibleBookings(
+      items,
+      bookings.valueOrNull ?? const [],
+    ),
+  );
+});
+
+final myTutorSessionsProvider = Provider<AsyncValue<List<BookingSession>>>((
+  ref,
+) {
+  final bookings = ref.watch(myTutorBookingsProvider);
+  final sessions = ref.watch(myTutorSessionsStreamProvider);
+  return sessions.whenData(
+    (items) => _filterSessionsByVisibleBookings(
+      items,
+      bookings.valueOrNull ?? const [],
+    ),
+  );
 });
 
 final myTutorPendingHomeworkProvider =
@@ -91,6 +117,17 @@ final myTutorPendingHomeworkProvider =
       return ref
           .watch(bookingRepositoryProvider)
           .watchTutorPendingHomeworkRecords(user.uid);
+    });
+
+final myStudentLearningRecordsProvider =
+    StreamProvider<List<SessionLearningRecord>>((ref) {
+      final user = ref.watch(authStateProvider).value;
+      if (user == null) {
+        return const Stream<List<SessionLearningRecord>>.empty();
+      }
+      return ref
+          .watch(bookingRepositoryProvider)
+          .watchStudentLearningRecords(user.uid);
     });
 
 final sessionChangeRequestsProvider = StreamProvider.autoDispose
@@ -232,6 +269,18 @@ class BookingController {
     return _runLoadingTask(() => _repository.markSessionDoneByTutor(sessionId));
   }
 
+  Future<void> markStudentNoShow(String sessionId) {
+    return _runLoadingTask(
+      () => _repository.markStudentNoShowByTutor(sessionId),
+    );
+  }
+
+  Future<void> markTutorNoShow(String sessionId) {
+    return _runLoadingTask(
+      () => _repository.markTutorNoShowByStudent(sessionId),
+    );
+  }
+
   Future<void> confirmSessionByStudent({
     required String sessionId,
     int? rating,
@@ -360,6 +409,32 @@ class BookingController {
   }
 }
 
+List<BookingSession> _filterSessionsByVisibleBookings(
+  List<BookingSession> sessions,
+  List<BookingItem> bookings,
+) {
+  final visibleBookingIds = bookings
+      .where(_shouldExposeBookingSessions)
+      .map((booking) => booking.id)
+      .toSet();
+  return sessions
+      .where((session) => visibleBookingIds.contains(session.bookingId))
+      .toList(growable: false);
+}
+
+bool _shouldExposeBookingSessions(BookingItem booking) {
+  switch (booking.status) {
+    case BookingStatus.pending:
+    case BookingStatus.rejected:
+    case BookingStatus.cancelled:
+      return false;
+    case BookingStatus.awaitingPayment:
+    case BookingStatus.paid:
+    case BookingStatus.completed:
+      return true;
+  }
+}
+
 bool isStudentUpcomingBooking(BookingItem item, {DateTime? now}) {
   final reference = now ?? DateTime.now();
   final activeStatus =
@@ -404,7 +479,7 @@ bool canTransitionBookingStatus({
     case BookingStatus.awaitingPayment:
       return to == BookingStatus.paid || to == BookingStatus.cancelled;
     case BookingStatus.paid:
-      return to == BookingStatus.completed || to == BookingStatus.cancelled;
+      return to == BookingStatus.cancelled;
     case BookingStatus.rejected:
     case BookingStatus.completed:
     case BookingStatus.cancelled:

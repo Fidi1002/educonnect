@@ -1,3 +1,4 @@
+import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/booking/application/booking_controller.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
@@ -54,15 +55,11 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
         data: (items) {
           final now = DateTime.now();
           final upcoming =
-              items
-                  .where((item) => isStudentUpcomingBooking(item, now: now))
-                  .toList()
+              items.where((item) => isStudentUpcomingBooking(item, now: now)).toList()
                 ..sort((a, b) => a.sessionStart.compareTo(b.sessionStart));
           _bringFocusedBookingToFront(upcoming, focusedBookingId);
           final history =
-              items
-                  .where((item) => !isStudentUpcomingBooking(item, now: now))
-                  .toList()
+              items.where((item) => !isStudentUpcomingBooking(item, now: now)).toList()
                 ..sort((a, b) => b.sessionStart.compareTo(a.sessionStart));
           _bringFocusedBookingToFront(history, focusedBookingId);
           final initialTab = history.any((item) => item.id == focusedBookingId)
@@ -79,6 +76,11 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
             initialIndex: initialTab,
             child: Column(
               children: [
+                _StudentBookingOverview(
+                  allItems: items,
+                  upcomingItems: upcoming,
+                  historyItems: history,
+                ),
                 const TabBar(
                   tabs: [
                     Tab(text: 'Akan Datang'),
@@ -112,8 +114,9 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => _RetryState(
+        loading: () =>
+            const AppLoadingState(message: 'Memuat jadwal belajar...', fullScreen: false),
+        error: (error, _) => AppErrorState(
           message: 'Gagal memuat jadwal saya.',
           detail: error.toString(),
           onRetry: () => ref.invalidate(myStudentBookingsProvider),
@@ -135,7 +138,6 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
       return;
     }
 
-    // Wait until widgets mount, then smooth-scroll the focused session into view.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ctx = focusedSessionKey.currentContext;
       if (ctx == null || !mounted) {
@@ -187,6 +189,157 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
   }
 }
 
+class _StudentBookingOverview extends StatelessWidget {
+  const _StudentBookingOverview({
+    required this.allItems,
+    required this.upcomingItems,
+    required this.historyItems,
+  });
+
+  final List<BookingItem> allItems;
+  final List<BookingItem> upcomingItems;
+  final List<BookingItem> historyItems;
+
+  @override
+  Widget build(BuildContext context) {
+    final awaitingPayment = allItems
+        .where((item) => item.status == BookingStatus.awaitingPayment)
+        .length;
+    final active = allItems.where((item) => item.status == BookingStatus.paid).length;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF7F0FE), Color(0xFFFFFFFF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: const Color(0xFFE7D8F5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Ringkasan Booking Belajar',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Pantau paket aktif, pembayaran, status sesi, dan riwayat belajar dari satu tempat.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: const Color(0xFF756E81)),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _OverviewMetricPill(
+                  label: 'Akan datang',
+                  value: '${upcomingItems.length}',
+                  accent: const Color(0xFF4B176E),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _OverviewMetricPill(
+                  label: 'Aktif',
+                  value: '$active',
+                  accent: const Color(0xFF0F766E),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _OverviewMetricPill(
+                  label: 'Riwayat',
+                  value: '${historyItems.length}',
+                  accent: const Color(0xFF9A6700),
+                ),
+              ),
+            ],
+          ),
+          if (awaitingPayment > 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF5DD),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.payments_outlined,
+                    color: Color(0xFF9A6700),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '$awaitingPayment booking masih menunggu pembayaran agar jadwal aktif penuh.',
+                      style: const TextStyle(
+                        color: Color(0xFF6F5200),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _OverviewMetricPill extends StatelessWidget {
+  const _OverviewMetricPill({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: accent,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF736A81),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BookingList extends StatelessWidget {
   const _BookingList({
     required this.items,
@@ -207,7 +360,11 @@ class _BookingList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return _EmptyState(message: emptyMessage);
+      return AppEmptyState(
+        message: emptyMessage,
+        hint: 'Saat booking aktif atau riwayat kelas tersedia, semuanya akan muncul di sini.',
+        icon: Icons.menu_book_outlined,
+      );
     }
 
     return ListView.separated(
@@ -281,20 +438,56 @@ class _BookingCard extends ConsumerWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    item.subject,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.subject,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tutor: ${item.tutorName.isEmpty ? item.tutorUid : item.tutorName}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF776F84),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Chip(label: Text(item.status.label)),
+                _BookingStatusBadge(status: item.status),
               ],
             ),
-            Text(
-              'Tutor: ${item.tutorName.isEmpty ? item.tutorUid : item.tutorName}',
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _InfoChip(
+                  icon: Icons.calendar_month_outlined,
+                  label:
+                      '${item.packageMonths} bulan • ${item.sessionsPerWeek}x/minggu',
+                ),
+                _InfoChip(
+                  icon: Icons.schedule_rounded,
+                  label:
+                      '${item.sessionStart.day}/${item.sessionStart.month}/${item.sessionStart.year} ${item.sessionStart.hour.toString().padLeft(2, '0')}:${item.sessionStart.minute.toString().padLeft(2, '0')}',
+                ),
+                _InfoChip(
+                  icon: Icons.payments_outlined,
+                  label: item.paidAt == null
+                      ? 'Menunggu pembayaran'
+                      : 'Pembayaran tuntas',
+                  accent: item.paidAt == null
+                      ? const Color(0xFF9A6700)
+                      : const Color(0xFF0F766E),
+                ),
+              ],
             ),
-            Text(
-              'Paket: ${item.packageMonths} bulan • ${item.sessionsPerWeek}x/minggu',
-            ),
+            const SizedBox(height: 10),
             Text(
               'Periode: ${item.packageStartDate.day}/${item.packageStartDate.month}/${item.packageStartDate.year}'
               ' - ${item.packageEndDate.day}/${item.packageEndDate.month}/${item.packageEndDate.year}',
@@ -303,10 +496,6 @@ class _BookingCard extends ConsumerWidget {
               Text(
                 'Jadwal tetap: ${item.weeklySchedule.map((slot) => '${slot.weekdayLabel} ${slot.timeLabel}').join(' • ')}',
               ),
-            Text(
-              'Jadwal: ${item.sessionStart.day}/${item.sessionStart.month}/${item.sessionStart.year} '
-              '${item.sessionStart.hour.toString().padLeft(2, '0')}:${item.sessionStart.minute.toString().padLeft(2, '0')}',
-            ),
             Text('Durasi: ${item.durationMinutes} menit'),
             Text('Biaya: Rp ${item.totalAmount}'),
             if (item.paidAt != null)
@@ -329,7 +518,11 @@ class _BookingCard extends ConsumerWidget {
             sessionsAsync.when(
               data: (sessions) {
                 if (sessions.isEmpty) {
-                  return const Text('Belum ada data pertemuan.');
+                  return const AppEmptyState(
+                    message: 'Belum ada data pertemuan.',
+                    hint: 'Sesi akan tampil setelah booking diproses dan jadwal terbentuk.',
+                    icon: Icons.event_busy_outlined,
+                  );
                 }
                 final confirmedCount = sessions
                     .where(
@@ -347,273 +540,228 @@ class _BookingCard extends ConsumerWidget {
                 );
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children:
-                      shortlist.map((session) {
-                        final isFocusedSession =
-                            focusedSessionId != null &&
-                            focusedSessionId!.isNotEmpty &&
-                            session.id == focusedSessionId;
-                        final request = _findPendingRequest(
-                          session.id,
-                          requestsAsync.valueOrNull ?? const [],
+                  children: shortlist.map((session) {
+                    final isFocusedSession =
+                        focusedSessionId != null &&
+                        focusedSessionId!.isNotEmpty &&
+                        session.id == focusedSessionId;
+                    final request = _findPendingRequest(
+                      session.id,
+                      requestsAsync.valueOrNull ?? const [],
+                    );
+                    final learningRecord = _findLearningRecord(
+                      session.id,
+                      learningAsync.valueOrNull ?? const [],
+                    );
+                    final canConfirm =
+                        session.status ==
+                        BookingSessionStatus.donePendingConfirmation;
+                    final canRequestChange =
+                        request == null &&
+                        session.status == BookingSessionStatus.scheduled &&
+                        session.sessionStart.isAfter(DateTime.now());
+                    final canConfirmPresence =
+                        session.studentPresenceConfirmedAt == null &&
+                        session.status == BookingSessionStatus.scheduled &&
+                        session.sessionStart.isAfter(DateTime.now()) &&
+                        session.sessionStart.isBefore(
+                          DateTime.now().add(const Duration(hours: 24)),
                         );
-                        final learningRecord = _findLearningRecord(
-                          session.id,
-                          learningAsync.valueOrNull ?? const [],
-                        );
-                        final canConfirm =
-                            session.status ==
-                            BookingSessionStatus.donePendingConfirmation;
-                        final canRequestChange =
-                            request == null &&
-                            session.status == BookingSessionStatus.scheduled &&
-                            session.sessionStart.isAfter(DateTime.now());
-                        final canConfirmPresence =
-                            session.studentPresenceConfirmedAt == null &&
-                            session.status == BookingSessionStatus.scheduled &&
-                            session.sessionStart.isAfter(DateTime.now()) &&
-                            session.sessionStart.isBefore(
-                              DateTime.now().add(const Duration(hours: 24)),
-                            );
-                        final canSubmitHomework =
-                            learningRecord != null &&
-                            learningRecord.homeworkStatus ==
-                                HomeworkStatus.assigned;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 220),
-                            key: isFocusedSession ? focusedSessionKey : null,
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              color: isFocusedSession
-                                  ? const Color(0xFFF8F0FF)
-                                  : Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceContainerHigh,
-                              border: isFocusedSession
-                                  ? Border.all(
-                                      color: const Color(0xFF7B2CBF),
-                                      width: 1.4,
-                                    )
-                                  : null,
+                    final canMarkTutorNoShow =
+                        session.status == BookingSessionStatus.scheduled &&
+                        session.sessionEnd.isBefore(DateTime.now());
+                    final canSubmitHomework =
+                        learningRecord != null &&
+                        learningRecord.homeworkStatus ==
+                            HomeworkStatus.assigned;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        key: isFocusedSession ? focusedSessionKey : null,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          color: isFocusedSession
+                              ? const Color(0xFFF8F0FF)
+                              : Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHigh,
+                          border: isFocusedSession
+                              ? Border.all(
+                                  color: const Color(0xFF7B2CBF),
+                                  width: 1.4,
+                                )
+                              : null,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${session.sessionStart.day}/${session.sessionStart.month} '
+                              '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
+                              ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
+                              style: const TextStyle(fontWeight: FontWeight.w700),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${session.sessionStart.day}/${session.sessionStart.month} '
-                                  '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
-                                  ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
+                            const SizedBox(height: 6),
+                            _SessionStatusBadge(status: session.status),
+                            if (isFocusedSession) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Status: ${session.status.label}',
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEEDCFF),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: const Text(
+                                  'Sesi dari notifikasi',
+                                  style: TextStyle(
+                                    color: Color(0xFF6B21A8),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (session.studentPresenceConfirmedAt != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text(
+                                  'Hadir dikonfirmasi '
+                                  '${session.studentPresenceConfirmedAt!.hour.toString().padLeft(2, '0')}:'
+                                  '${session.studentPresenceConfirmedAt!.minute.toString().padLeft(2, '0')}',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
-                                if (session.studentPresenceConfirmedAt != null)
-                                  Text(
-                                    'Hadir dikonfirmasi '
-                                    '${session.studentPresenceConfirmedAt!.hour.toString().padLeft(2, '0')}:'
-                                    '${session.studentPresenceConfirmedAt!.minute.toString().padLeft(2, '0')}',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
-                                  ),
-                                if (learningRecord != null) ...[
-                                  const SizedBox(height: 8),
-                                  if (learningRecord.hasMaterial)
+                              ),
+                            if (learningRecord != null &&
+                                (learningRecord.hasMaterial ||
+                                    learningRecord.hasHomework)) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.68),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                     Text(
-                                      'Materi: ${learningRecord.materialSummary}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
+                                      'Learning Journal',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.labelLarge?.copyWith(
+                                        color: const Color(0xFF4B176E),
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
-                                  if (learningRecord.materialNotes
-                                      .trim()
-                                      .isNotEmpty)
-                                    Text(
-                                      'Catatan: ${learningRecord.materialNotes}',
-                                    ),
-                                  if (learningRecord.hasHomework) ...[
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      'PR: ${learningRecord.homeworkTitle}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    if (learningRecord.homeworkDescription
-                                        .trim()
-                                        .isNotEmpty)
-                                      Text(learningRecord.homeworkDescription),
-                                    Text(
-                                      'Status PR: ${learningRecord.homeworkStatus.label}',
-                                    ),
-                                    if (learningRecord.studentSubmission
-                                        .trim()
-                                        .isNotEmpty)
+                                    if (learningRecord.hasMaterial) ...[
+                                      const SizedBox(height: 6),
                                       Text(
-                                        'Jawaban saya: ${learningRecord.studentSubmission}',
-                                      ),
-                                  ],
-                                ],
-                                if (request != null) ...[
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Request ${request.requestType} menunggu persetujuan',
-                                    style: const TextStyle(
-                                      color: Color(0xFF8C4BC0),
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  if (request.targetUid == currentUid) ...[
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: OutlinedButton(
-                                            onPressed: paymentLoading
-                                                ? null
-                                                : () => ref
-                                                      .read(
-                                                        bookingControllerProvider,
-                                                      )
-                                                      .respondSessionChangeRequest(
-                                                        requestId: request.id,
-                                                        approved: false,
-                                                      ),
-                                            child: const Text('Tolak'),
-                                          ),
+                                        'Materi: ${learningRecord.materialSummary}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
                                         ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: FilledButton(
-                                            onPressed: paymentLoading
-                                                ? null
-                                                : () => ref
-                                                      .read(
-                                                        bookingControllerProvider,
-                                                      )
-                                                      .respondSessionChangeRequest(
-                                                        requestId: request.id,
-                                                        approved: true,
-                                                      ),
-                                            child: const Text('Setujui'),
-                                          ),
+                                      ),
+                                    ],
+                                    if (learningRecord.materialNotes
+                                        .trim()
+                                        .isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Catatan: ${learningRecord.materialNotes}',
+                                      ),
+                                    ],
+                                    if (learningRecord.hasHomework) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'PR: ${learningRecord.homeworkTitle}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      if (learningRecord.homeworkDescription
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          learningRecord.homeworkDescription,
                                         ),
                                       ],
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Status PR: ${learningRecord.homeworkStatus.label}',
+                                      ),
+                                      if (learningRecord.studentSubmission
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Jawaban saya: ${learningRecord.studentSubmission}',
+                                        ),
+                                      ],
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                            if (request != null) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                'Request ${request.requestType} menunggu persetujuan',
+                                style: const TextStyle(
+                                  color: Color(0xFF8C4BC0),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (request.targetUid == currentUid) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: paymentLoading
+                                            ? null
+                                            : () => ref
+                                                  .read(
+                                                    bookingControllerProvider,
+                                                  )
+                                                  .respondSessionChangeRequest(
+                                                    requestId: request.id,
+                                                    approved: false,
+                                                  ),
+                                        child: const Text('Tolak'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: FilledButton(
+                                        onPressed: paymentLoading
+                                            ? null
+                                            : () => ref
+                                                  .read(
+                                                    bookingControllerProvider,
+                                                  )
+                                                  .respondSessionChangeRequest(
+                                                    requestId: request.id,
+                                                    approved: true,
+                                                  ),
+                                        child: const Text('Setujui'),
+                                      ),
                                     ),
                                   ],
-                                ],
-                                if (canConfirm) ...[
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          onPressed: paymentLoading
-                                              ? null
-                                              : () async {
-                                                  await ref
-                                                      .read(
-                                                        bookingControllerProvider,
-                                                      )
-                                                      .disputeSessionByStudent(
-                                                        session.id,
-                                                      );
-                                                  if (!context.mounted) {
-                                                    return;
-                                                  }
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        'Sesi ditandai dispute. Tutor akan ditinjau.',
-                                                      ),
-                                                    ),
-                                                  );
-                                                },
-                                          child: const Text('Tidak Berjalan'),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: FilledButton(
-                                          onPressed: paymentLoading
-                                              ? null
-                                              : () async {
-                                                  try {
-                                                    await _showConfirmDialog(
-                                                      context: context,
-                                                      ref: ref,
-                                                      sessionId: session.id,
-                                                    );
-                                                  } on Exception catch (error) {
-                                                    if (!context.mounted) {
-                                                      return;
-                                                    }
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          'Gagal konfirmasi sesi: ${error.toString()}',
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }
-                                                },
-                                          child: const Text('Konfirmasi'),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                                if (canRequestChange) ...[
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          onPressed: paymentLoading
-                                              ? null
-                                              : () => _showCancelRequestDialog(
-                                                  context: context,
-                                                  ref: ref,
-                                                  sessionId: session.id,
-                                                ),
-                                          child: const Text('Ajukan Batal'),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: FilledButton(
-                                          onPressed: paymentLoading
-                                              ? null
-                                              : () =>
-                                                    _showRescheduleRequestDialog(
-                                                      context: context,
-                                                      ref: ref,
-                                                      sessionId: session.id,
-                                                      durationMinutes:
-                                                          item.durationMinutes,
-                                                    ),
-                                          child: const Text(
-                                            'Ajukan Reschedule',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                                if (canConfirmPresence) ...[
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: FilledButton.icon(
+                                ),
+                              ],
+                            ],
+                            if (canConfirm) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
                                       onPressed: paymentLoading
                                           ? null
                                           : () async {
@@ -621,79 +769,231 @@ class _BookingCard extends ConsumerWidget {
                                                   .read(
                                                     bookingControllerProvider,
                                                   )
-                                                  .confirmSessionPresence(
+                                                  .disputeSessionByStudent(
                                                     session.id,
                                                   );
                                               if (!context.mounted) {
                                                 return;
                                               }
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
+                                              ScaffoldMessenger.of(context).showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
-                                                    'Kehadiran berhasil dikonfirmasi.',
+                                                    'Sesi ditandai dispute. Tutor akan ditinjau.',
                                                   ),
                                                 ),
                                               );
                                             },
-                                      icon: const Icon(
-                                        Icons.how_to_reg_outlined,
-                                      ),
-                                      label: Text(
-                                        isFocusedSession
-                                            ? 'Konfirmasi Hadir (Sesi Ini)'
-                                            : 'Konfirmasi Hadir',
-                                      ),
+                                      child: const Text('Tidak Berjalan'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: FilledButton(
+                                      onPressed: paymentLoading
+                                          ? null
+                                          : () async {
+                                              try {
+                                                await _showConfirmDialog(
+                                                  context: context,
+                                                  ref: ref,
+                                                  sessionId: session.id,
+                                                );
+                                              } on Exception catch (error) {
+                                                if (!context.mounted) {
+                                                  return;
+                                                }
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      'Gagal konfirmasi sesi: ${error.toString()}',
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                      child: const Text('Konfirmasi'),
                                     ),
                                   ),
                                 ],
-                                if (canSubmitHomework) ...[
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: FilledButton.tonalIcon(
+                              ),
+                            ],
+                            if (canMarkTutorNoShow) ...[
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: OutlinedButton.icon(
+                                  onPressed: paymentLoading
+                                      ? null
+                                      : () async {
+                                          try {
+                                            await ref
+                                                .read(
+                                                  bookingControllerProvider,
+                                                )
+                                                .markTutorNoShow(session.id);
+                                            if (!context.mounted) {
+                                              return;
+                                            }
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Sesi ditandai tutor tidak hadir.',
+                                                ),
+                                              ),
+                                            );
+                                          } on Exception catch (error) {
+                                            if (!context.mounted) {
+                                              return;
+                                            }
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Gagal menandai no-show: ${error.toString()}',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                  icon: const Icon(Icons.person_off_outlined),
+                                  label: const Text('Tutor Tidak Hadir'),
+                                ),
+                              ),
+                            ],
+                            if (canRequestChange) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
                                       onPressed: paymentLoading
                                           ? null
-                                          : () => _showHomeworkSubmitDialog(
+                                          : () => _showCancelRequestDialog(
                                               context: context,
                                               ref: ref,
                                               sessionId: session.id,
                                             ),
-                                      icon: const Icon(
-                                        Icons.assignment_turned_in,
-                                      ),
-                                      label: const Text('Kumpulkan PR'),
+                                      child: const Text('Ajukan Batal'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: FilledButton(
+                                      onPressed: paymentLoading
+                                          ? null
+                                          : () =>
+                                                _showRescheduleRequestDialog(
+                                                  context: context,
+                                                  ref: ref,
+                                                  sessionId: session.id,
+                                                  durationMinutes:
+                                                      item.durationMinutes,
+                                                ),
+                                      child: const Text('Ajukan Reschedule'),
                                     ),
                                   ),
                                 ],
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList()..insert(
-                        0,
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Progress: $confirmedCount/${sessions.length} sesi',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
+                              ),
+                            ],
+                            if (canConfirmPresence) ...[
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: FilledButton.icon(
+                                  onPressed: paymentLoading
+                                      ? null
+                                      : () async {
+                                          await ref
+                                              .read(bookingControllerProvider)
+                                              .confirmSessionPresence(session.id);
+                                          if (!context.mounted) {
+                                            return;
+                                          }
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Kehadiran berhasil dikonfirmasi.',
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                  icon: const Icon(Icons.how_to_reg_outlined),
+                                  label: Text(
+                                    isFocusedSession
+                                        ? 'Konfirmasi Hadir (Sesi Ini)'
+                                        : 'Konfirmasi Hadir',
                                   ),
                                 ),
                               ),
-                              Text('$progressPercent%'),
                             ],
-                          ),
+                            if (canSubmitHomework) ...[
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: FilledButton.tonalIcon(
+                                  onPressed: paymentLoading
+                                      ? null
+                                      : () => _showHomeworkSubmitDialog(
+                                          context: context,
+                                          ref: ref,
+                                          sessionId: session.id,
+                                        ),
+                                  icon: const Icon(Icons.assignment_turned_in),
+                                  label: const Text('Kumpulkan PR'),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
+                    );
+                  }).toList()
+                    ..insert(
+                      0,
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Progress: $confirmedCount/${sessions.length} sesi',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                Text('$progressPercent%'),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(999),
+                              child: LinearProgressIndicator(
+                                minHeight: 8,
+                                value: confirmedCount / sessions.length,
+                                backgroundColor: const Color(0xFFE9E3F2),
+                                valueColor:
+                                    const AlwaysStoppedAnimation<Color>(
+                                      Color(0xFF4B176E),
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 );
               },
-              loading: () => const LinearProgressIndicator(),
-              error: (error, _) => Text('Gagal memuat sesi: $error'),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: LinearProgressIndicator(),
+              ),
+              error: (error, _) => AppErrorState(
+                message: 'Gagal memuat sesi belajar.',
+                detail: error.toString(),
+                fullScreen: false,
+              ),
             ),
             const SizedBox(height: 10),
             if (onPayDummy != null)
@@ -1045,58 +1345,152 @@ class _BookingCard extends ConsumerWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.message});
+class _BookingStatusBadge extends StatelessWidget {
+  const _BookingStatusBadge({required this.status});
 
-  final String message;
+  final BookingStatus status;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(message, textAlign: TextAlign.center),
+    final colors = switch (status) {
+      BookingStatus.pending => (
+        const Color(0xFFFFF3D5),
+        const Color(0xFF9A6700),
+      ),
+      BookingStatus.awaitingPayment => (
+        const Color(0xFFFFF0E5),
+        const Color(0xFFB45309),
+      ),
+      BookingStatus.paid => (
+        const Color(0xFFE7F8F1),
+        const Color(0xFF0F766E),
+      ),
+      BookingStatus.completed => (
+        const Color(0xFFE9E8FF),
+        const Color(0xFF4C1D95),
+      ),
+      BookingStatus.rejected => (
+        const Color(0xFFFCE7E7),
+        const Color(0xFFB91C1C),
+      ),
+      BookingStatus.cancelled => (
+        const Color(0xFFEDEBF2),
+        const Color(0xFF5B5563),
+      ),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: colors.$1,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        status.label,
+        style: TextStyle(
+          color: colors.$2,
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+        ),
       ),
     );
   }
 }
 
-class _RetryState extends StatelessWidget {
-  const _RetryState({
-    required this.message,
-    required this.detail,
-    required this.onRetry,
-  });
+class _SessionStatusBadge extends StatelessWidget {
+  const _SessionStatusBadge({required this.status});
 
-  final String message;
-  final String detail;
-  final VoidCallback onRetry;
+  final BookingSessionStatus status;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline),
-            const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            Text(
-              detail,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Coba lagi'),
-            ),
-          ],
+    final colors = switch (status) {
+      BookingSessionStatus.scheduled => (
+        const Color(0xFFE6F3FF),
+        const Color(0xFF0C4A6E),
+      ),
+      BookingSessionStatus.donePendingConfirmation => (
+        const Color(0xFFFFF3D5),
+        const Color(0xFF9A6700),
+      ),
+      BookingSessionStatus.confirmed => (
+        const Color(0xFFE7F8F1),
+        const Color(0xFF0F766E),
+      ),
+      BookingSessionStatus.disputedPending => (
+        const Color(0xFFFCE7E7),
+        const Color(0xFFB91C1C),
+      ),
+      BookingSessionStatus.disputedResolved => (
+        const Color(0xFFEDE9FE),
+        const Color(0xFF6D28D9),
+      ),
+      BookingSessionStatus.cancelledByStudent ||
+      BookingSessionStatus.cancelledByTutor ||
+      BookingSessionStatus.cancelledEarly ||
+      BookingSessionStatus.cancelledLate => (
+        const Color(0xFFEDEBF2),
+        const Color(0xFF5B5563),
+      ),
+      BookingSessionStatus.rescheduled => (
+        const Color(0xFFE0F2FE),
+        const Color(0xFF0369A1),
+      ),
+      BookingSessionStatus.studentNoShow || BookingSessionStatus.tutorNoShow => (
+        const Color(0xFFFCE7E7),
+        const Color(0xFF9F1239),
+      ),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: colors.$1,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        status.label,
+        style: TextStyle(
+          color: colors.$2,
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
         ),
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    this.accent = const Color(0xFF4B176E),
+  });
+
+  final IconData icon;
+  final String label;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: accent),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: accent,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }

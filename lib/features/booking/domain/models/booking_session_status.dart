@@ -72,6 +72,25 @@ extension BookingSessionStatusX on BookingSessionStatus {
     }
   }
 
+  bool get isTerminal {
+    switch (this) {
+      case BookingSessionStatus.scheduled:
+      case BookingSessionStatus.donePendingConfirmation:
+      case BookingSessionStatus.disputedPending:
+        return false;
+      case BookingSessionStatus.confirmed:
+      case BookingSessionStatus.disputedResolved:
+      case BookingSessionStatus.cancelledByStudent:
+      case BookingSessionStatus.cancelledByTutor:
+      case BookingSessionStatus.cancelledEarly:
+      case BookingSessionStatus.cancelledLate:
+      case BookingSessionStatus.rescheduled:
+      case BookingSessionStatus.studentNoShow:
+      case BookingSessionStatus.tutorNoShow:
+        return true;
+    }
+  }
+
   static BookingSessionStatus fromValue(String? value) {
     switch (value) {
       case 'done_pending_confirmation':

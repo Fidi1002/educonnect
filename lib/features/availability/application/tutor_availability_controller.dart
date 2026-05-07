@@ -78,6 +78,21 @@ class TutorAvailabilityController {
     }
 
     final tutorUid = _requireUid();
+    final existingSlots = await _repository.fetchTutorAvailability(tutorUid);
+    final hasOverlap = existingSlots.any((slot) {
+      if (slot.weekday != weekday) {
+        return false;
+      }
+      final existingStart = _timeToMinutes(slot.startTime);
+      final existingEnd = _timeToMinutes(slot.endTime);
+      return start < existingEnd && end > existingStart;
+    });
+    if (hasOverlap) {
+      throw ArgumentError(
+        'Slot bentrok dengan jadwal yang sudah ada di hari yang sama.',
+      );
+    }
+
     await _runLoadingTask(
       () => _repository.addAvailabilitySlot(
         tutorUid: tutorUid,
@@ -99,5 +114,12 @@ class TutorAvailabilityController {
     } finally {
       _ref.read(tutorAvailabilityLoadingProvider.notifier).state = false;
     }
+  }
+
+  int _timeToMinutes(String value) {
+    final parts = value.split(':');
+    final hour = parts.isNotEmpty ? int.tryParse(parts[0]) ?? 0 : 0;
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    return (hour * 60) + minute;
   }
 }

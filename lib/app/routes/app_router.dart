@@ -11,11 +11,13 @@ import 'package:educonnect/features/chat/presentation/pages/chat_page.dart';
 import 'package:educonnect/features/chat/presentation/pages/inbox_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_ebook_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_home_page.dart';
+import 'package:educonnect/features/home/presentation/pages/student_learning_journal_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_profile_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_shell_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_study_calendar_page.dart';
 import 'package:educonnect/features/home/presentation/pages/tutor_home_page.dart';
 import 'package:educonnect/features/home/presentation/pages/tutor_list_page.dart';
+import 'package:educonnect/features/home/presentation/pages/tutor_shell_page.dart';
 import 'package:educonnect/features/home/presentation/pages/tutor_students_page.dart';
 import 'package:educonnect/features/home/presentation/pages/tutor_study_calendar_page.dart';
 import 'package:educonnect/features/notifications/presentation/pages/notifications_page.dart';
@@ -116,6 +118,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const StudentBookingsPage(),
           ),
           GoRoute(
+            path: StudentLearningJournalPage.routePath,
+            name: StudentLearningJournalPage.routeName,
+            builder: (context, state) => const StudentLearningJournalPage(),
+          ),
+          GoRoute(
             path: StudentEbookPage.routePath,
             name: StudentEbookPage.routeName,
             builder: (context, state) => const StudentEbookPage(),
@@ -132,35 +139,50 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      GoRoute(
-        path: TutorHomePage.routePath,
-        name: TutorHomePage.routeName,
-        builder: (context, state) => const TutorHomePage(),
-      ),
-      GoRoute(
-        path: TutorStudyCalendarPage.routePath,
-        name: TutorStudyCalendarPage.routeName,
-        builder: (context, state) => const TutorStudyCalendarPage(),
-      ),
-      GoRoute(
-        path: TutorStudentsPage.routePath,
-        name: TutorStudentsPage.routeName,
-        builder: (context, state) => const TutorStudentsPage(),
+      ShellRoute(
+        builder: (context, state, child) {
+          return TutorShellPage(
+            currentLocation: state.matchedLocation,
+            child: child,
+          );
+        },
+        routes: [
+          GoRoute(
+            path: TutorHomePage.routePath,
+            name: TutorHomePage.routeName,
+            builder: (context, state) => const TutorHomePage(),
+          ),
+          GoRoute(
+            path: TutorStudentsPage.routePath,
+            name: TutorStudentsPage.routeName,
+            builder: (context, state) => const TutorStudentsPage(),
+          ),
+          GoRoute(
+            path: TutorBookingsPage.routePath,
+            name: TutorBookingsPage.routeName,
+            builder: (context, state) => const TutorBookingsPage(),
+          ),
+          GoRoute(
+            path: TutorProfileFormPage.routePath,
+            name: TutorProfileFormPage.routeName,
+            builder: (context, state) => const TutorProfileFormPage(),
+          ),
+          GoRoute(
+            path: TutorStudyCalendarPage.routePath,
+            name: TutorStudyCalendarPage.routeName,
+            builder: (context, state) => const TutorStudyCalendarPage(),
+          ),
+          GoRoute(
+            path: TutorAvailabilityPage.routePath,
+            name: TutorAvailabilityPage.routeName,
+            builder: (context, state) => const TutorAvailabilityPage(),
+          ),
+        ],
       ),
       GoRoute(
         path: NotificationsPage.routePath,
         name: NotificationsPage.routeName,
         builder: (context, state) => const NotificationsPage(),
-      ),
-      GoRoute(
-        path: TutorBookingsPage.routePath,
-        name: TutorBookingsPage.routeName,
-        builder: (context, state) => const TutorBookingsPage(),
-      ),
-      GoRoute(
-        path: TutorAvailabilityPage.routePath,
-        name: TutorAvailabilityPage.routeName,
-        builder: (context, state) => const TutorAvailabilityPage(),
       ),
       GoRoute(
         path: InboxPage.routePath,
@@ -174,11 +196,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           final bookingId = state.pathParameters['bookingId'] ?? '';
           return ChatPage(bookingId: bookingId);
         },
-      ),
-      GoRoute(
-        path: TutorProfileFormPage.routePath,
-        name: TutorProfileFormPage.routeName,
-        builder: (context, state) => const TutorProfileFormPage(),
       ),
     ],
   );

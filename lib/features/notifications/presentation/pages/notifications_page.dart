@@ -1,3 +1,4 @@
+import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/booking/presentation/pages/student_bookings_page.dart';
@@ -59,7 +60,12 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       body: notificationsAsync.when(
         data: (items) {
           if (items.isEmpty) {
-            return const Center(child: Text('Belum ada notifikasi.'));
+            return const AppEmptyState(
+              message: 'Belum ada notifikasi.',
+              hint: 'Update booking, sesi, dan pengingat akan muncul di sini.',
+              icon: Icons.notifications_none_outlined,
+              fullScreen: true,
+            );
           }
           final sections = _groupByDay(items);
           return ListView.builder(
@@ -108,9 +114,13 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) =>
-            Center(child: Text('Gagal memuat notifikasi: $error')),
+        loading: () => const AppLoadingState(message: 'Memuat notifikasi...'),
+        error: (error, _) => AppErrorState(
+          message: 'Gagal memuat notifikasi.',
+          detail: error.toString(),
+          onRetry: () => ref.invalidate(myNotificationsProvider),
+          fullScreen: true,
+        ),
       ),
     );
   }

@@ -1,8 +1,10 @@
+import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/booking/application/booking_controller.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
 import 'package:educonnect/features/booking/domain/models/booking_session.dart';
 import 'package:educonnect/features/booking/domain/models/booking_session_status.dart';
 import 'package:educonnect/features/booking/presentation/pages/tutor_bookings_page.dart';
+import 'package:educonnect/features/tutor/presentation/widgets/tutor_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,24 +32,39 @@ class _TutorStudyCalendarPageState
     return Scaffold(
       appBar: AppBar(title: const Text('Kalender Mengajar')),
       body: bookingsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) =>
-            Center(child: Text('Gagal memuat booking: $error')),
+        loading: () => const AppLoadingState(
+          message: 'Memuat kalender tutor...',
+          fullScreen: false,
+        ),
+        error: (error, _) => AppErrorState(
+          message: 'Gagal memuat booking tutor.',
+          detail: error.toString(),
+          onRetry: () => ref.invalidate(myTutorBookingsProvider),
+        ),
         data: (bookings) {
           return sessionsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, _) =>
-                Center(child: Text('Gagal memuat sesi: $error')),
+            loading: () => const AppLoadingState(
+              message: 'Memuat sesi mengajar...',
+              fullScreen: false,
+            ),
+            error: (error, _) => AppErrorState(
+              message: 'Gagal memuat sesi mengajar.',
+              detail: error.toString(),
+              onRetry: () => ref.invalidate(myTutorSessionsStreamProvider),
+            ),
             data: (sessions) {
               final bookingMap = <String, BookingItem>{
                 for (final booking in bookings) booking.id: booking,
               };
               final selectedSessions = _onDay(sessions, _selectedDate);
+              final daySummary = _buildDaySummary(selectedSessions);
 
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  Card(
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: TutorUi.raisedCardDecoration(),
                     child: CalendarDatePicker(
                       initialDate: _selectedDate,
                       firstDate: DateTime.now().subtract(
@@ -62,28 +79,25 @@ class _TutorStudyCalendarPageState
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Text(
-                    'Jadwal ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                  _CalendarDayHeader(
+                    selectedDate: _selectedDate,
+                    totalSessions: selectedSessions.length,
+                    summary: daySummary,
                   ),
                   const SizedBox(height: 10),
                   if (selectedSessions.isEmpty)
-                    const Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(14),
-                        child: Text('Tidak ada sesi di tanggal ini.'),
-                      ),
-                    )
+                    const _CalendarEmptyCard()
                   else
                     ...selectedSessions.map((session) {
                       final booking = bookingMap[session.bookingId];
                       final subject = booking?.subject ?? 'Sesi Mengajar';
                       final studentName = booking?.studentName ?? 'Murid';
-                      final statusStyle = _sessionStatusStyle(session.status);
-                      return Card(
-                        child: ListTile(
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _CalendarSessionCard(
+                          session: session,
+                          subject: subject,
+                          studentName: studentName,
                           onTap: () => context.pushNamed(
                             TutorBookingsPage.routeName,
                             queryParameters: {
@@ -91,40 +105,6 @@ class _TutorStudyCalendarPageState
                               'sessionId': session.id,
                             },
                           ),
-                          title: Text(
-                            subject,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
-                                ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
-                              ),
-                              Text('Murid: $studentName'),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: statusStyle.$2,
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(
-                                  statusStyle.$1,
-                                  style: TextStyle(
-                                    color: statusStyle.$3,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          isThreeLine: true,
                         ),
                       );
                     }),
@@ -144,33 +124,188 @@ class _TutorStudyCalendarPageState
     }).toList()..sort((a, b) => a.sessionStart.compareTo(b.sessionStart));
   }
 
-  (String, Color, Color) _sessionStatusStyle(BookingSessionStatus status) {
-    switch (status) {
-      case BookingSessionStatus.scheduled:
-      case BookingSessionStatus.rescheduled:
-        return ('Terjadwal', const Color(0xFFE8F1FF), const Color(0xFF174EA6));
-      case BookingSessionStatus.confirmed:
-      case BookingSessionStatus.disputedResolved:
-        return (
-          'Terkonfirmasi',
-          const Color(0xFFE8F7EE),
-          const Color(0xFF1E7E34),
-        );
-      case BookingSessionStatus.donePendingConfirmation:
-        return (
-          'Menunggu Konfirmasi',
-          const Color(0xFFFFF4E5),
-          const Color(0xFF9A5D00),
-        );
-      case BookingSessionStatus.disputedPending:
-        return ('Dispute', const Color(0xFFFFEBEE), const Color(0xFFB3261E));
-      case BookingSessionStatus.cancelledByStudent:
-      case BookingSessionStatus.cancelledByTutor:
-      case BookingSessionStatus.cancelledEarly:
-      case BookingSessionStatus.cancelledLate:
-      case BookingSessionStatus.studentNoShow:
-      case BookingSessionStatus.tutorNoShow:
-        return ('Dibatalkan', const Color(0xFFF3F4F6), const Color(0xFF4B5563));
+  String _buildDaySummary(List<BookingSession> sessions) {
+    final scheduled = sessions
+        .where((session) => session.status == BookingSessionStatus.scheduled)
+        .length;
+    final waitingConfirm = sessions
+        .where(
+          (session) =>
+              session.status == BookingSessionStatus.donePendingConfirmation,
+        )
+        .length;
+    final disputes = sessions
+        .where(
+          (session) => session.status == BookingSessionStatus.disputedPending,
+        )
+        .length;
+
+    final parts = <String>[];
+    if (scheduled > 0) {
+      parts.add('$scheduled terjadwal');
     }
+    if (waitingConfirm > 0) {
+      parts.add('$waitingConfirm menunggu konfirmasi');
+    }
+    if (disputes > 0) {
+      parts.add('$disputes dispute');
+    }
+
+    if (parts.isEmpty) {
+      return 'Semua sesi pada hari ini sudah berada di status final.';
+    }
+    return parts.join(' | ');
+  }
+}
+
+class _CalendarDayHeader extends StatelessWidget {
+  const _CalendarDayHeader({
+    required this.selectedDate,
+    required this.totalSessions,
+    required this.summary,
+  });
+
+  final DateTime selectedDate;
+  final int totalSessions;
+  final String summary;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: TutorUi.softPanelDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Jadwal ${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(summary),
+          const SizedBox(height: 10),
+          _InfoPill(label: 'Total Sesi', value: '$totalSessions'),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalendarSessionCard extends StatelessWidget {
+  const _CalendarSessionCard({
+    required this.session,
+    required this.subject,
+    required this.studentName,
+    required this.onTap,
+  });
+
+  final BookingSession session;
+  final String subject;
+  final String studentName;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [TutorUi.softShadow],
+      ),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        leading: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE6F0F2),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(Icons.school_outlined, color: Color(0xFF21425B)),
+        ),
+        title: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                subject,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            const SizedBox(width: 8),
+            TutorStatusBadge.session(status: session.status),
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
+                ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
+              ),
+              const SizedBox(height: 4),
+              Text('Murid: $studentName'),
+            ],
+          ),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+      ),
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE5ECF0),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFF21425B),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF21425B),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalendarEmptyCard extends StatelessWidget {
+  const _CalendarEmptyCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const AppEmptyState(
+      message: 'Tidak ada sesi di tanggal ini.',
+      hint: 'Pilih tanggal lain atau cek booking aktif untuk melihat jadwal mengajar.',
+      icon: Icons.event_available_outlined,
+    );
   }
 }

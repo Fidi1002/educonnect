@@ -52,6 +52,9 @@ class StudentShellPage extends StatelessWidget {
     if (location.startsWith('/student/bookings')) {
       return 1;
     }
+    if (location.startsWith('/student/learning-journal')) {
+      return 1;
+    }
     if (location.startsWith('/student/ebooks')) {
       return 2;
     }

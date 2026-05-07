@@ -36,13 +36,14 @@ Entitas utama pemesanan paket belajar.
 - FK: `student_uid` -> `users.uid`, `tutor_uid` -> `tutors.uid`
 - Paket: `package_months` (1/2/3/6), `sessions_per_week` (=2), `weekly_schedule` (JSON array 2 slot)
 - Rentang paket: `package_start_date`, `package_end_date`
+- Hold/expiry: `expires_at` dipakai untuk batas waktu booking `pending` dan `awaiting_payment`
 - Status booking (ringkas): `pending -> awaiting_payment -> paid -> completed` (+ `rejected`, `cancelled`)
 - Validasi database:
   - Trigger `validate_package_booking()` memastikan:
     - weekly_schedule tepat 2 slot
     - slot berada di availability tutor
-    - tidak bentrok dengan murid aktif lain
-    - kapasitas tutor maksimum 2 murid aktif untuk periode overlap
+    - tidak bentrok dengan murid aktif lain atau pending hold yang belum expired
+    - kapasitas tutor maksimum 2 murid aktif/held untuk periode overlap
 
 ### 5) `public.transactions`
 Transaksi pembayaran (dummy) yang terkait booking, per siklus bulanan.
@@ -54,6 +55,7 @@ Transaksi pembayaran (dummy) yang terkait booking, per siklus bulanan.
 Sesi pertemuan aktual yang dihasilkan dari booking paket.
 - FK: `booking_id` -> `bookings.id`, plus `student_uid` dan `tutor_uid`
 - Field penting: `session_start`, `session_end`
+- Lifecycle: sesi baru digenerate setelah booking berstatus `paid`, bukan saat masih `pending`
 - Status sesi (contoh): `scheduled`, `done_pending_confirmation`, `confirmed`, `disputed`, `rescheduled`, `cancelled_*`, `*_no_show`
 - Field reminder/attendance: `student_presence_confirmed_at`, `reminder_h24_sent_at`, `reminder_h2_sent_at`
 - RLS: dapat diakses oleh student/tutor peserta booking.
@@ -95,4 +97,3 @@ Beberapa aksi kompleks disediakan sebagai function (RPC) agar atomic dan aman:
 ## Catatan Keamanan
 - RLS adalah batas keamanan utama. Jangan mematikan RLS pada tabel inti di production.
 - Jika melakukan perubahan status di UI, pastikan server-side trigger tetap menjadi "source of truth" untuk validasi.
-

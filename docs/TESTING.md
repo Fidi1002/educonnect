@@ -26,6 +26,7 @@ Dokumen:
 - `docs/milestone6-e2e-checklist.md` (payment dummy)
 - `docs/milestone7-e2e-checklist.md` (chat + realtime)
 - `docs/milestone8-e2e-checklist.md` (availability + scheduling)
+- `supabase/migrations/202605070001_milestone15_booking_schedule_activation.sql` (booking hold/expiry + aktivasi sesi setelah bayar)
 
 ## Skenario Regression Minimal (Disarankan)
 Setiap kali ada perubahan besar pada DB migrations atau logic booking/sessions, lakukan hard-test ini:
@@ -51,6 +52,8 @@ Setiap kali ada perubahan besar pada DB migrations atau logic booking/sessions, 
 
 6) Notifikasi Deep-link
 - Tap notifikasi reschedule/approval/reminder -> masuk halaman target dan fokus sesi yang tepat.
+- Booking `pending` yang melewati SLA hold dan booking `awaiting_payment` yang melewati SLA pembayaran harus auto-expire menjadi `cancelled`.
+- Kalender dan daftar sesi tidak boleh menampilkan sesi dari booking `pending`, `rejected`, atau `cancelled`.
 
 7) Skenario Harus Ditolak DB (Negative)
 - Student mencoba complete booking atau mengubah status transaksi yang bukan haknya.
@@ -59,3 +62,25 @@ Setiap kali ada perubahan besar pada DB migrations atau logic booking/sessions, 
 Kriteria lulus:
 - UI menampilkan error yang jelas (atau silent fail) dan data di DB tidak berubah.
 
+## Regression Suite Booking
+Regression suite booking sekarang disatukan dalam satu file:
+- `test/booking/booking_regression_suite_test.dart`
+
+Isi suite:
+- Rule-level regression untuk `BookingStatus` dan `BookingSessionStatus`
+- Remote hard-test flow booking:
+  - `pending`
+  - `awaiting_payment`
+  - `paid`
+  - session activation setelah bayar
+  - expiry `pending` / `awaiting_payment`
+  - filter source sesi agar hanya booking aktif yang tampil
+
+Command yang direkomendasikan:
+```bash
+flutter test test/booking/booking_regression_suite_test.dart
+```
+
+Untuk menjalankan hard-test remote, isi environment:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`

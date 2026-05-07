@@ -1,11 +1,14 @@
+import 'package:educonnect/features/home/application/nearby_tutor_controller.dart';
 import 'package:educonnect/features/home/application/tutor_controller.dart';
 import 'package:educonnect/features/home/domain/models/tutor_summary.dart';
+import 'package:educonnect/features/home/presentation/models/tutor_discovery_filter.dart';
+import 'package:educonnect/features/home/presentation/widgets/tutor_filter_sheet.dart';
 import 'package:educonnect/features/tutor/presentation/pages/tutor_detail_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-enum TutorSortOption { ratingDesc, priceAsc, priceDesc }
+enum TutorSortOption { ratingDesc, distanceAsc, priceAsc, priceDesc }
 
 class TutorListPage extends ConsumerStatefulWidget {
   const TutorListPage({super.key});
@@ -20,6 +23,7 @@ class TutorListPage extends ConsumerStatefulWidget {
 class _TutorListPageState extends ConsumerState<TutorListPage> {
   final TextEditingController _searchController = TextEditingController();
   TutorSortOption _sortOption = TutorSortOption.ratingDesc;
+  TutorDiscoveryFilter _filter = TutorDiscoveryFilter.empty;
   int _visibleCount = 25;
 
   @override
@@ -30,14 +34,21 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final tutorsAsync = ref.watch(activeTutorsProvider);
+    final location = ref.watch(userLocationProvider);
+    final radiusKm = ref.watch(searchRadiusKmProvider);
+    final nearbyTutorsAsync = ref.watch(nearbyTutorsProvider);
+    final fallbackTutorsAsync = ref.watch(activeTutorsProvider);
+    final tutorsAsync = location == null ? fallbackTutorsAsync : nearbyTutorsAsync;
     return Scaffold(
       appBar: AppBar(title: const Text('Semua Tutor')),
       body: tutorsAsync.when(
         data: (tutors) {
-          final filtered = tutors
-              .where((item) => item.matchesKeyword(_searchController.text))
-              .toList();
+          final categories = _buildCategories(tutors);
+          final filtered = applyTutorDiscoveryFilters(
+            tutors: tutors,
+            query: _searchController.text,
+            filter: _filter,
+          );
           _sortTutors(filtered, _sortOption);
           final visible = filtered.take(_visibleCount).toList();
 
@@ -60,14 +71,53 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              _SortSelector(
-                selected: _sortOption,
-                onSelected: (value) {
-                  setState(() {
-                    _sortOption = value;
-                  });
-                },
+              Row(
+                children: [
+                  Expanded(
+                    child: _SortSelector(
+                      selected: _sortOption,
+                      onSelected: (value) {
+                        setState(() {
+                          _sortOption = value;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton.tonalIcon(
+                    onPressed: () async {
+                      final result = await showTutorFilterSheet(
+                        context: context,
+                        initialFilter: _filter,
+                        categories: categories,
+                        minAvailablePrice: _minPrice(tutors),
+                        maxAvailablePrice: _maxPrice(tutors),
+                        currentRadiusKm: radiusKm,
+                      );
+                      if (result != null) {
+                        setState(() {
+                          _filter = result;
+                          _visibleCount = 25;
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.tune_rounded),
+                    label: const Text('Filter'),
+                  ),
+                ],
               ),
+              if (_filter.hasActiveFilters) ...[
+                const SizedBox(height: 12),
+                TutorActiveFilterChips(
+                  filter: _filter,
+                  onClearAll: () {
+                    setState(() {
+                      _filter = TutorDiscoveryFilter.empty;
+                      _visibleCount = 25;
+                    });
+                  },
+                ),
+              ],
               const SizedBox(height: 12),
               if (filtered.isEmpty)
                 const _EmptyState()
@@ -112,11 +162,43 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
     switch (option) {
       case TutorSortOption.ratingDesc:
         tutors.sort((a, b) => b.rating.compareTo(a.rating));
+      case TutorSortOption.distanceAsc:
+        tutors.sort((a, b) {
+          final ad = a.distanceFromUserKm ?? 9999;
+          final bd = b.distanceFromUserKm ?? 9999;
+          return ad.compareTo(bd);
+        });
       case TutorSortOption.priceAsc:
         tutors.sort((a, b) => a.pricePerHour.compareTo(b.pricePerHour));
       case TutorSortOption.priceDesc:
         tutors.sort((a, b) => b.pricePerHour.compareTo(a.pricePerHour));
     }
+  }
+
+  List<String> _buildCategories(List<TutorSummary> items) {
+    final set = <String>{'All'};
+    for (final tutor in items) {
+      set.addAll(tutor.subjects);
+    }
+    return set.toList();
+  }
+
+  num _minPrice(List<TutorSummary> tutors) {
+    if (tutors.isEmpty) {
+      return 0;
+    }
+    return tutors
+        .map((tutor) => tutor.pricePerHour)
+        .reduce((value, element) => value < element ? value : element);
+  }
+
+  num _maxPrice(List<TutorSummary> tutors) {
+    if (tutors.isEmpty) {
+      return 0;
+    }
+    return tutors
+        .map((tutor) => tutor.pricePerHour)
+        .reduce((value, element) => value > element ? value : element);
   }
 }
 
@@ -136,13 +218,18 @@ class _SortSelector extends StatelessWidget {
           icon: Icon(Icons.star_outline),
         ),
         ButtonSegment(
+          value: TutorSortOption.distanceAsc,
+          label: Text('Terdekat'),
+          icon: Icon(Icons.near_me_outlined),
+        ),
+        ButtonSegment(
           value: TutorSortOption.priceAsc,
-          label: Text('Harga Termurah'),
+          label: Text('Murah'),
           icon: Icon(Icons.arrow_downward),
         ),
         ButtonSegment(
           value: TutorSortOption.priceDesc,
-          label: Text('Harga Tertinggi'),
+          label: Text('Mahal'),
           icon: Icon(Icons.arrow_upward),
         ),
       ],
@@ -193,6 +280,10 @@ class _TutorTile extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text('Mulai dari Rp ${tutor.pricePerHour}/jam'),
+            if (tutor.distanceFromUserKm != null) ...[
+              const SizedBox(height: 4),
+              Text('Jarak ${tutor.distanceFromUserKm!.toStringAsFixed(1)} km'),
+            ],
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
