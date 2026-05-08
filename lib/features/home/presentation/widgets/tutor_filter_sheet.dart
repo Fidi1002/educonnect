@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/features/home/presentation/models/tutor_discovery_filter.dart';
 import 'package:flutter/material.dart';
 
@@ -68,7 +69,7 @@ class TutorActiveFilterChips extends StatelessWidget {
         ActionChip(
           onPressed: onClearAll,
           label: const Text('Reset'),
-          avatar: const Icon(Icons.close, size: 16),
+          avatar: const Icon(FluentIcons.dismiss_24_regular, size: 16),
         ),
       ],
     );

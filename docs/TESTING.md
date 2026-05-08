@@ -49,13 +49,26 @@ Setiap kali ada perubahan besar pada DB migrations atau logic booking/sessions, 
 5) Chat
 - Kirim pesan dari student ke tutor dan sebaliknya.
 - Unread badge/count berubah sesuai read state.
+- Pesan pertama dalam booking harus menghasilkan notif "percakapan baru dimulai".
+- Tap notif chat harus langsung membuka halaman chat booking yang benar.
 
 6) Notifikasi Deep-link
 - Tap notifikasi reschedule/approval/reminder -> masuk halaman target dan fokus sesi yang tepat.
 - Booking `pending` yang melewati SLA hold dan booking `awaiting_payment` yang melewati SLA pembayaran harus auto-expire menjadi `cancelled`.
 - Kalender dan daftar sesi tidak boleh menampilkan sesi dari booking `pending`, `rejected`, atau `cancelled`.
+- Membuka halaman notifikasi tidak boleh otomatis menandai semua item menjadi read.
 
-7) Skenario Harus Ditolak DB (Negative)
+7) Reminder Backend
+- Jalankan `process_due_session_reminders()` dari SQL editor atau edge function `process-reminders`.
+- Pastikan sesi H-24 dan H-2 menghasilkan `app_notifications` meskipun halaman Flutter student tidak dibuka.
+
+8) Push Queue Foundation
+- Insert `user_push_tokens` aktif untuk user test.
+- Buat `app_notifications` baru dan pastikan `push_delivery_queue` otomatis terisi.
+- Panggil edge function `dispatch-push` setelah secret push diisi, lalu cek status queue berubah ke `sent` atau `failed` dengan `last_error` yang jelas.
+- SQL bantu verifikasi tersedia di `docs/push-pipeline-smoke-test.sql`.
+
+9) Skenario Harus Ditolak DB (Negative)
 - Student mencoba complete booking atau mengubah status transaksi yang bukan haknya.
 - Tutor mencoba menandai transaksi menjadi paid tanpa flow yang benar.
 

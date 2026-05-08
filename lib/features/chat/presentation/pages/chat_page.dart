@@ -1,3 +1,4 @@
+import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/booking/domain/models/booking_status.dart';
 import 'package:educonnect/features/chat/application/chat_controller.dart';
@@ -45,7 +46,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       data: (booking) {
         if (booking == null) {
           return const Scaffold(
-            body: Center(child: Text('Booking tidak ditemukan.')),
+            body: AppEmptyState(
+              message: 'Chat tidak dapat dibuka.',
+              hint: 'Booking terkait tidak ditemukan atau sudah tidak tersedia.',
+              icon: Icons.forum_outlined,
+              fullScreen: false,
+            ),
           );
         }
 
@@ -73,8 +79,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 child: messagesAsync.when(
                   data: (messages) {
                     if (messages.isEmpty) {
-                      return const Center(
-                        child: Text('Belum ada pesan. Mulai chat sekarang.'),
+                      return const AppEmptyState(
+                        message: 'Belum ada pesan.',
+                        hint: 'Mulai percakapan dengan mengirim pesan pertama.',
+                        icon: Icons.mark_chat_unread_outlined,
+                        fullScreen: false,
                       );
                     }
                     Future<void>.microtask(() {
@@ -93,13 +102,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       },
                     );
                   },
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (error, _) => Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text('Gagal memuat chat: $error'),
-                    ),
+                  loading: () => const AppLoadingState(
+                    message: 'Memuat percakapan...',
+                    fullScreen: false,
+                  ),
+                  error: (error, _) => AppErrorState(
+                    message: 'Gagal memuat percakapan.',
+                    detail: error.toString(),
+                    onRetry: () =>
+                        ref.invalidate(bookingMessagesProvider(widget.bookingId)),
+                    fullScreen: false,
                   ),
                 ),
               ),
@@ -150,7 +162,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        'Gagal kirim pesan: ${error.toString()}',
+                                        'Gagal mengirim pesan. Coba lagi sebentar lagi. ${error.toString()}',
                                       ),
                                     ),
                                   );
@@ -174,10 +186,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           ),
         );
       },
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () => const Scaffold(
+        body: AppLoadingState(message: 'Memuat chat...', fullScreen: false),
+      ),
       error: (error, _) => Scaffold(
-        body: Center(child: Text('Gagal memuat booking chat: $error')),
+        body: AppErrorState(
+          message: 'Gagal memuat data chat.',
+          detail: error.toString(),
+          onRetry: () => ref.invalidate(bookingByIdProvider(widget.bookingId)),
+          fullScreen: false,
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'dart:io';
 
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
@@ -62,7 +63,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
           IconButton(
             tooltip: 'Nonaktifkan profil',
             onPressed: isSaving ? null : _onDeactivatePressed,
-            icon: const Icon(Icons.visibility_off_outlined),
+            icon: const Icon(FluentIcons.eye_off_24_regular),
           ),
         ],
       ),
@@ -72,7 +73,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
             return const AppEmptyState(
               message: 'User belum login.',
               hint: 'Silakan login kembali untuk mengelola profil tutor.',
-              icon: Icons.lock_outline,
+              icon: FluentIcons.lock_closed_24_regular,
               fullScreen: true,
             );
           }
@@ -102,7 +103,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
                         backgroundColor: Colors.teal.shade100,
                         backgroundImage: avatarImage,
                         child: (_selectedImage == null && _photoUrl.isEmpty)
-                            ? const Icon(Icons.person, size: 40)
+                            ? const Icon(FluentIcons.person_24_regular, size: 40)
                             : null,
                       ),
                       Positioned(
@@ -110,7 +111,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
                         bottom: -4,
                         child: IconButton.filled(
                           onPressed: isSaving ? null : _pickImage,
-                          icon: const Icon(Icons.camera_alt),
+                          icon: const Icon(FluentIcons.camera_24_regular),
                         ),
                       ),
                     ],
@@ -236,7 +237,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
                   onPressed: isSaving ? null : _onUseCurrentLocationPressed,
-                  icon: const Icon(Icons.my_location),
+                  icon: const Icon(FluentIcons.location_24_regular),
                   label: Text(
                     _latitude != null && _longitude != null
                         ? 'Lokasi GPS tersimpan (${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)})'
@@ -395,7 +396,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
       _showMessage('Lokasi berhasil diambil dari GPS.');
     } on Exception catch (error) {
       _showMessage(
-        'Gagal mengambil lokasi. Pastikan izin lokasi aktif. (${error.toString()})',
+        'Gagal mengambil lokasi. Pastikan izin lokasi aktif lalu coba lagi. ${error.toString()}',
       );
     }
   }
@@ -429,10 +430,10 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
 
     try {
       await ref.read(tutorProfileControllerProvider).deactivateMyProfile();
-      _showMessage('Profil tutor berhasil dinonaktifkan.');
+      _showMessage('Profil tutor berhasil dinonaktifkan dari pencarian.');
     } on Exception catch (error) {
       _showMessage(
-        'Gagal menonaktifkan profil. Coba beberapa saat lagi. (${error.toString()})',
+        'Gagal menonaktifkan profil. Coba lagi beberapa saat lagi. ${error.toString()}',
       );
     }
   }
@@ -448,7 +449,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
     if (raw.contains('permission') || raw.contains('not allowed')) {
       return 'Akses ditolak oleh server. Cek policy Supabase untuk profil tutor.';
     }
-    return 'Gagal menyimpan profil tutor. Coba lagi. (${error.toString()})';
+    return 'Gagal menyimpan profil tutor. Coba lagi sebentar lagi. ${error.toString()}';
   }
 
   void _showMessage(String message) {

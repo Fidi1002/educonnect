@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/availability/application/tutor_availability_controller.dart';
 import 'package:educonnect/features/availability/domain/models/tutor_availability_slot.dart';
@@ -319,7 +320,11 @@ class TutorAvailabilityPage extends ConsumerWidget {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menambah slot: ${error.toString()}')),
+        SnackBar(
+          content: Text(
+            'Gagal menambahkan slot ketersediaan. Coba lagi. ${error.toString()}',
+          ),
+        ),
       );
     }
   }
@@ -586,7 +591,7 @@ class _EmptyAvailabilityState extends StatelessWidget {
       ),
       child: const Column(
         children: [
-          Icon(Icons.event_available_outlined, size: 44),
+          Icon(FluentIcons.calendar_checkmark_24_regular, size: 44),
           SizedBox(height: 12),
           Text(
             'Belum ada slot ketersediaan.',

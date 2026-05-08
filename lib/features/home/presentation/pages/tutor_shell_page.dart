@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/features/booking/presentation/pages/tutor_bookings_page.dart';
 import 'package:educonnect/features/home/presentation/pages/tutor_home_page.dart';
 import 'package:educonnect/features/home/presentation/pages/tutor_students_page.dart';
@@ -36,10 +37,10 @@ class TutorShellPage extends StatelessWidget {
           }
         },
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.event_note), label: 'Booking'),
-          NavigationDestination(icon: Icon(Icons.groups_2), label: 'Murid'),
-          NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
+          NavigationDestination(icon: Icon(FluentIcons.home_24_regular), label: 'Home'),
+          NavigationDestination(icon: Icon(FluentIcons.calendar_24_regular), label: 'Booking'),
+          NavigationDestination(icon: Icon(FluentIcons.people_24_regular), label: 'Murid'),
+          NavigationDestination(icon: Icon(FluentIcons.person_24_regular), label: 'Profile'),
         ],
       ),
     );

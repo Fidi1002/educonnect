@@ -71,7 +71,7 @@ Permintaan reschedule/cancel yang harus disetujui oleh pihak lain.
 - RLS: hanya requester/target yang dapat melihat; insert hanya oleh requester.
 
 ### 8) `public.app_notifications`
-Notifikasi in-app yang menerima deep-link ke target (booking/session).
+Notifikasi in-app yang menerima deep-link ke target (booking/session/chat).
 - Field penting: `user_uid`, `actor_uid`, `category`, `target_type`, `target_id`, `is_read`
 - RLS: only owner dapat membaca/mengubah read state; insert oleh actor.
 
@@ -79,21 +79,40 @@ Notifikasi in-app yang menerima deep-link ke target (booking/session).
 Chat realtime per booking.
 - Field penting: `booking_id`, `sender_uid`, `receiver_uid`, `body`, `read_at`
 - RLS: hanya peserta chat (sender/receiver) yang dapat membaca; insert oleh sender; update read hanya oleh receiver.
+- Trigger `notify_chat_message_insert()` membuat notification otomatis setiap ada pesan masuk, termasuk copy khusus saat pesan pertama di booking memulai percakapan.
 
 ### 10) `public.session_learning_records`
 Catatan materi dan PR per sesi.
 - 1:1 dengan sesi: `session_id` unique.
 - Flow PR dipaksa database:
-  - Tutor: assign/review
-  - Murid: submit
+- Tutor: assign/review
+- Murid: submit
 - RLS: peserta sesi dapat membaca; insert record oleh tutor; update mengikuti aturan transition function.
+
+### 11) `public.user_push_tokens`
+Registrasi token push per perangkat user.
+- Field penting: `user_uid`, `push_provider`, `platform`, `device_token`, `is_active`, `last_seen_at`
+- RLS: owner dapat CRUD token miliknya sendiri.
+
+### 12) `public.push_delivery_queue`
+Antrian backend untuk pengiriman push notification ke perangkat.
+- FK: `notification_id` -> `app_notifications.id`, `token_id` -> `user_push_tokens.id`
+- Field penting: `status` (`pending|processing|sent|failed`), `attempt_count`, `scheduled_for`, `payload`
+- Trigger `enqueue_push_delivery_for_notification()` otomatis membuat item queue saat `app_notifications` baru dibuat.
 
 ## RPC Penting
 Beberapa aksi kompleks disediakan sebagai function (RPC) agar atomic dan aman:
 - `get_nearby_tutors(...)`: query tutor terdekat berbasis PostGIS.
-- `process_student_session_reminders(student_uid)`: membuat notifikasi reminder H-24 dan H-2 (untuk sesi yang akan datang).
+- `process_student_session_reminders(student_uid)`: wrapper/manual recovery untuk reminder H-24 dan H-2 per student.
+- `process_due_session_reminders()`: worker backend untuk memproses seluruh reminder yang jatuh tempo.
+- `claim_pending_push_deliveries(limit)`: claim batch queue push untuk edge worker.
+- `mark_push_delivery_sent(...)` dan `mark_push_delivery_failed(...)`: update status hasil pengiriman push.
 - (Tambahan dari milestone hardening) RPC untuk pembuatan booking paket secara atomic (lihat migrasi `milestone12_atomic_booking_create`).
+
+Catatan implementasi:
+- edge function `dispatch-push` mengirim ke FCM HTTP v1 memakai OAuth 2.0 access token dari Firebase service account.
 
 ## Catatan Keamanan
 - RLS adalah batas keamanan utama. Jangan mematikan RLS pada tabel inti di production.
 - Jika melakukan perubahan status di UI, pastikan server-side trigger tetap menjadi "source of truth" untuk validasi.
+- Reminder dan push sebaiknya dijalankan oleh backend scheduler, bukan lifecycle halaman Flutter.

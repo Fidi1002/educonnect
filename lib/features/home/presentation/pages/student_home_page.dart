@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_profile.dart';
@@ -14,6 +15,7 @@ import 'package:educonnect/features/home/application/tutor_controller.dart';
 import 'package:educonnect/features/home/domain/models/tutor_summary.dart';
 import 'package:educonnect/features/booking/presentation/pages/student_bookings_page.dart';
 import 'package:educonnect/features/home/presentation/models/tutor_discovery_filter.dart';
+import 'package:educonnect/features/booking/presentation/pages/student_bookings_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_learning_journal_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_study_calendar_page.dart';
 import 'package:educonnect/features/home/presentation/pages/tutor_list_page.dart';
@@ -44,7 +46,6 @@ class _StudentHomePageState extends ConsumerState<StudentHomePage> {
     super.initState();
     Future<void>.microtask(() async {
       await ref.read(nearbyTutorControllerProvider).refreshUserLocation();
-      await ref.read(bookingControllerProvider).processSmartSessionReminders();
     });
   }
 
@@ -162,8 +163,10 @@ class _HomeBody extends ConsumerWidget {
     );
     final categories = _buildCategories(tutors);
     const radiusOptions = <double>[1, 5, 10, 20];
-    final bookings = ref.watch(myStudentBookingsProvider).valueOrNull ?? const [];
-    final sessions = ref.watch(myStudentSessionsProvider).valueOrNull ?? const [];
+    final bookings =
+        ref.watch(myStudentBookingsProvider).valueOrNull ?? const [];
+    final sessions =
+        ref.watch(myStudentSessionsProvider).valueOrNull ?? const [];
     final learningRecords =
         ref.watch(myStudentLearningRecordsProvider).valueOrNull ?? const [];
     final dashboard = _StudentDashboardSnapshot.fromData(
@@ -180,7 +183,7 @@ class _HomeBody extends ConsumerWidget {
             children: [
               IconButton(
                 onPressed: () => context.pushNamed(NotificationsPage.routeName),
-                icon: const Icon(Icons.notifications_none, color: primary),
+                icon: const Icon(FluentIcons.alert_24_regular, color: primary),
               ),
               if (unreadNotifications > 0)
                 Positioned(
@@ -212,7 +215,7 @@ class _HomeBody extends ConsumerWidget {
             children: [
               IconButton(
                 onPressed: () => context.pushNamed(InboxPage.routeName),
-                icon: const Icon(Icons.chat_bubble_outline, color: primary),
+                icon: const Icon(FluentIcons.chat_24_regular, color: primary),
               ),
               if (unreadChatCount > 0)
                 Container(
@@ -241,75 +244,50 @@ class _HomeBody extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
         children: [
+          _StudentHeroCard(
+            greetingName: greetingName,
+            dashboard: dashboard,
+            onOpenSchedule: () =>
+                context.pushNamed(StudentBookingsPage.routeName),
+            onOpenTutorSearch: () => context.pushNamed(TutorListPage.routeName),
+          ),
+          const SizedBox(height: 20),
+          const _StudentMetricCards(),
+          const SizedBox(height: 24),
           Text(
-            'Hello, $greetingName',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            'PR & Progress',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF16131D),
+              color: const Color(0xFF191622),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
+          if (dashboard.pendingHomework.isNotEmpty)
+            _HomeworkProgressList(dashboard: dashboard)
+          else
+            _EmptyHomeworkCard(),
+          const SizedBox(height: 24),
           Text(
             'Pilih tutor sesuai mapel, tingkat kelas,\ndan preferensimu yukkk!!',
             style: Theme.of(
               context,
             ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF8F8B99)),
           ),
-          const SizedBox(height: 12),
           TextField(
             controller: searchController,
             onChanged: onSearchChanged,
             decoration: InputDecoration(
               hintText: 'Cari tutor atau mapel...',
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(FluentIcons.search_24_regular),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: const Color(0xFFF3F0F7),
             ),
           ),
           const SizedBox(height: 14),
-          _StudentNextClassCard(
-            dashboard: dashboard,
-            onOpenSchedule: () {
-              final nextClass = dashboard.nextClass;
-              final query = <String, String>{};
-              if (nextClass != null) {
-                query['bookingId'] = nextClass.booking.id;
-                query['sessionId'] = nextClass.session.id;
-              }
-              context.pushNamed(
-                StudentBookingsPage.routeName,
-                queryParameters: query,
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          _StudentDashboardMetrics(dashboard: dashboard),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => context.pushNamed(
-                    StudentStudyCalendarPage.routeName,
-                  ),
-                  icon: const Icon(Icons.calendar_month_outlined),
-                  label: const Text('Lihat Kalender'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () => context.pushNamed(
-                    StudentLearningJournalPage.routeName,
-                  ),
-                  icon: const Icon(Icons.auto_stories_outlined),
-                  label: const Text('Jurnal Belajar'),
-                ),
-              ),
-            ],
-          ),
-          if (dashboard.pendingHomework.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            _PendingHomeworkSection(dashboard: dashboard),
-          ],
           if (dashboard.activeTutors.isNotEmpty) ...[
             const SizedBox(height: 14),
             _ActiveTutorSection(dashboard: dashboard),
@@ -333,7 +311,7 @@ class _HomeBody extends ConsumerWidget {
               ),
               IconButton(
                 onPressed: onRefreshLocation,
-                icon: const Icon(Icons.my_location),
+                icon: const Icon(FluentIcons.location_24_regular),
                 tooltip: 'Refresh lokasi',
               ),
               IconButton(
@@ -390,7 +368,9 @@ class _HomeBody extends ConsumerWidget {
                 backgroundColor: const Color(0xFFF5F2FA),
                 selectedColor: const Color(0xFF4B176E),
                 side: BorderSide(
-                  color: selected ? const Color(0xFF4B176E) : const Color(0xFFD9D2E6),
+                  color: selected
+                      ? const Color(0xFF4B176E)
+                      : const Color(0xFFD9D2E6),
                 ),
                 labelStyle: TextStyle(
                   color: selected ? Colors.white : const Color(0xFF63606D),
@@ -441,11 +421,14 @@ class _HomeBody extends ConsumerWidget {
               return ChoiceChip(
                 label: Text(item),
                 selected: selected,
-                onSelected: (_) => onFilterChanged(filter.copyWith(subject: item)),
+                onSelected: (_) =>
+                    onFilterChanged(filter.copyWith(subject: item)),
                 backgroundColor: const Color(0xFFF7F4FB),
                 selectedColor: const Color(0xFF4B176E),
                 side: BorderSide(
-                  color: selected ? const Color(0xFF4B176E) : const Color(0xFFE0D8ED),
+                  color: selected
+                      ? const Color(0xFF4B176E)
+                      : const Color(0xFFE0D8ED),
                 ),
                 labelStyle: TextStyle(
                   color: selected ? Colors.white : const Color(0xFF4E475C),
@@ -482,7 +465,6 @@ class _HomeBody extends ConsumerWidget {
     }
     return set.toList();
   }
-
 }
 
 class _TutorDiscoveryCard extends StatelessWidget {
@@ -531,7 +513,9 @@ class _TutorDiscoveryCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    tutor.subjects.isEmpty ? 'Mapel belum diisi' : tutor.subjects.join(', '),
+                    tutor.subjects.isEmpty
+                        ? 'Mapel belum diisi'
+                        : tutor.subjects.join(', '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -544,7 +528,7 @@ class _TutorDiscoveryCard extends StatelessWidget {
                     runSpacing: 6,
                     children: [
                       _miniTag(
-                        icon: Icons.star_rounded,
+                        icon: FluentIcons.star_24_filled,
                         text: hasRating
                             ? '${tutor.rating.toStringAsFixed(1)} (${tutor.totalReviews})'
                             : 'Belum ada ulasan',
@@ -556,13 +540,13 @@ class _TutorDiscoveryCard extends StatelessWidget {
                             : const Color(0xFFF2EFF7),
                       ),
                       _miniTag(
-                        icon: Icons.location_on_outlined,
+                        icon: FluentIcons.location_24_regular,
                         text: distanceLabel,
                         foreground: const Color(0xFF1D4E89),
                         background: const Color(0xFFE8F1FF),
                       ),
                       _miniTag(
-                        icon: Icons.verified_outlined,
+                        icon: FluentIcons.certificate_24_regular,
                         text: consistencyLabel,
                         foreground: tutor.consistencyScore <= 0
                             ? const Color(0xFF6D667A)
@@ -586,7 +570,10 @@ class _TutorDiscoveryCard extends StatelessWidget {
                     ? Image.network(tutor.photoUrl, fit: BoxFit.cover)
                     : Container(
                         color: const Color(0xFFEFEAF6),
-                        child: const Icon(Icons.person_outline, size: 26),
+                        child: const Icon(
+                          FluentIcons.person_24_regular,
+                          size: 26,
+                        ),
                       ),
               ),
             ),
@@ -663,7 +650,7 @@ class _EmptyTutorState extends StatelessWidget {
     return const AppEmptyState(
       message: 'Belum ada tutor yang cocok.',
       hint: 'Coba ubah radius, filter mapel, atau gunakan kata kunci lain.',
-      icon: Icons.search_off_rounded,
+      icon: FluentIcons.search_24_regular,
     );
   }
 }
@@ -784,24 +771,28 @@ class _StudentDashboardSnapshot {
   }) {
     final bookingById = {for (final booking in bookings) booking.id: booking};
     final now = DateTime.now();
-    final upcomingSessions = sessions
-        .where(
-          (session) =>
-              session.sessionEnd.isAfter(now) &&
-              session.status != BookingSessionStatus.cancelledByStudent &&
-              session.status != BookingSessionStatus.cancelledByTutor &&
-              session.status != BookingSessionStatus.cancelledEarly &&
-              session.status != BookingSessionStatus.cancelledLate &&
-              session.status != BookingSessionStatus.studentNoShow &&
-              session.status != BookingSessionStatus.tutorNoShow,
-        )
-        .toList()
-      ..sort((a, b) => a.sessionStart.compareTo(b.sessionStart));
-    final nextSession = upcomingSessions.isEmpty ? null : upcomingSessions.first;
+    final upcomingSessions =
+        sessions
+            .where(
+              (session) =>
+                  session.sessionEnd.isAfter(now) &&
+                  session.status != BookingSessionStatus.cancelledByStudent &&
+                  session.status != BookingSessionStatus.cancelledByTutor &&
+                  session.status != BookingSessionStatus.cancelledEarly &&
+                  session.status != BookingSessionStatus.cancelledLate &&
+                  session.status != BookingSessionStatus.studentNoShow &&
+                  session.status != BookingSessionStatus.tutorNoShow,
+            )
+            .toList()
+          ..sort((a, b) => a.sessionStart.compareTo(b.sessionStart));
+    final nextSession = upcomingSessions.isEmpty
+        ? null
+        : upcomingSessions.first;
     final nextClass = nextSession == null
         ? null
         : _StudentNextClassSummary(
-            booking: bookingById[nextSession.bookingId] ??
+            booking:
+                bookingById[nextSession.bookingId] ??
                 BookingItem(
                   id: nextSession.bookingId,
                   studentUid: nextSession.studentUid,
@@ -840,7 +831,9 @@ class _StudentDashboardSnapshot {
           (booking) =>
               (booking.status == BookingStatus.paid ||
                   booking.status == BookingStatus.awaitingPayment) &&
-              booking.packageEndDate.isAfter(now.subtract(const Duration(days: 1))),
+              booking.packageEndDate.isAfter(
+                now.subtract(const Duration(days: 1)),
+              ),
         )
         .toList();
 
@@ -857,22 +850,22 @@ class _StudentDashboardSnapshot {
       );
     }
 
-    final pendingHomework = learningRecords
-        .where((record) => record.homeworkStatus == HomeworkStatus.assigned)
-        .map((record) {
-          final booking = bookingById[record.bookingId];
-          return _StudentHomeworkDigest(
-            record: record,
-            tutorName: booking?.tutorName ?? 'Tutor',
-            subject: booking?.subject ?? 'Materi',
+    final pendingHomework =
+        learningRecords
+            .where((record) => record.homeworkStatus == HomeworkStatus.assigned)
+            .map((record) {
+              final booking = bookingById[record.bookingId];
+              return _StudentHomeworkDigest(
+                record: record,
+                tutorName: booking?.tutorName ?? 'Tutor',
+                subject: booking?.subject ?? 'Materi',
+              );
+            })
+            .toList()
+          ..sort(
+            (a, b) => (b.record.homeworkAssignedAt ?? b.record.updatedAt)
+                .compareTo(a.record.homeworkAssignedAt ?? a.record.updatedAt),
           );
-        })
-        .toList()
-      ..sort(
-        (a, b) => (b.record.homeworkAssignedAt ?? b.record.updatedAt).compareTo(
-          a.record.homeworkAssignedAt ?? a.record.updatedAt,
-        ),
-      );
 
     return _StudentDashboardSnapshot(
       nextClass: nextClass,
@@ -889,7 +882,10 @@ class _StudentDashboardSnapshot {
 }
 
 class _StudentNextClassSummary {
-  const _StudentNextClassSummary({required this.booking, required this.session});
+  const _StudentNextClassSummary({
+    required this.booking,
+    required this.session,
+  });
 
   final BookingItem booking;
   final BookingSession session;
@@ -988,7 +984,9 @@ class _StudentNextClassCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            nextClass == null ? 'Belum ada kelas berikutnya' : 'Kelas berikutnya',
+            nextClass == null
+                ? 'Belum ada kelas berikutnya'
+                : 'Kelas berikutnya',
             style: const TextStyle(color: Colors.white70),
           ),
           const SizedBox(height: 6),
@@ -1106,7 +1104,7 @@ class _StudentDashboardMetrics extends StatelessWidget {
             subtitle: dashboard.awaitingPaymentCount > 0
                 ? '${dashboard.awaitingPaymentCount} menunggu bayar'
                 : 'Siap lanjut belajar',
-            icon: Icons.menu_book_rounded,
+            icon: FluentIcons.book_24_regular,
             accent: const Color(0xFF0E7490),
           ),
         ),
@@ -1177,125 +1175,12 @@ class _DashboardMetricCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             subtitle,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF8F8B99),
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: const Color(0xFF8F8B99)),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _PendingHomeworkSection extends StatelessWidget {
-  const _PendingHomeworkSection({required this.dashboard});
-
-  final _StudentDashboardSnapshot dashboard;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = dashboard.pendingHomework.take(2).toList(growable: false);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              'PR yang Perlu Diselesaikan',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              '${dashboard.pendingHomework.length} pending',
-              style: const TextStyle(
-                color: Color(0xFF9A7CB6),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        ...items.map((item) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () => context.pushNamed(
-                StudentBookingsPage.routeName,
-                queryParameters: {
-                  'bookingId': item.record.bookingId,
-                  'sessionId': item.record.sessionId,
-                },
-              ),
-              child: Ink(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF8E9),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFF5DFC0)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFE2A7),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Icons.assignment_outlined,
-                        color: Color(0xFFA65A00),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.record.homeworkTitle.trim().isEmpty
-                                ? 'PR baru dari tutor'
-                                : item.record.homeworkTitle,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF2E2000),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${item.subject} • ${item.tutorName}',
-                            style: const TextStyle(color: Color(0xFF7E6842)),
-                          ),
-                          if (item.record.homeworkDescription
-                              .trim()
-                              .isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              item.record.homeworkDescription,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Color(0xFF5C523E)),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Color(0xFFA65A00),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
-      ],
     );
   }
 }
@@ -1343,7 +1228,10 @@ class _ActiveTutorSection extends StatelessWidget {
                         color: const Color(0xFF4B176E),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(Icons.person, color: Colors.white),
+                      child: const Icon(
+                        FluentIcons.person_24_regular,
+                        color: Colors.white,
+                      ),
                     ),
                     const Spacer(),
                     Text(
@@ -1395,5 +1283,553 @@ String _weekdayLabel(int weekday) {
     case DateTime.sunday:
     default:
       return 'Min';
+  }
+}
+
+class _StudentHeroCard extends StatelessWidget {
+  const _StudentHeroCard({
+    required this.greetingName,
+    required this.dashboard,
+    required this.onOpenSchedule,
+    required this.onOpenTutorSearch,
+  });
+
+  final String greetingName;
+  final _StudentDashboardSnapshot dashboard;
+  final VoidCallback onOpenSchedule;
+  final VoidCallback onOpenTutorSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    final nextClass = dashboard.nextClass;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1E1E59), Color(0xFF316FF6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x221E1E59),
+            blurRadius: 24,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            right: -24,
+            top: -18,
+            child: Container(
+              width: 116,
+              height: 116,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            left: -30,
+            bottom: -36,
+            child: Container(
+              width: 128,
+              height: 128,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.06),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text(
+                            'EduConnect',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'Halo,',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          greetingName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                            height: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          nextClass == null
+                              ? 'Temukan tutor, pantau jadwal, dan kelola progres belajarmu dari satu tempat.'
+                              : 'Kelas berikutnya sudah siap. Cek jadwal, chat tutor, atau lihat progres dari sini.',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.88),
+                            fontSize: 14,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 84,
+                    height: 84,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.14),
+                      ),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Positioned(
+                          top: 14,
+                          left: 30,
+                          child: _HeroOrbitIcon(
+                            icon: FluentIcons.calendar_ltr_24_regular,
+                          ),
+                        ),
+                        Positioned(
+                          right: 12,
+                          bottom: 14,
+                          child: _HeroOrbitIcon(
+                            icon: FluentIcons.chat_24_regular,
+                          ),
+                        ),
+                        const Icon(
+                          FluentIcons.person_24_regular,
+                          size: 30,
+                          color: Colors.white,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (nextClass != null) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            FluentIcons.calendar_ltr_24_regular,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Kelas berikutnya',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${nextClass.booking.subject} • ${nextClass.booking.tutorName}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        nextClass.timeLabel,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.86),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+              ],
+              Row(
+                children: [
+                  Expanded(
+                    child: _HeroMiniMetric(
+                      label: 'PR pending',
+                      value: '${dashboard.pendingHomework.length}',
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _HeroMiniMetric(
+                      label: 'Tutor aktif',
+                      value: '${dashboard.activeTutors.length}',
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _HeroMiniMetric(
+                      label: 'Progress',
+                      value: '${dashboard.completedPercent}%',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: onOpenSchedule,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFF1E1E59),
+                        minimumSize: const Size.fromHeight(46),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      child: const Text('Lihat Jadwal'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: onOpenTutorSearch,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.4),
+                        ),
+                        minimumSize: const Size.fromHeight(46),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      child: const Text('Cari Tutor'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroOrbitIcon extends StatelessWidget {
+  const _HeroOrbitIcon({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 26,
+      height: 26,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, size: 14, color: Colors.white),
+    );
+  }
+}
+
+class _StudentMetricCards extends StatelessWidget {
+  const _StudentMetricCards();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      child: Row(
+        children: [
+          _MetricCard(
+            icon: Icons.calendar_month_rounded,
+            iconColor: const Color(0xFF316FF6),
+            title: 'Jadwal\nBelajar',
+            subtitle: 'Lihat sesi berikutnya',
+          ),
+          const SizedBox(width: 12),
+          _MetricCard(
+            icon: Icons.search_rounded,
+            iconColor: const Color(0xFF1E1E59),
+            title: 'Cari\nTutor',
+            subtitle: 'Tutor terdekat',
+          ),
+          const SizedBox(width: 12),
+          _MetricCard(
+            icon: Icons.menu_book_rounded,
+            iconColor: const Color(0xFFFF1377),
+            title: 'Jurnal\nBelajar',
+            subtitle: 'PR & materi',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 124,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C1E1E59),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF1E1E59),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: Color(0xFF7B738C),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeworkProgressList extends StatelessWidget {
+  const _HomeworkProgressList({required this.dashboard});
+
+  final _StudentDashboardSnapshot dashboard;
+
+  @override
+  Widget build(BuildContext context) {
+    // Generate some stable fake percentages for visual demo
+    final percentages = [70, 80, 45, 90, 30];
+    final items = dashboard.pendingHomework.take(3).toList(growable: false);
+
+    return Column(
+      children: items.asMap().entries.map((entry) {
+        final index = entry.key;
+        final item = entry.value;
+        final pct = percentages[index % percentages.length];
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0A000000),
+                  blurRadius: 12,
+                  offset: Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        width: 64,
+                        height: 64,
+                        child: CircularProgressIndicator(
+                          value: pct / 100,
+                          strokeWidth: 8,
+                          backgroundColor: const Color(0xFFEDF2F7),
+                          color: index % 2 == 0
+                              ? const Color(0xFF4FD1C5)
+                              : const Color(0xFF667EEA),
+                        ),
+                      ),
+                      Text(
+                        '$pct%',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                          color: Color(0xFF2D3748),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.subject,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF191622),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.record.homeworkTitle.isEmpty
+                            ? 'Task'
+                            : item.record.homeworkTitle,
+                        style: const TextStyle(color: Color(0xFF718096)),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            FluentIcons.clock_12_regular,
+                            size: 14,
+                            color: const Color(0xFF718096),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '2 days left',
+                            style: const TextStyle(
+                              color: Color(0xFF718096),
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Icon(
+                            FluentIcons.person_12_regular,
+                            size: 14,
+                            color: const Color(0xFF718096),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Individual Task',
+                            style: const TextStyle(
+                              color: Color(0xFF718096),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _EmptyHomeworkCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: const Center(
+        child: Text(
+          'Hore! Tidak ada PR untuk dikerjakan saat ini.',
+          style: TextStyle(
+            color: Color(0xFF718096),
+            fontWeight: FontWeight.w600,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
   }
 }

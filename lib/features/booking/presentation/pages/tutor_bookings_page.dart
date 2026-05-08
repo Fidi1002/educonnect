@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/booking/application/booking_controller.dart';
@@ -10,6 +11,7 @@ import 'package:educonnect/features/booking/domain/models/session_learning_recor
 import 'package:educonnect/features/chat/presentation/pages/chat_page.dart';
 import 'package:educonnect/features/tutor/presentation/widgets/tutor_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -111,7 +113,7 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
                         onChanged: (_) => setState(() {}),
                         decoration: InputDecoration(
                           hintText: 'Cari murid atau mapel...',
-                          prefixIcon: const Icon(Icons.search),
+                          prefixIcon: const Icon(FluentIcons.search_24_regular),
                           suffixIcon: _searchController.text.isEmpty
                               ? null
                               : IconButton(
@@ -119,7 +121,7 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
                                     _searchController.clear();
                                     setState(() {});
                                   },
-                                  icon: const Icon(Icons.close),
+                                  icon: const Icon(FluentIcons.dismiss_24_regular),
                                 ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(18),
@@ -209,7 +211,7 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
                       _TutorBookingList(
                         items: active,
                         isLoading: isLoading,
-                        emptyMessage: 'Belum ada jadwal aktif.',
+                        emptyMessage: 'Belum ada booking aktif saat ini.',
                         onRespond: _handleRespond,
                         focusedSessionId: focusedSessionId,
                         focusedSessionKey: focusedSessionKey,
@@ -230,11 +232,11 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
           );
         },
         loading: () => const AppLoadingState(
-          message: 'Memuat jadwal tutor...',
+          message: 'Memuat booking murid...',
           fullScreen: false,
         ),
         error: (error, _) => AppErrorState(
-          message: 'Gagal memuat jadwal tutor.',
+          message: 'Gagal memuat booking murid.',
           detail: error.toString(),
           onRetry: () => ref.invalidate(myTutorBookingsProvider),
         ),
@@ -332,7 +334,11 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Aksi booking gagal: ${error.toString()}')),
+        SnackBar(
+          content: Text(
+            'Gagal memperbarui status booking. Coba lagi sebentar lagi. ${error.toString()}',
+          ),
+        ),
       );
     }
   }
@@ -485,7 +491,7 @@ class _TutorBookingList extends ConsumerWidget {
                         );
                       });
                     },
-                    icon: const Icon(Icons.schedule_outlined),
+                    icon: const Icon(FluentIcons.clock_24_regular),
                     label: Text(
                       selectedDateTime == null
                           ? 'Pilih jadwal baru'
@@ -586,54 +592,86 @@ class _TutorBookingList extends ConsumerWidget {
       text: existing?.homeworkDescription ?? '',
     );
 
-    final submit = await showDialog<bool>(
+    final submit = await showModalBottomSheet<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Materi & PR Sesi'),
-        content: SingleChildScrollView(
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          left: 24,
+          right: 24,
+          top: 24,
+        ),
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextField(
+              const Text(
+                'Materi & PR Sesi',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
                 controller: summaryController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Ringkasan materi',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-              const SizedBox(height: 10),
-              TextField(
+              const SizedBox(height: 16),
+              TextFormField(
                 controller: notesController,
                 maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Catatan tutor'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: homeworkTitleController,
-                decoration: const InputDecoration(
-                  labelText: 'Judul PR (opsional)',
+                decoration: InputDecoration(
+                  labelText: 'Catatan tutor',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-              const SizedBox(height: 10),
-              TextField(
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: homeworkTitleController,
+                decoration: InputDecoration(
+                  labelText: 'Judul PR (opsional)',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
                 controller: homeworkDescController,
                 maxLines: 2,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Deskripsi PR (opsional)',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                      child: const Text('Batal'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                      child: const Text('Simpan'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Simpan'),
-          ),
-        ],
       ),
     );
 
@@ -664,18 +702,19 @@ class _TutorBookingList extends ConsumerWidget {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Materi & PR berhasil disimpan.')),
+      const SnackBar(
+        content: Text('Materi dan PR berhasil disimpan untuk sesi ini.'),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(emptyMessage, textAlign: TextAlign.center),
-        ),
+      return AppEmptyState(
+        message: emptyMessage,
+        hint: 'Saat ada aktivitas booking dari murid, detail pengelolaannya akan muncul di sini.',
+        icon: FluentIcons.hat_graduation_24_regular,
       );
     }
 
@@ -761,7 +800,12 @@ class _TutorBookingList extends ConsumerWidget {
                 sessionsAsync.when(
                   data: (sessions) {
                     if (sessions.isEmpty) {
-                      return const Text('Belum ada sesi terjadwal.');
+                      return const AppEmptyState(
+                        message: 'Belum ada sesi terjadwal.',
+                        hint: 'Sesi akan muncul setelah booking aktif dan jadwal paket terbentuk.',
+                        icon: Icons.event_busy_outlined,
+                        fullScreen: false,
+                      );
                     }
                     final shortlist = _selectDisplayedSessions(
                       sessions,
@@ -951,7 +995,7 @@ class _TutorBookingList extends ConsumerWidget {
                                                   ).showSnackBar(
                                                     const SnackBar(
                                                       content: Text(
-                                                        'Pertemuan ditandai selesai. Menunggu konfirmasi murid.',
+                                                        'Pertemuan berhasil ditandai selesai dan sekarang menunggu konfirmasi murid.',
                                                       ),
                                                     ),
                                                   );
@@ -996,7 +1040,7 @@ class _TutorBookingList extends ConsumerWidget {
                                                     ).showSnackBar(
                                                       const SnackBar(
                                                         content: Text(
-                                                          'Sesi ditandai murid tidak hadir.',
+                                                          'Sesi berhasil ditandai sebagai murid tidak hadir.',
                                                         ),
                                                       ),
                                                     );
@@ -1009,14 +1053,14 @@ class _TutorBookingList extends ConsumerWidget {
                                                     ).showSnackBar(
                                                       SnackBar(
                                                         content: Text(
-                                                          'Gagal menandai no-show: ${error.toString()}',
+                                                          'Gagal memperbarui kehadiran murid. Coba lagi. ${error.toString()}',
                                                         ),
                                                       ),
                                                     );
                                                   }
                                                 },
                                           icon: const Icon(
-                                            Icons.person_off_outlined,
+                                            FluentIcons.person_prohibited_24_regular,
                                           ),
                                           label: const Text(
                                             'Murid Tidak Hadir',
@@ -1052,7 +1096,7 @@ class _TutorBookingList extends ConsumerWidget {
                                               ).showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
-                                                    'Dispute ditutup. Status sesi diperbarui.',
+                                                    'Dispute berhasil ditutup dan status sesi diperbarui.',
                                                   ),
                                                 ),
                                               );
@@ -1065,13 +1109,13 @@ class _TutorBookingList extends ConsumerWidget {
                                               ).showSnackBar(
                                                 SnackBar(
                                                   content: Text(
-                                                    'Gagal menutup dispute: ${error.toString()}',
+                                                    'Gagal menutup dispute. Coba lagi sebentar lagi. ${error.toString()}',
                                                   ),
                                                 ),
                                               );
                                             }
                                           },
-                                    icon: const Icon(Icons.verified_outlined),
+                                    icon: const Icon(FluentIcons.certificate_24_regular),
                                     label: const Text('Tutup Dispute'),
                                   ),
                                 ),
@@ -1126,7 +1170,7 @@ class _TutorBookingList extends ConsumerWidget {
                                               existing: learningRecord,
                                             ),
                                       icon: const Icon(
-                                        Icons.menu_book_outlined,
+                                        FluentIcons.book_24_regular,
                                       ),
                                       label: const Text('Materi & PR'),
                                     ),
@@ -1155,7 +1199,7 @@ class _TutorBookingList extends ConsumerWidget {
                                                 ).showSnackBar(
                                                   const SnackBar(
                                                     content: Text(
-                                                      'PR ditandai sudah direview.',
+                                                      'PR berhasil ditandai sebagai sudah direview.',
                                                     ),
                                                   ),
                                                 );
@@ -1173,8 +1217,19 @@ class _TutorBookingList extends ConsumerWidget {
                       }).toList(),
                     );
                   },
-                  loading: () => const LinearProgressIndicator(),
-                  error: (error, _) => Text('Gagal memuat sesi: $error'),
+                  loading: () => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: AppLoadingState(
+                      message: 'Memuat sesi booking...',
+                      fullScreen: false,
+                    ),
+                  ),
+                  error: (error, _) => AppErrorState(
+                    message: 'Gagal memuat sesi booking.',
+                    detail: error.toString(),
+                    onRetry: () => ref.invalidate(bookingSessionsProvider(item.id)),
+                    fullScreen: false,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 if (item.status == BookingStatus.pending)
@@ -1222,7 +1277,7 @@ class _TutorBookingList extends ConsumerWidget {
                           ChatPage.routeName,
                           pathParameters: {'bookingId': item.id},
                         ),
-                        icon: const Icon(Icons.chat_bubble_outline),
+                        icon: const Icon(FluentIcons.chat_24_regular),
                         label: const Text('Chat'),
                       ),
                     ],
@@ -1233,14 +1288,14 @@ class _TutorBookingList extends ConsumerWidget {
                       ChatPage.routeName,
                       pathParameters: {'bookingId': item.id},
                     ),
-                    icon: const Icon(Icons.chat_bubble_outline),
+                    icon: const Icon(FluentIcons.chat_24_regular),
                     label: const Text('Buka Chat'),
                   ),
                   ],
                 ),
               ),
             ),
-          );
+          ).animate().fade(delay: (index * 50).ms, duration: 400.ms).slideY(begin: 0.1, curve: Curves.easeOut);
         }),
       ],
     );

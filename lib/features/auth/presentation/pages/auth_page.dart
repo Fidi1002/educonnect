@@ -1,7 +1,10 @@
+import 'dart:ui';
 import 'package:educonnect/core/config/app_config.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/auth/domain/services/auth_error_mapper.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AuthPage extends ConsumerStatefulWidget {
@@ -43,95 +46,188 @@ class _AuthPageState extends ConsumerState<AuthPage>
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authLoadingProvider);
-    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
-                  Text(
-                    'EduConnect',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Temukan tutor terbaik untuk perjalanan belajarmu.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TabBar(
-                    controller: _tabController,
-                    tabs: const [
-                      Tab(text: 'Masuk'),
-                      Tab(text: 'Daftar'),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildLoginTab(isLoading: isLoading),
-                        _buildRegisterTab(isLoading: isLoading),
-                      ],
-                    ),
-                  ),
-                ],
+      body: Stack(
+        children: [
+          // Vibrant Gradient Background
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF1E1E59), Color(0xFFFF1377)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
             ),
           ),
-        ),
+          // Subtle background decoration
+          Positioned(
+            top: -100,
+            right: -50,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.1),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Logo or Brand Name
+                      Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: Image.asset(
+                              'assets/images/logo.png',
+                              width: 56,
+                              height: 56,
+                            ),
+                          ).animate().scale(delay: 200.ms, duration: 400.ms, curve: Curves.easeOutBack),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'EduConnect',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                            ),
+                          ).animate().fade(delay: 300.ms).slideY(begin: 0.2, curve: Curves.easeOut),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Temukan tutor terbaik untuk perjalanan belajarmu.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withValues(alpha: 0.8),
+                            ),
+                          ).animate().fade(delay: 400.ms).slideY(begin: 0.2, curve: Curves.easeOut),
+                        ],
+                      ),
+                      const SizedBox(height: 40),
+                      // Glassmorphism Card
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                          child: Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                TabBar(
+                                  controller: _tabController,
+                                  labelColor: const Color(0xFF1E1E59),
+                                  unselectedLabelColor: const Color(0xFF667085),
+                                  indicatorColor: const Color(0xFFFF1377),
+                                  indicatorWeight: 3,
+                                  labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                                  tabs: const [
+                                    Tab(text: 'Masuk'),
+                                    Tab(text: 'Daftar'),
+                                  ],
+                                ),
+                                const SizedBox(height: 24),
+                                SizedBox(
+                                  height: 380, // fixed height to prevent unbounded errors in scroll
+                                  child: TabBarView(
+                                    controller: _tabController,
+                                    children: [
+                                      _buildLoginTab(isLoading: isLoading),
+                                      _buildRegisterTab(isLoading: isLoading),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ).animate().fade(delay: 500.ms, duration: 500.ms).slideY(begin: 0.1),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildLoginTab({required bool isLoading}) {
     return ListView(
+      physics: const NeverScrollableScrollPhysics(),
       children: [
-        TextField(
+        TextFormField(
           controller: _loginEmailController,
           keyboardType: TextInputType.emailAddress,
           decoration: const InputDecoration(
             labelText: 'Email',
-            border: OutlineInputBorder(),
+            prefixIcon: Icon(FluentIcons.mail_24_regular),
           ),
         ),
-        const SizedBox(height: 12),
-        TextField(
+        const SizedBox(height: 16),
+        TextFormField(
           controller: _loginPasswordController,
           obscureText: true,
           decoration: const InputDecoration(
             labelText: 'Password',
-            border: OutlineInputBorder(),
+            prefixIcon: Icon(FluentIcons.lock_closed_24_regular),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 24),
         FilledButton(
           onPressed: isLoading ? null : _onLoginPressed,
-          child: Text(isLoading ? 'Memproses...' : 'Masuk'),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            backgroundColor: const Color(0xFFFF1377),
+          ),
+          child: Text(isLoading ? 'Memproses...' : 'Masuk', style: const TextStyle(fontSize: 16)),
         ),
         if (AppConfig.enableGoogleAuth) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: isLoading ? null : _onGooglePressed,
-            icon: const Icon(Icons.login),
+            icon: const Icon(FluentIcons.person_24_regular),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
             label: const Text('Lanjut dengan Google'),
           ),
         ],
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         Align(
-          alignment: Alignment.centerRight,
+          alignment: Alignment.center,
           child: TextButton(
             onPressed: isLoading ? null : _onForgotPasswordPressed,
             child: const Text('Lupa Password?'),
@@ -143,36 +239,42 @@ class _AuthPageState extends ConsumerState<AuthPage>
 
   Widget _buildRegisterTab({required bool isLoading}) {
     return ListView(
+      physics: const NeverScrollableScrollPhysics(),
       children: [
-        TextField(
+        TextFormField(
           controller: _registerNameController,
           decoration: const InputDecoration(
             labelText: 'Nama lengkap',
-            border: OutlineInputBorder(),
+            prefixIcon: Icon(FluentIcons.person_24_regular),
           ),
         ),
-        const SizedBox(height: 12),
-        TextField(
+        const SizedBox(height: 16),
+        TextFormField(
           controller: _registerEmailController,
           keyboardType: TextInputType.emailAddress,
           decoration: const InputDecoration(
             labelText: 'Email',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _registerPasswordController,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Password (min 6 karakter)',
-            border: OutlineInputBorder(),
+            prefixIcon: Icon(FluentIcons.mail_24_regular),
           ),
         ),
         const SizedBox(height: 16),
+        TextFormField(
+          controller: _registerPasswordController,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'Password',
+            hintText: 'Minimal 6 karakter',
+            prefixIcon: Icon(FluentIcons.lock_closed_24_regular),
+          ),
+        ),
+        const SizedBox(height: 24),
         FilledButton(
           onPressed: isLoading ? null : _onRegisterPressed,
-          child: Text(isLoading ? 'Memproses...' : 'Buat Akun'),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            backgroundColor: const Color(0xFF1E1E59),
+          ),
+          child: Text(isLoading ? 'Memproses...' : 'Buat Akun', style: const TextStyle(fontSize: 16)),
         ),
       ],
     );

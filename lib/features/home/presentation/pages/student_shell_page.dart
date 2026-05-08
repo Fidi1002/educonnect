@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/features/booking/presentation/pages/student_bookings_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_ebook_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_home_page.dart';
@@ -21,29 +22,48 @@ class StudentShellPage extends StatelessWidget {
 
     return Scaffold(
       body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (index) {
-          switch (index) {
-            case 0:
-              context.go(StudentHomePage.routePath);
-            case 1:
-              context.go(StudentBookingsPage.routePath);
-            case 2:
-              context.go(StudentEbookPage.routePath);
-            case 3:
-              context.go(StudentProfilePage.routePath);
-          }
-        },
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.menu_book), label: 'Kelas'),
-          NavigationDestination(
-            icon: Icon(Icons.auto_stories),
-            label: 'E-Book',
+      extendBody: true,
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1A000000),
+                blurRadius: 20,
+                offset: Offset(0, 8),
+              ),
+            ],
           ),
-          NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
-        ],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _BottomNavItem(
+                icon: FluentIcons.home_24_filled,
+                isSelected: selectedIndex == 0,
+                onTap: () => context.go(StudentHomePage.routePath),
+              ),
+              _BottomNavItem(
+                icon: FluentIcons.book_24_filled,
+                isSelected: selectedIndex == 1,
+                onTap: () => context.go(StudentBookingsPage.routePath),
+              ),
+              _BottomNavItem(
+                icon: Icons.auto_stories,
+                isSelected: selectedIndex == 2,
+                onTap: () => context.go(StudentEbookPage.routePath),
+              ),
+              _BottomNavItem(
+                icon: FluentIcons.person_24_filled,
+                isSelected: selectedIndex == 3,
+                onTap: () => context.go(StudentProfilePage.routePath),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -62,5 +82,36 @@ class StudentShellPage extends StatelessWidget {
       return 3;
     }
     return 0;
+  }
+}
+
+class _BottomNavItem extends StatelessWidget {
+  const _BottomNavItem({
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF7B2CBF) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(
+          icon,
+          color: isSelected ? Colors.white : const Color(0xFF9FA5C0),
+        ),
+      ),
+    );
   }
 }

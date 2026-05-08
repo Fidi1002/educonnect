@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/booking/application/booking_controller.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
@@ -224,7 +225,7 @@ class _CalendarSessionCard extends StatelessWidget {
             color: const Color(0xFFE6F0F2),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: const Icon(Icons.school_outlined, color: Color(0xFF21425B)),
+          child: const Icon(FluentIcons.hat_graduation_24_regular, color: Color(0xFF21425B)),
         ),
         title: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,7 +306,7 @@ class _CalendarEmptyCard extends StatelessWidget {
     return const AppEmptyState(
       message: 'Tidak ada sesi di tanggal ini.',
       hint: 'Pilih tanggal lain atau cek booking aktif untuk melihat jadwal mengajar.',
-      icon: Icons.event_available_outlined,
+      icon: FluentIcons.calendar_checkmark_24_regular,
     );
   }
 }

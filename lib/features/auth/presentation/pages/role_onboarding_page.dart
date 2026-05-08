@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/auth/presentation/pages/auth_page.dart';
@@ -30,7 +31,7 @@ class _RoleOnboardingPageState extends ConsumerState<RoleOnboardingPage> {
             _RoleOptionCard(
               title: 'Saya Murid',
               subtitle: 'Cari tutor terdekat dan booking kelas dengan mudah.',
-              icon: Icons.school_outlined,
+              icon: FluentIcons.hat_graduation_24_regular,
               selected: _selectedRole == AppUserRole.student,
               onTap: () {
                 setState(() {
@@ -88,7 +89,9 @@ class _RoleOnboardingPageState extends ConsumerState<RoleOnboardingPage> {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal simpan role. Coba lagi. (${error.toString()})'),
+          content: Text(
+            'Gagal menyimpan peran akun. Coba lagi sebentar lagi. ${error.toString()}',
+          ),
         ),
       );
     } finally {

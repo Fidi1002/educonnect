@@ -1,8 +1,10 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/booking/presentation/pages/student_bookings_page.dart';
 import 'package:educonnect/features/booking/presentation/pages/tutor_bookings_page.dart';
+import 'package:educonnect/features/chat/presentation/pages/chat_page.dart';
 import 'package:educonnect/features/notifications/application/notification_controller.dart';
 import 'package:educonnect/features/notifications/domain/models/app_notification.dart';
 import 'package:flutter/material.dart';
@@ -20,38 +22,6 @@ class NotificationsPage extends ConsumerStatefulWidget {
 }
 
 class _NotificationsPageState extends ConsumerState<NotificationsPage> {
-  var _autoMarkInProgress = false;
-  ProviderSubscription<AsyncValue<List<AppNotification>>>? _notificationsSub;
-
-  @override
-  void initState() {
-    super.initState();
-    _notificationsSub = ref.listenManual(myNotificationsProvider, (
-      previous,
-      next,
-    ) {
-      final items = next.valueOrNull ?? const <AppNotification>[];
-      final hasUnread = items.any((item) => !item.isRead);
-      if (!hasUnread || _autoMarkInProgress) {
-        return;
-      }
-      _autoMarkInProgress = true;
-      Future<void>(() async {
-        try {
-          await ref.read(notificationControllerProvider).markAllAsRead();
-        } finally {
-          _autoMarkInProgress = false;
-        }
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _notificationsSub?.close();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final notificationsAsync = ref.watch(myNotificationsProvider);
@@ -63,7 +33,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             return const AppEmptyState(
               message: 'Belum ada notifikasi.',
               hint: 'Update booking, sesi, dan pengingat akan muncul di sini.',
-              icon: Icons.notifications_none_outlined,
+              icon: FluentIcons.alert_24_regular,
               fullScreen: true,
             );
           }
@@ -96,15 +66,17 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                         child: ListTile(
                           onTap: () => _onNotificationTap(context, item),
                           leading: Icon(
-                            item.isRead
-                                ? Icons.notifications_none
-                                : Icons.notifications_active,
+                            _iconForNotification(item),
                             color: item.isRead
                                 ? Colors.black45
                                 : const Color(0xFF4B176E),
                           ),
                           title: Text(item.title),
-                          subtitle: Text(item.body),
+                          subtitle: Text(
+                            item.body,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     );
@@ -139,6 +111,17 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       return;
     }
 
+    if (item.targetType == 'booking_chat' && item.targetId.isNotEmpty) {
+      if (!context.mounted) {
+        return;
+      }
+      context.pushNamed(
+        ChatPage.routeName,
+        pathParameters: {'bookingId': item.targetId},
+      );
+      return;
+    }
+
     final bookingId = await controller.resolveBookingIdFromTarget(
       targetType: item.targetType,
       targetId: item.targetId,
@@ -166,6 +149,15 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     if (role == AppUserRole.tutor) {
       context.pushNamed(TutorBookingsPage.routeName, queryParameters: query);
     }
+  }
+
+  IconData _iconForNotification(AppNotification item) {
+    if (item.category == 'chat' || item.targetType == 'booking_chat') {
+      return item.isRead ? FluentIcons.chat_24_regular : Icons.mark_chat_unread;
+    }
+    return item.isRead
+        ? FluentIcons.alert_24_regular
+        : FluentIcons.alert_urgent_24_filled;
   }
 
   List<_NotificationDaySection> _groupByDay(List<AppNotification> items) {

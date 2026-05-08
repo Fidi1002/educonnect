@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_profile.dart';
@@ -216,6 +217,17 @@ class _TutorHomeScaffold extends StatelessWidget {
       monthRangeStart,
       nextMonthStart,
     );
+    final hasBackgroundLoading =
+        sessionsAsync.isLoading ||
+        bookingsAsync.isLoading ||
+        availabilityAsync.isLoading ||
+        pendingHomeworkAsync.isLoading;
+    final backgroundErrors = <String>[
+      if (sessionsAsync.hasError) 'jadwal sesi',
+      if (bookingsAsync.hasError) 'data booking',
+      if (availabilityAsync.hasError) 'availability',
+      if (pendingHomeworkAsync.hasError) 'ringkasan PR',
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -224,14 +236,14 @@ class _TutorHomeScaffold extends StatelessWidget {
           _BadgeIconButton(
             count: unreadNotifications,
             onTap: () => context.pushNamed(NotificationsPage.routeName),
-            icon: Icons.notifications_none,
+            icon: FluentIcons.alert_24_regular,
           ),
           _BadgeIconButton(
             count: unreadChatCount,
             onTap: () => context.pushNamed(InboxPage.routeName),
-            icon: Icons.chat_bubble_outline,
+            icon: FluentIcons.chat_24_regular,
           ),
-          IconButton(onPressed: onLogout, icon: const Icon(Icons.logout)),
+          IconButton(onPressed: onLogout, icon: const Icon(FluentIcons.sign_out_24_regular)),
         ],
       ),
       body: ListView(
@@ -246,7 +258,7 @@ class _TutorHomeScaffold extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.wifi_off, color: colorScheme.onErrorContainer),
+                  Icon(FluentIcons.wifi_off_24_regular, color: colorScheme.onErrorContainer),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -256,6 +268,21 @@ class _TutorHomeScaffold extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (backgroundErrors.isNotEmpty) ...[
+            AppErrorState(
+              message: 'Sebagian data dashboard tutor belum berhasil dimuat.',
+              detail:
+                  'Bagian yang terdampak: ${backgroundErrors.join(', ')}. Dashboard tetap menampilkan data terakhir yang tersedia.',
+              fullScreen: false,
+            ),
+            const SizedBox(height: 12),
+          ] else if (hasBackgroundLoading) ...[
+            const AppLoadingState(
+              message: 'Menyegarkan ringkasan dashboard tutor...',
+              fullScreen: false,
             ),
             const SizedBox(height: 12),
           ],
@@ -280,33 +307,35 @@ class _TutorHomeScaffold extends StatelessWidget {
                 title: 'Sesi Hari Ini',
                 value: '${todaySessions.length}',
                 note: todaySessions.isEmpty
-                    ? 'Belum ada sesi'
-                    : 'Fokus pada kelas terdekat',
-                icon: Icons.calendar_today_outlined,
+                    ? 'Belum ada sesi untuk hari ini'
+                    : 'Fokus pada kelas terdekatmu',
+                icon: FluentIcons.calendar_empty_24_regular,
                 color: const Color(0xFFF3EAD8),
               ),
               _MetricCard(
                 title: 'Booking Baru',
                 value: '$pendingCount',
-                note: pendingCount == 0 ? 'Semua aman' : 'Perlu respon',
-                icon: Icons.mark_email_unread_outlined,
+                note: pendingCount == 0
+                    ? 'Belum ada booking yang menunggu respon'
+                    : 'Segera respon booking baru',
+                icon: FluentIcons.mail_unread_24_regular,
                 color: const Color(0xFFE6F0F2),
               ),
               _MetricCard(
                 title: 'Menunggu Bayar',
                 value: '$waitingPaymentCount',
                 note: waitingPaymentCount == 0
-                    ? 'Tidak ada tunggakan'
-                    : 'Pantau progres murid',
-                icon: Icons.payments_outlined,
+                    ? 'Belum ada pembayaran yang tertunda'
+                    : 'Pantau progres pembayaran murid',
+                icon: FluentIcons.money_24_regular,
                 color: const Color(0xFFF7E7DF),
               ),
               _MetricCard(
                 title: 'Perlu Review',
                 value: '$reviewNeededCount',
                 note: reviewNeededCount == 0
-                    ? 'Tidak ada dispute/confirm'
-                    : 'Cek sesi pending',
+                    ? 'Belum ada sesi yang perlu ditinjau'
+                    : 'Tinjau sesi yang masih pending',
                 icon: Icons.rule_folder_outlined,
                 color: const Color(0xFFEAE7F6),
               ),
@@ -630,8 +659,8 @@ class _TodayFocusCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             todaySessions.isEmpty
-                ? 'Belum ada sesi hari ini. Gunakan waktu untuk merapikan availability dan PR.'
-                : 'Berikut sesi yang paling dekat dan perlu kamu pegang hari ini.',
+                ? 'Belum ada sesi hari ini. Kamu bisa memakai waktu ini untuk merapikan availability dan PR.'
+                : 'Berikut sesi terdekat yang perlu kamu pantau hari ini.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 12),
@@ -658,7 +687,7 @@ class _TodayFocusCard extends StatelessWidget {
                         color: const Color(0xFF21425B),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(Icons.school_outlined, color: Colors.white),
+                      child: const Icon(FluentIcons.hat_graduation_24_regular, color: Colors.white),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -729,8 +758,8 @@ class _TutorStatusStrip extends StatelessWidget {
             title: 'Murid Aktif',
             value: '$activeStudents / 2',
             subtitle: bookedSubjects == 0
-                ? 'Belum ada mapel aktif'
-                : '$bookedSubjects mapel aktif',
+                ? 'Belum ada mapel aktif saat ini'
+                : '$bookedSubjects mapel aktif berjalan',
             buttonLabel: 'Lihat Murid',
             onTap: onOpenStudents,
           ),

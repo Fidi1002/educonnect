@@ -1,10 +1,13 @@
+import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/home/application/nearby_tutor_controller.dart';
 import 'package:educonnect/features/home/application/tutor_controller.dart';
 import 'package:educonnect/features/home/domain/models/tutor_summary.dart';
 import 'package:educonnect/features/home/presentation/models/tutor_discovery_filter.dart';
 import 'package:educonnect/features/home/presentation/widgets/tutor_filter_sheet.dart';
 import 'package:educonnect/features/tutor/presentation/pages/tutor_detail_page.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -64,7 +67,7 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                 },
                 decoration: InputDecoration(
                   hintText: 'Cari tutor atau mapel...',
-                  prefixIcon: const Icon(Icons.search),
+                  prefixIcon: const Icon(FluentIcons.search_24_regular),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),
@@ -101,7 +104,7 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                         });
                       }
                     },
-                    icon: const Icon(Icons.tune_rounded),
+                    icon: const Icon(FluentIcons.options_24_regular),
                     label: const Text('Filter'),
                   ),
                 ],
@@ -136,7 +139,7 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                         TutorDetailPage.routeName,
                         pathParameters: {'tutorId': tutor.uid},
                       ),
-                    ),
+                    ).animate().fade(delay: (visible.indexOf(tutor) * 50).ms, duration: 400.ms).slideX(begin: 0.1, curve: Curves.easeOut),
                   );
                 }),
                 if (visible.length < filtered.length)
@@ -152,8 +155,16 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Gagal memuat tutor: $error')),
+        loading: () => const AppLoadingState(message: 'Memuat daftar tutor...'),
+        error: (error, _) => AppErrorState(
+          message: 'Gagal memuat daftar tutor.',
+          detail: error.toString(),
+          onRetry: () {
+            ref.invalidate(nearbyTutorsProvider);
+            ref.invalidate(activeTutorsProvider);
+          },
+          fullScreen: true,
+        ),
       ),
     );
   }
@@ -215,22 +226,22 @@ class _SortSelector extends StatelessWidget {
         ButtonSegment(
           value: TutorSortOption.ratingDesc,
           label: Text('Rating'),
-          icon: Icon(Icons.star_outline),
+          icon: Icon(FluentIcons.star_24_filled),
         ),
         ButtonSegment(
           value: TutorSortOption.distanceAsc,
           label: Text('Terdekat'),
-          icon: Icon(Icons.near_me_outlined),
+          icon: Icon(FluentIcons.location_24_regular),
         ),
         ButtonSegment(
           value: TutorSortOption.priceAsc,
           label: Text('Murah'),
-          icon: Icon(Icons.arrow_downward),
+          icon: Icon(FluentIcons.arrow_down_24_regular),
         ),
         ButtonSegment(
           value: TutorSortOption.priceDesc,
           label: Text('Mahal'),
-          icon: Icon(Icons.arrow_upward),
+          icon: Icon(FluentIcons.arrow_up_24_regular),
         ),
       ],
       selected: {selected},
@@ -260,13 +271,13 @@ class _TutorTile extends StatelessWidget {
             const SizedBox(height: 2),
             Row(
               children: [
-                const Icon(Icons.star, size: 16, color: Colors.amber),
+                const Icon(FluentIcons.star_24_filled, size: 16, color: Colors.amber),
                 const SizedBox(width: 4),
                 Text(tutor.rating.toStringAsFixed(1)),
                 const SizedBox(width: 8),
                 Text('(${tutor.totalReviews})'),
                 const SizedBox(width: 12),
-                const Icon(Icons.menu_book, size: 16),
+                const Icon(FluentIcons.book_24_regular, size: 16),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
@@ -307,7 +318,7 @@ class _TutorTile extends StatelessWidget {
           backgroundImage: tutor.photoUrl.isNotEmpty
               ? NetworkImage(tutor.photoUrl)
               : null,
-          child: tutor.photoUrl.isEmpty ? const Icon(Icons.person) : null,
+          child: tutor.photoUrl.isEmpty ? const Icon(FluentIcons.person_24_regular) : null,
         ),
       ),
     );

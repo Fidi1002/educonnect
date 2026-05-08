@@ -17,6 +17,13 @@ final myTutorAvailabilityProvider = StreamProvider<List<TutorAvailabilitySlot>>(
   },
 );
 
+final tutorAvailabilityByTutorProvider = StreamProvider.autoDispose
+    .family<List<TutorAvailabilitySlot>, String>((ref, tutorUid) {
+  return ref
+      .watch(tutorAvailabilityRepositoryProvider)
+      .watchTutorAvailability(tutorUid);
+});
+
 class AvailableTimesInput {
   const AvailableTimesInput({
     required this.tutorUid,

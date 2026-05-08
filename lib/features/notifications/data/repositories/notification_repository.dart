@@ -47,7 +47,7 @@ class NotificationRepository {
       return null;
     }
 
-    if (targetType == 'booking') {
+    if (targetType == 'booking' || targetType == 'booking_chat') {
       return targetId;
     }
 

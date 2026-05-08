@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/booking/application/booking_controller.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
@@ -66,7 +67,7 @@ class TutorStudentsPage extends ConsumerWidget {
                 return const AppEmptyState(
                   message: 'Belum ada murid aktif saat ini.',
                   hint: 'Saat booking tutor berjalan, maksimal dua murid aktif akan muncul di sini.',
-                  icon: Icons.groups_outlined,
+                  icon: FluentIcons.people_24_regular,
                 );
               }
 

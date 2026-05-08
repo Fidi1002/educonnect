@@ -1,3 +1,4 @@
+import 'package:educonnect/core/services/push_notification_service.dart';
 import 'package:educonnect/features/auth/data/repositories/auth_repository.dart';
 import 'package:educonnect/features/auth/data/repositories/user_repository.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_profile.dart';
@@ -81,7 +82,10 @@ class AuthController {
     await _userRepository.setRole(uid: user.uid, role: role);
   }
 
-  Future<void> signOut() => _authRepository.signOut();
+  Future<void> signOut() async {
+    await _ref.read(pushNotificationServiceProvider).markCurrentDeviceInactive();
+    await _authRepository.signOut();
+  }
 
   Future<T> runAuthTask<T>(Future<T> Function() action) async {
     _ref.read(authLoadingProvider.notifier).state = true;

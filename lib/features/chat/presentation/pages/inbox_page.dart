@@ -1,3 +1,5 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/booking/domain/models/booking_status.dart';
 import 'package:educonnect/features/chat/application/chat_controller.dart';
@@ -22,7 +24,12 @@ class InboxPage extends ConsumerWidget {
       body: inboxAsync.when(
         data: (bookings) {
           if (bookings.isEmpty) {
-            return const Center(child: Text('Belum ada booking untuk chat.'));
+            return const AppEmptyState(
+              message: 'Belum ada percakapan aktif.',
+              hint: 'Chat akan muncul setelah kamu memiliki booking dengan tutor.',
+              icon: FluentIcons.chat_24_regular,
+              fullScreen: true,
+            );
           }
 
           return ListView.separated(
@@ -57,7 +64,7 @@ class InboxPage extends ConsumerWidget {
                       Text('Mapel: ${booking.subject}'),
                       Text(
                         latestMessage == null
-                            ? 'Belum ada pesan. Mulai chat sekarang.'
+                            ? 'Belum ada pesan. Mulai percakapan sekarang.'
                             : latestMessage.body,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -83,27 +90,12 @@ class InboxPage extends ConsumerWidget {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline),
-                const SizedBox(height: 8),
-                const Text('Gagal memuat inbox chat.'),
-                const SizedBox(height: 8),
-                Text(error.toString(), textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: () => ref.invalidate(inboxBookingsProvider),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Coba lagi'),
-                ),
-              ],
-            ),
-          ),
+        loading: () => const AppLoadingState(message: 'Memuat inbox chat...'),
+        error: (error, _) => AppErrorState(
+          message: 'Gagal memuat inbox chat.',
+          detail: error.toString(),
+          onRetry: () => ref.invalidate(inboxBookingsProvider),
+          fullScreen: true,
         ),
       ),
     );

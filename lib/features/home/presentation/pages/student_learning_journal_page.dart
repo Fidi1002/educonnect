@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/booking/application/booking_controller.dart';
 import 'package:educonnect/features/booking/presentation/pages/student_bookings_page.dart';
@@ -561,16 +562,15 @@ class _JournalEntryCard extends StatelessWidget {
         },
       ),
       child: Ink(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0xFFE8E2F0)),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x0D000000),
-              blurRadius: 16,
-              offset: Offset(0, 6),
+              color: Color(0x0A000000),
+              blurRadius: 24,
+              offset: Offset(0, 10),
             ),
           ],
         ),
@@ -607,7 +607,7 @@ class _JournalEntryCard extends StatelessWidget {
             if (record != null && record.hasMaterial) ...[
               const SizedBox(height: 12),
               _JournalBlock(
-                icon: Icons.menu_book_rounded,
+                icon: FluentIcons.book_24_regular,
                 title: 'Materi',
                 content: record.materialSummary,
                 note: record.materialNotes.trim().isEmpty
@@ -671,10 +671,11 @@ class _JournalBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: background,
+        color: background.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
