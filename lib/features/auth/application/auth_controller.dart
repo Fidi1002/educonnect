@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:educonnect/core/services/push_notification_service.dart';
 import 'package:educonnect/features/auth/data/repositories/auth_repository.dart';
 import 'package:educonnect/features/auth/data/repositories/user_repository.dart';
@@ -23,6 +25,10 @@ final currentUserProfileProvider = StreamProvider<AppUserProfile?>((ref) {
     return const Stream<AppUserProfile?>.empty();
   }
   return ref.watch(userRepositoryProvider).watchUserProfile(authUser.uid);
+});
+
+final userProfileProvider = StreamProvider.autoDispose.family<AppUserProfile?, String>((ref, uid) {
+  return ref.watch(userRepositoryProvider).watchUserProfile(uid);
 });
 
 class AuthController {
@@ -80,6 +86,33 @@ class AuthController {
       throw StateError('User is not authenticated');
     }
     await _userRepository.setRole(uid: user.uid, role: role);
+  }
+
+  Future<void> updateUserProfile({
+    required String displayName,
+    required String currentPhotoUrl,
+    File? newPhoto,
+  }) async {
+    return runAuthTask(() async {
+      final user = _authRepository.currentUser;
+      if (user == null) {
+        throw StateError('User is not authenticated');
+      }
+
+      var photoUrl = currentPhotoUrl;
+      if (newPhoto != null) {
+        photoUrl = await _userRepository.uploadProfilePhoto(
+          uid: user.uid,
+          file: newPhoto,
+        );
+      }
+
+      await _userRepository.updateProfile(
+        uid: user.uid,
+        displayName: displayName,
+        photoUrl: photoUrl,
+      );
+    });
   }
 
   Future<void> signOut() async {

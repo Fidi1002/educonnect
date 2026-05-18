@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:educonnect/core/providers/backend_providers.dart';
 import 'package:educonnect/core/utils/resilient_stream.dart';
@@ -136,6 +137,45 @@ class UserRepository {
     }, onConflict: 'uid');
   }
 
+  Future<String> uploadProfilePhoto({
+    required String uid,
+    required File file,
+  }) async {
+    final bucket = _client.storage.from('tutor-photos'); // Reusing existing bucket
+    final extension = file.path.split('.').last.toLowerCase();
+    final filePath =
+        'users/$uid/profile_${DateTime.now().millisecondsSinceEpoch}.$extension';
+
+    await bucket.uploadBinary(
+      filePath,
+      await file.readAsBytes(),
+      fileOptions: const FileOptions(upsert: false),
+    );
+
+    return bucket.getPublicUrl(filePath);
+  }
+
+  Future<void> updateProfile({
+    required String uid,
+    required String displayName,
+    required String photoUrl,
+  }) async {
+    await _client.from('users').update({
+      'display_name': displayName.trim(),
+      'photo_url': photoUrl.trim(),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('uid', uid);
+
+    final userMap = await _client.from('users').select('role').eq('uid', uid).maybeSingle();
+    if (userMap != null && userMap['role'] == AppUserRole.tutor.value) {
+      await _client.from('tutors').update({
+        'display_name': displayName.trim(),
+        'photo_url': photoUrl.trim(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('uid', uid);
+    }
+  }
+
   Future<List<TutorSummary>> _fetchNearbyTutors({
     required double latitude,
     required double longitude,
@@ -194,6 +234,11 @@ class UserRepository {
         'consistency_score',
         fallbackKey: 'consistencyScore',
       ).toDouble(),
+      experienceYears: _readNum(
+        map,
+        'experience_years',
+        fallbackKey: 'experienceYears',
+      ).toInt(),
       distanceFromUserKm: map['distance_km'] is num
           ? (map['distance_km'] as num).toDouble()
           : null,

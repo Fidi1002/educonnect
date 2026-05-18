@@ -15,9 +15,6 @@ import 'package:educonnect/features/home/application/tutor_controller.dart';
 import 'package:educonnect/features/home/domain/models/tutor_summary.dart';
 import 'package:educonnect/features/booking/presentation/pages/student_bookings_page.dart';
 import 'package:educonnect/features/home/presentation/models/tutor_discovery_filter.dart';
-import 'package:educonnect/features/booking/presentation/pages/student_bookings_page.dart';
-import 'package:educonnect/features/home/presentation/pages/student_learning_journal_page.dart';
-import 'package:educonnect/features/home/presentation/pages/student_study_calendar_page.dart';
 import 'package:educonnect/features/home/presentation/pages/tutor_list_page.dart';
 import 'package:educonnect/features/home/presentation/widgets/tutor_filter_sheet.dart';
 import 'package:educonnect/features/notifications/application/notification_controller.dart';
@@ -242,7 +239,7 @@ class _HomeBody extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 100),
         children: [
           _StudentHeroCard(
             greetingName: greetingName,
@@ -251,169 +248,220 @@ class _HomeBody extends ConsumerWidget {
                 context.pushNamed(StudentBookingsPage.routeName),
             onOpenTutorSearch: () => context.pushNamed(TutorListPage.routeName),
           ),
-          const SizedBox(height: 20),
-          const _StudentMetricCards(),
           const SizedBox(height: 24),
-          Text(
-            'PR & Progress',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF191622),
-            ),
+          const _StudentMetricCards(),
+          const SizedBox(height: 32),
+
+          // Section: PR & Progress
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'PR & Progress Belajar',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF4B176E),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              if (dashboard.pendingHomework.isNotEmpty)
+                TextButton(
+                  onPressed: () =>
+                      context.pushNamed(StudentBookingsPage.routeName),
+                  child: const Text('Lihat Semua'),
+                ),
+            ],
           ),
           const SizedBox(height: 12),
           if (dashboard.pendingHomework.isNotEmpty)
             _HomeworkProgressList(dashboard: dashboard)
           else
             _EmptyHomeworkCard(),
-          const SizedBox(height: 24),
-          Text(
-            'Pilih tutor sesuai mapel, tingkat kelas,\ndan preferensimu yukkk!!',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF8F8B99)),
-          ),
-          TextField(
-            controller: searchController,
-            onChanged: onSearchChanged,
-            decoration: InputDecoration(
-              hintText: 'Cari tutor atau mapel...',
-              prefixIcon: const Icon(FluentIcons.search_24_regular),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(24),
-                borderSide: BorderSide.none,
-              ),
-              filled: true,
-              fillColor: const Color(0xFFF3F0F7),
+
+          const SizedBox(height: 32),
+
+          // Section: Discovery
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FF),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-          ),
-          const SizedBox(height: 14),
-          if (dashboard.activeTutors.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            _ActiveTutorSection(dashboard: dashboard),
-          ],
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(
-                Icons.place_outlined,
-                size: 16,
-                color: Color(0xFF8F8B99),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  locationText,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF8F8B99),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Temukan Tutor Terbaik',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF4B176E),
                   ),
                 ),
-              ),
-              IconButton(
-                onPressed: onRefreshLocation,
-                icon: const Icon(FluentIcons.location_24_regular),
-                tooltip: 'Refresh lokasi',
-              ),
-              IconButton(
-                onPressed: () async {
-                  if (!context.mounted) {
-                    return;
-                  }
-                  final filterResult = await showTutorFilterSheet(
-                    context: context,
-                    initialFilter: filter,
-                    categories: categories,
-                    minAvailablePrice: _minPrice(tutors),
-                    maxAvailablePrice: _maxPrice(tutors),
-                    currentRadiusKm: radiusKm,
-                  );
-                  if (filterResult != null) {
-                    onFilterChanged(filterResult);
-                  }
-                },
-                icon: const Icon(Icons.tune_rounded),
-                tooltip: 'Filter tutor',
-              ),
-            ],
-          ),
-          if (locationError != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                locationError!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+                const SizedBox(height: 4),
+                Text(
+                  'Cari berdasarkan mapel, lokasi, atau nama tutor',
+                  style: TextStyle(
+                    color: const Color(0xFF718096),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFF4B176E,
+                              ).withValues(alpha: 0.08),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: searchController,
+                          onChanged: onSearchChanged,
+                          decoration: InputDecoration(
+                            hintText: 'Cari tutor...',
+                            prefixIcon: const Icon(
+                              FluentIcons.search_24_regular,
+                              color: Color(0xFF4B176E),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Material(
+                      color: const Color(0xFFFF1377),
+                      borderRadius: BorderRadius.circular(18),
+                      child: InkWell(
+                        onTap: () async {
+                          final filterResult = await showTutorFilterSheet(
+                            context: context,
+                            initialFilter: filter,
+                            categories: categories,
+                            minAvailablePrice: _minPrice(tutors),
+                            maxAvailablePrice: _maxPrice(tutors),
+                            currentRadiusKm: radiusKm,
+                          );
+                          if (filterResult != null) {
+                            onFilterChanged(filterResult);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(18),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          child: const Icon(
+                            FluentIcons.filter_24_regular,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _LocationBadge(
+                  locationText: locationText,
+                  onRefresh: onRefreshLocation,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Radius Pencarian',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF4B176E).withValues(alpha: 0.8),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: radiusOptions.map((option) {
+                      final selected = radiusKm.round() == option.round();
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text('${option.toInt()} km'),
+                          selected: selected,
+                          onSelected: (_) => onRadiusChipTap(option),
+                          backgroundColor: Colors.white,
+                          selectedColor: const Color(0xFF4B176E),
+                          checkmarkColor: Colors.white,
+                          labelStyle: TextStyle(
+                            color: selected
+                                ? Colors.white
+                                : const Color(0xFF4B176E),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: selected
+                                  ? const Color(0xFF4B176E)
+                                  : const Color(0xFFD1D5DB),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
             ),
-          Text(
-            'Radius Pencarian',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: const Color(0xFF6D667A),
-              fontWeight: FontWeight.w700,
-            ),
           ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            children: radiusOptions.map((option) {
-              final selected = radiusKm.round() == option.round();
-              return FilterChip(
-                avatar: Icon(
-                  Icons.near_me_outlined,
-                  size: 16,
-                  color: selected ? Colors.white : const Color(0xFF5B5470),
-                ),
-                label: Text('${option.toInt()} km'),
-                selected: selected,
-                onSelected: (_) => onRadiusChipTap(option),
-                backgroundColor: const Color(0xFFF5F2FA),
-                selectedColor: const Color(0xFF4B176E),
-                side: BorderSide(
-                  color: selected
-                      ? const Color(0xFF4B176E)
-                      : const Color(0xFFD9D2E6),
-                ),
-                labelStyle: TextStyle(
-                  color: selected ? Colors.white : const Color(0xFF63606D),
-                  fontWeight: FontWeight.w600,
-                ),
-              );
-            }).toList(),
-          ),
+
           if (filter.hasActiveFilters) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             TutorActiveFilterChips(
               filter: filter,
               onClearAll: () => onFilterChanged(TutorDiscoveryFilter.empty),
             ),
           ],
-          const SizedBox(height: 16),
+
+          if (dashboard.activeTutors.isNotEmpty) ...[
+            const SizedBox(height: 32),
+            _ActiveTutorSection(dashboard: dashboard),
+          ],
+
+          const SizedBox(height: 32),
+
+          // Section: Tutor Categories
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Cari Tutor',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+                'Kategori Mapel',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF4B176E),
+                  letterSpacing: -0.5,
                 ),
               ),
-              const Spacer(),
-              InkWell(
-                onTap: () => context.pushNamed(TutorListPage.routeName),
-                child: Text(
-                  'Lihat Semua',
-                  style: const TextStyle(color: Color(0xFF9A7CB6)),
-                ),
+              TextButton(
+                onPressed: () => context.pushNamed(TutorListPage.routeName),
+                child: const Text('Lihat Semua'),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Kategori Mapel',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: const Color(0xFF6D667A),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             children: categories.map((item) {
@@ -423,12 +471,12 @@ class _HomeBody extends ConsumerWidget {
                 selected: selected,
                 onSelected: (_) =>
                     onFilterChanged(filter.copyWith(subject: item)),
-                backgroundColor: const Color(0xFFF7F4FB),
+                backgroundColor: const Color(0xFFF7F9FF),
                 selectedColor: const Color(0xFF4B176E),
                 side: BorderSide(
                   color: selected
                       ? const Color(0xFF4B176E)
-                      : const Color(0xFFE0D8ED),
+                      : const Color(0xFFC9D8F2),
                 ),
                 labelStyle: TextStyle(
                   color: selected ? Colors.white : const Color(0xFF4E475C),
@@ -550,10 +598,10 @@ class _TutorDiscoveryCard extends StatelessWidget {
                         text: consistencyLabel,
                         foreground: tutor.consistencyScore <= 0
                             ? const Color(0xFF6D667A)
-                            : const Color(0xFF5B21B6),
+                            : const Color(0xFF4B176E),
                         background: tutor.consistencyScore <= 0
                             ? const Color(0xFFF2EFF7)
-                            : const Color(0xFFEDE4F8),
+                            : const Color(0xFFEAF2FF),
                       ),
                     ],
                   ),
@@ -668,7 +716,7 @@ class _StudyBanner extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: const LinearGradient(
-          colors: [Color(0xFF6E2F99), Color(0xFF8C4BC0)],
+          colors: [Color(0xFF4B176E), Color(0xFFFF1377)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -924,127 +972,6 @@ class _StudentHomeworkDigest {
   final String subject;
 }
 
-class _StudentNextClassCard extends StatelessWidget {
-  const _StudentNextClassCard({
-    required this.dashboard,
-    required this.onOpenSchedule,
-  });
-
-  final _StudentDashboardSnapshot dashboard;
-  final VoidCallback onOpenSchedule;
-
-  @override
-  Widget build(BuildContext context) {
-    final nextClass = dashboard.nextClass;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF201235), Color(0xFF4B176E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x22150E20),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  'Ringkasan Belajar',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              Icon(
-                Icons.school_rounded,
-                color: Colors.white.withValues(alpha: 0.86),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            nextClass == null
-                ? 'Belum ada kelas berikutnya'
-                : 'Kelas berikutnya',
-            style: const TextStyle(color: Colors.white70),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            nextClass == null
-                ? 'Cari tutor yang cocok lalu aktifkan paket belajar pertamamu.'
-                : '${nextClass.booking.subject} bersama ${nextClass.booking.tutorName}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              height: 1.15,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            nextClass == null
-                ? 'Setelah booking disetujui dan dibayar, jadwalmu akan muncul di sini.'
-                : nextClass.timeLabel,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _HeroMiniMetric(
-                  label: 'PR pending',
-                  value: '${dashboard.pendingHomework.length}',
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _HeroMiniMetric(
-                  label: 'Tutor aktif',
-                  value: '${dashboard.activeTutors.length}',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          FilledButton(
-            onPressed: onOpenSchedule,
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF4B176E),
-              minimumSize: const Size.fromHeight(46),
-              textStyle: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            child: Text(
-              nextClass == null ? 'Lihat Jadwal Saya' : 'Buka Booking & Jadwal',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _HeroMiniMetric extends StatelessWidget {
   const _HeroMiniMetric({required this.label, required this.value});
 
@@ -1072,113 +999,6 @@ class _HeroMiniMetric extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(label, style: const TextStyle(color: Colors.white70)),
-        ],
-      ),
-    );
-  }
-}
-
-class _StudentDashboardMetrics extends StatelessWidget {
-  const _StudentDashboardMetrics({required this.dashboard});
-
-  final _StudentDashboardSnapshot dashboard;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _DashboardMetricCard(
-            title: 'Progress Paket',
-            value: '${dashboard.completedPercent}%',
-            subtitle:
-                '${dashboard.completedSessions}/${dashboard.totalSessions} sesi selesai',
-            icon: Icons.trending_up_rounded,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _DashboardMetricCard(
-            title: 'Booking Aktif',
-            value: '${dashboard.activeBookingCount}',
-            subtitle: dashboard.awaitingPaymentCount > 0
-                ? '${dashboard.awaitingPaymentCount} menunggu bayar'
-                : 'Siap lanjut belajar',
-            icon: FluentIcons.book_24_regular,
-            accent: const Color(0xFF0E7490),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DashboardMetricCard extends StatelessWidget {
-  const _DashboardMetricCard({
-    required this.title,
-    required this.value,
-    required this.subtitle,
-    required this.icon,
-    this.accent = const Color(0xFF4B176E),
-  });
-
-  final String title;
-  final String value;
-  final String subtitle;
-  final IconData icon;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFEBE6F2)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: accent),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: const Color(0xFF7A7585),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: const Color(0xFF191622),
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: const Color(0xFF8F8B99)),
-          ),
         ],
       ),
     );
@@ -1214,9 +1034,9 @@ class _ActiveTutorSection extends StatelessWidget {
                 width: 210,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF6F0FC),
+                  color: const Color(0xFFF7F9FF),
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: const Color(0xFFE4D6F2)),
+                  border: Border.all(color: const Color(0xFFC9D8F2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1308,13 +1128,13 @@ class _StudentHeroCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
         gradient: const LinearGradient(
-          colors: [Color(0xFF1E1E59), Color(0xFF316FF6)],
+          colors: [Color(0xFF4B176E), Color(0xFFFF1377)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x221E1E59),
+            color: Color(0x224B176E),
             blurRadius: 24,
             offset: Offset(0, 12),
           ),
@@ -1530,7 +1350,7 @@ class _StudentHeroCard extends StatelessWidget {
                       onPressed: onOpenSchedule,
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF1E1E59),
+                        foregroundColor: const Color(0xFF4B176E),
                         minimumSize: const Size.fromHeight(46),
                         textStyle: const TextStyle(fontWeight: FontWeight.w800),
                       ),
@@ -1600,7 +1420,7 @@ class _StudentMetricCards extends StatelessWidget {
           const SizedBox(width: 12),
           _MetricCard(
             icon: Icons.search_rounded,
-            iconColor: const Color(0xFF1E1E59),
+            iconColor: const Color(0xFF4B176E),
             title: 'Cari\nTutor',
             subtitle: 'Tutor terdekat',
           ),
@@ -1640,7 +1460,7 @@ class _MetricCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0C1E1E59),
+            color: Color(0x0C4B176E),
             blurRadius: 14,
             offset: Offset(0, 6),
           ),
@@ -1661,7 +1481,7 @@ class _MetricCard extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              color: Color(0xFF1E1E59),
+              color: Color(0xFF4B176E),
               fontSize: 13,
               fontWeight: FontWeight.w700,
               height: 1.2,
@@ -1810,7 +1630,56 @@ class _HomeworkProgressList extends StatelessWidget {
   }
 }
 
+class _LocationBadge extends StatelessWidget {
+  const _LocationBadge({required this.locationText, required this.onRefresh});
+
+  final String locationText;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            FluentIcons.location_24_regular,
+            size: 18,
+            color: Color(0xFF4B176E),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              locationText,
+              style: const TextStyle(
+                color: Color(0xFF4B176E),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: onRefresh,
+            icon: const Icon(FluentIcons.arrow_sync_24_regular, size: 18),
+            constraints: const BoxConstraints(),
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            color: const Color(0xFF4B176E),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EmptyHomeworkCard extends StatelessWidget {
+  const _EmptyHomeworkCard();
+
   @override
   Widget build(BuildContext context) {
     return Container(

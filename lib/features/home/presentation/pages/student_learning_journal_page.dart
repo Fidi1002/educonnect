@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 enum _JournalHomeworkFilter { all, pending, submitted, reviewed, noHomework }
+
 enum _JournalSortOrder { newestFirst, oldestFirst }
 
 class StudentLearningJournalPage extends ConsumerStatefulWidget {
@@ -37,10 +38,7 @@ class _StudentLearningJournalPageState
     final recordsAsync = ref.watch(myStudentLearningRecordsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Jurnal Belajar'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Jurnal Belajar'), centerTitle: true),
       body: bookingsAsync.when(
         data: (bookings) => sessionsAsync.when(
           data: (sessions) => recordsAsync.when(
@@ -136,7 +134,8 @@ class _StudentLearningJournalPageState
             fullScreen: false,
           ),
         ),
-        loading: () => const AppLoadingState(message: 'Memuat learning journal...'),
+        loading: () =>
+            const AppLoadingState(message: 'Memuat learning journal...'),
         error: (error, _) => AppErrorState(
           message: 'Gagal memuat learning journal.',
           detail: error.toString(),
@@ -159,7 +158,7 @@ class _JournalHero extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(26),
         gradient: const LinearGradient(
-          colors: [Color(0xFF25153A), Color(0xFF4B176E)],
+          colors: [Color(0xFF4B176E), Color(0xFFFF1377)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -170,7 +169,10 @@ class _JournalHero extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
@@ -297,9 +299,9 @@ class _JournalSubjectSection extends StatelessWidget {
                 width: 220,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF7F1FC),
+                  color: const Color(0xFFF7F9FF),
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: const Color(0xFFE7DCF2)),
+                  border: Border.all(color: const Color(0xFFC9D8F2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -326,7 +328,7 @@ class _JournalSubjectSection extends StatelessWidget {
                         value: subject.totalSessions == 0
                             ? 0
                             : subject.completedSessions / subject.totalSessions,
-                        backgroundColor: const Color(0xFFE6DEEF),
+                        backgroundColor: const Color(0xFFDCE8FF),
                         valueColor: const AlwaysStoppedAnimation<Color>(
                           Color(0xFF4B176E),
                         ),
@@ -462,9 +464,9 @@ class _JournalFilters extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9F6FD),
+        color: const Color(0xFFF7F9FF),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE7DFF1)),
+        border: Border.all(color: const Color(0xFFC9D8F2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -634,7 +636,8 @@ class _JournalEntryCard extends StatelessWidget {
                 background: const Color(0xFFFFF8E8),
               ),
             ],
-            if (record == null || (!record.hasMaterial && !record.hasHomework)) ...[
+            if (record == null ||
+                (!record.hasMaterial && !record.hasHomework)) ...[
               const SizedBox(height: 12),
               Text(
                 'Sesi ini belum memiliki catatan materi lengkap, tapi tetap tercatat di riwayat belajarmu.',
@@ -657,7 +660,7 @@ class _JournalBlock extends StatelessWidget {
     required this.content,
     this.note,
     this.accent = const Color(0xFF4B176E),
-    this.background = const Color(0xFFF7F1FC),
+    this.background = const Color(0xFFF7F9FF),
   });
 
   final IconData icon;
@@ -686,10 +689,7 @@ class _JournalBlock extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 title,
-                style: TextStyle(
-                  color: accent,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: TextStyle(color: accent, fontWeight: FontWeight.w800),
               ),
             ],
           ),
@@ -740,10 +740,8 @@ class _SessionBadge extends StatelessWidget {
         const Color(0xFFFCE7E7),
         const Color(0xFFB91C1C),
       ),
-      BookingSessionStatus.studentNoShow || BookingSessionStatus.tutorNoShow => (
-        const Color(0xFFFCE7E7),
-        const Color(0xFF9F1239),
-      ),
+      BookingSessionStatus.studentNoShow || BookingSessionStatus.tutorNoShow =>
+        (const Color(0xFFFCE7E7), const Color(0xFF9F1239)),
       BookingSessionStatus.cancelledByStudent ||
       BookingSessionStatus.cancelledByTutor ||
       BookingSessionStatus.cancelledEarly ||
@@ -758,6 +756,10 @@ class _SessionBadge extends StatelessWidget {
       BookingSessionStatus.scheduled => (
         const Color(0xFFE7ECFF),
         const Color(0xFF3730A3),
+      ),
+      BookingSessionStatus.inProgress => (
+        const Color(0xFFE1F5FE),
+        const Color(0xFF0277BD),
       ),
     };
     return Container(
@@ -808,10 +810,7 @@ class _JournalFilterEmptyState extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.filter_alt_off_outlined,
-            color: Colors.grey.shade600,
-          ),
+          Icon(Icons.filter_alt_off_outlined, color: Colors.grey.shade600),
           const SizedBox(height: 10),
           const Text(
             'Tidak ada sesi yang cocok dengan filter saat ini.',
@@ -857,9 +856,9 @@ class _StudentJournalData {
   final int totalStudyHours;
 
   List<String> get availableSubjects => [
-        'Semua',
-        ...subjects.map((subject) => subject.subject),
-      ];
+    'Semua',
+    ...subjects.map((subject) => subject.subject),
+  ];
 
   List<_JournalEntry> filteredEntries({
     required String subject,
@@ -938,12 +937,13 @@ class _StudentJournalData {
     final totalStudyHours = bookings.isEmpty
         ? 0
         : (sessions.fold<int>(
-              0,
-              (sum, session) =>
-                  sum + (bookingById[session.bookingId]?.durationMinutes ?? 0),
-            ) /
-            60)
-            .round();
+                    0,
+                    (sum, session) =>
+                        sum +
+                        (bookingById[session.bookingId]?.durationMinutes ?? 0),
+                  ) /
+                  60)
+              .round();
 
     final subjectStats = <String, _SubjectSummaryBuilder>{};
     for (final entry in entries) {

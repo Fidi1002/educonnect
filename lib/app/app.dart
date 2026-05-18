@@ -15,7 +15,7 @@ class EduConnectApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     const brandPink = Color(0xFFFF1377);
-    const brandNavy = Color(0xFF1E1E59);
+    const brandNavy = Color(0xFF4B176E);
     const brandBlue = Color(0xFF316FF6);
     const surface = Color(0xFFF7F9FF);
     const surfaceSoft = Color(0xFFEAF2FF);

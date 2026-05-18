@@ -11,6 +11,7 @@ class TutorSummary {
     required this.latitude,
     required this.longitude,
     required this.consistencyScore,
+    required this.experienceYears,
     this.distanceFromUserKm,
   });
 
@@ -25,6 +26,7 @@ class TutorSummary {
   final double latitude;
   final double longitude;
   final double consistencyScore;
+  final int experienceYears;
   final double? distanceFromUserKm;
 
   bool matchesKeyword(String query) {

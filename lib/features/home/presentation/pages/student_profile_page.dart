@@ -1,6 +1,7 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
+import 'package:educonnect/features/auth/presentation/pages/edit_profile_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_learning_journal_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,10 +51,7 @@ class StudentProfilePage extends ConsumerWidget {
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFF6B21A8),
-                              Color(0xFF4B176E),
-                            ],
+                            colors: [Color(0xFF4B176E), Color(0xFFFF1377)],
                           ),
                         ),
                       ),
@@ -107,8 +105,8 @@ class StudentProfilePage extends ConsumerWidget {
                                 backgroundColor: const Color(0xFFF3F0F7),
                                 backgroundImage:
                                     (profile?.photoUrl.isNotEmpty ?? false)
-                                        ? NetworkImage(profile!.photoUrl)
-                                        : null,
+                                    ? NetworkImage(profile!.photoUrl)
+                                    : null,
                                 child: (profile?.photoUrl.isNotEmpty ?? false)
                                     ? null
                                     : const Icon(
@@ -153,7 +151,7 @@ class StudentProfilePage extends ConsumerWidget {
                   ),
                 ),
               ),
-              
+
               // Menu Content
               SliverToBoxAdapter(
                 child: Padding(
@@ -188,16 +186,16 @@ class StudentProfilePage extends ConsumerWidget {
                               icon: FluentIcons.person_24_regular,
                               iconBgColor: const Color(0xFFE0F2FE),
                               iconColor: const Color(0xFF0369A1),
-                              title: 'My Account',
-                              subtitle: 'Make changes to your account',
-                              trailing: const Icon(
-                                Icons.warning_amber_rounded,
-                                size: 18,
-                                color: Colors.redAccent,
-                              ),
-                              onTap: () {},
+                              title: 'Edit Profil',
+                              subtitle: 'Ubah nama dan foto profil Anda',
+                              onTap: () =>
+                                  context.pushNamed(EditProfilePage.routeName),
                             ),
-                            const Divider(height: 1, indent: 64, color: Color(0xFFF1F5F9)),
+                            const Divider(
+                              height: 1,
+                              indent: 64,
+                              color: Color(0xFFF1F5F9),
+                            ),
                             _ProfileMenuTile(
                               icon: FluentIcons.book_24_regular,
                               iconBgColor: const Color(0xFFFCE7F3),
@@ -208,21 +206,26 @@ class StudentProfilePage extends ConsumerWidget {
                                 StudentLearningJournalPage.routeName,
                               ),
                             ),
-                            const Divider(height: 1, indent: 64, color: Color(0xFFF1F5F9)),
+                            const Divider(
+                              height: 1,
+                              indent: 64,
+                              color: Color(0xFFF1F5F9),
+                            ),
                             _ProfileMenuTile(
                               icon: FluentIcons.sign_out_24_regular,
                               iconBgColor: const Color(0xFFFEF2F2),
                               iconColor: const Color(0xFFB91C1C),
                               title: 'Keluar',
                               subtitle: 'Akhiri sesi akun dengan aman',
-                              onTap: () => ref.read(authControllerProvider).signOut(),
+                              onTap: () =>
+                                  ref.read(authControllerProvider).signOut(),
                             ),
                           ],
                         ),
                       ),
-                      
+
                       const SizedBox(height: 32),
-                      
+
                       const Text(
                         'Lainnya',
                         style: TextStyle(
@@ -248,15 +251,19 @@ class StudentProfilePage extends ConsumerWidget {
                           children: [
                             _ProfileMenuTile(
                               icon: FluentIcons.headset_24_regular,
-                              iconBgColor: Color(0xFFF3F0F7),
+                              iconBgColor: Color(0xFFEAF2FF),
                               iconColor: Color(0xFF4B176E),
                               title: 'Help & Support',
                               subtitle: 'Hubungi tim bantuan kami',
                             ),
-                            Divider(height: 1, indent: 64, color: Color(0xFFF1F5F9)),
+                            Divider(
+                              height: 1,
+                              indent: 64,
+                              color: Color(0xFFF1F5F9),
+                            ),
                             _ProfileMenuTile(
                               icon: FluentIcons.info_24_regular,
-                              iconBgColor: Color(0xFFF3F0F7),
+                              iconBgColor: Color(0xFFEAF2FF),
                               iconColor: Color(0xFF4B176E),
                               title: 'About App',
                               subtitle: 'Versi aplikasi v1.0.0',
@@ -291,7 +298,6 @@ class _ProfileMenuTile extends StatelessWidget {
     required this.subtitle,
     required this.iconBgColor,
     required this.iconColor,
-    this.trailing,
     this.onTap,
   });
 
@@ -300,7 +306,6 @@ class _ProfileMenuTile extends StatelessWidget {
   final String subtitle;
   final Color iconBgColor;
   final Color iconColor;
-  final Widget? trailing;
   final VoidCallback? onTap;
 
   @override
@@ -348,7 +353,10 @@ class _ProfileMenuTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            trailing ?? const Icon(FluentIcons.chevron_right_24_regular, color: Color(0xFFA0AEC0)),
+            const Icon(
+              FluentIcons.chevron_right_24_regular,
+              color: Color(0xFFA0AEC0),
+            ),
           ],
         ),
       ),

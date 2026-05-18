@@ -1,7 +1,6 @@
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/booking/application/booking_controller.dart';
 import 'package:educonnect/features/booking/domain/models/booking_session.dart';
-import 'package:educonnect/features/booking/domain/models/booking_session_status.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -9,6 +9,7 @@ import 'package:educonnect/features/booking/domain/models/booking_status.dart';
 import 'package:educonnect/features/booking/domain/models/session_change_request.dart';
 import 'package:educonnect/features/booking/domain/models/session_learning_record.dart';
 import 'package:educonnect/features/chat/presentation/pages/chat_page.dart';
+import 'package:educonnect/features/tutor/application/tutor_review_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -106,12 +107,12 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
                   ),
                   child: TabBar(
                     indicator: BoxDecoration(
-                      color: const Color(0xFF1E1E59),
+                      color: const Color(0xFFFF1377),
                       borderRadius: BorderRadius.circular(999),
                       boxShadow: [
                         BoxShadow(
                           color: const Color(
-                            0xFF1E1E59,
+                            0xFFFF1377,
                           ).withValues(alpha: 0.25),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
@@ -294,7 +295,7 @@ class _StudentBookingOverview extends StatelessWidget {
                 child: const Text(
                   'Booking & Jadwal',
                   style: TextStyle(
-                    color: Color(0xFF1E1E59),
+                    color: Color(0xFF4B176E),
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
                   ),
@@ -328,7 +329,7 @@ class _StudentBookingOverview extends StatelessWidget {
                 child: _OverviewMetricPill(
                   label: 'Akan datang',
                   value: '${upcomingItems.length}',
-                  accent: const Color(0xFF1E1E59),
+                  accent: const Color(0xFF4B176E),
                   icon: FluentIcons.clock_24_regular,
                 ),
               ),
@@ -624,7 +625,7 @@ class _BookingCard extends ConsumerWidget {
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 18,
-                          color: Color(0xFF1E1E59),
+                          color: Color(0xFF4B176E),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -649,7 +650,7 @@ class _BookingCard extends ConsumerWidget {
                   icon: Icons.calendar_month_outlined,
                   label:
                       '${item.packageMonths} bulan • ${item.sessionsPerWeek}x/minggu',
-                  accent: const Color(0xFF1E1E59),
+                  accent: const Color(0xFF4B176E),
                 ),
                 _InfoChip(
                   icon: Icons.schedule_rounded,
@@ -682,7 +683,7 @@ class _BookingCard extends ConsumerWidget {
                   Text(
                     'Detail Paket',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: const Color(0xFF1E1E59),
+                      color: const Color(0xFF4B176E),
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -768,13 +769,13 @@ class _BookingCard extends ConsumerWidget {
                             session.sessionStart.isAfter(DateTime.now());
                         final canConfirmPresence =
                             session.studentPresenceConfirmedAt == null &&
-                            session.status == BookingSessionStatus.scheduled &&
-                            session.sessionStart.isAfter(DateTime.now()) &&
+                            (session.status == BookingSessionStatus.scheduled || session.status == BookingSessionStatus.inProgress) &&
+                            (session.sessionStart.isAfter(DateTime.now()) || session.status == BookingSessionStatus.inProgress) &&
                             session.sessionStart.isBefore(
                               DateTime.now().add(const Duration(hours: 24)),
                             );
                         final canMarkTutorNoShow =
-                            session.status == BookingSessionStatus.scheduled &&
+                            (session.status == BookingSessionStatus.scheduled || session.status == BookingSessionStatus.inProgress) &&
                             session.sessionEnd.isBefore(DateTime.now());
                         final canSubmitHomework =
                             learningRecord != null &&
@@ -1239,7 +1240,41 @@ class _BookingCard extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 10),
-            if (onPayDummy != null)
+            if (item.status == BookingStatus.completed)
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => _ReviewBottomSheet(item: item),
+                        );
+                      },
+                      icon: const Icon(FluentIcons.star_24_regular),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFF59E0B), // Warna emas/premium
+                        foregroundColor: Colors.white,
+                      ),
+                      label: const Text('Beri Ulasan Tutor'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.pushNamed(
+                        ChatPage.routeName,
+                        pathParameters: {'bookingId': item.id},
+                      ),
+                      icon: const Icon(FluentIcons.chat_24_regular),
+                      label: const Text('Chat'),
+                    ),
+                  ),
+                ],
+              )
+            else if (onPayDummy != null)
               Row(
                 children: [
                   Expanded(
@@ -1762,6 +1797,10 @@ class _SessionStatusBadge extends StatelessWidget {
         const Color(0xFFE6F3FF),
         const Color(0xFF0C4A6E),
       ),
+      BookingSessionStatus.inProgress => (
+        const Color(0xFFE1F5FE),
+        const Color(0xFF0277BD),
+      ),
       BookingSessionStatus.donePendingConfirmation => (
         const Color(0xFFFFF3D5),
         const Color(0xFF9A6700),
@@ -1840,6 +1879,164 @@ class _InfoChip extends StatelessWidget {
               color: accent,
               fontWeight: FontWeight.w700,
               fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewBottomSheet extends ConsumerStatefulWidget {
+  const _ReviewBottomSheet({required this.item});
+  final BookingItem item;
+
+  @override
+  ConsumerState<_ReviewBottomSheet> createState() => _ReviewBottomSheetState();
+}
+
+class _ReviewBottomSheetState extends ConsumerState<_ReviewBottomSheet> {
+  double _rating = 5.0;
+  final _commentController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  void _submit() async {
+    final comment = _commentController.text.trim();
+    if (comment.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ulasan tidak boleh kosong.')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final ctrl = ref.read(tutorReviewControllerProvider);
+      final currentUid = ref.read(authStateProvider).value?.uid ?? '';
+      
+      await ctrl.submitReview(
+        tutorUid: widget.item.tutorUid,
+        studentUid: currentUid,
+        bookingId: widget.item.id,
+        rating: _rating,
+        reviewText: comment,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Terima kasih! Ulasan berhasil dikirim.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengirim ulasan')),
+      );
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Center(
+            child: Container(
+              width: 48,
+              height: 6,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Bagaimana pengalaman belajarmu?',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF191622),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (index) {
+              final starValue = index + 1.0;
+              return IconButton(
+                onPressed: () {
+                  setState(() => _rating = starValue);
+                },
+                icon: Icon(
+                  starValue <= _rating
+                      ? FluentIcons.star_24_filled
+                      : FluentIcons.star_24_regular,
+                  color: const Color(0xFFF59E0B),
+                  size: 40,
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _commentController,
+            maxLines: 4,
+            decoration: InputDecoration(
+              hintText: 'Tutornya asik banget dan materinya jelas...',
+              filled: true,
+              fillColor: const Color(0xFFF7F9FF),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _isLoading ? null : _submit,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF4B176E),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Text(
+                      'Kirim Ulasan',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
             ),
           ),
         ],

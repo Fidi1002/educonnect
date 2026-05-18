@@ -21,6 +21,13 @@ Dokumen pendukung (checklist):
 - `docs/milestone7-e2e-checklist.md`
 - `docs/milestone8-e2e-checklist.md`
 
+Bundle final:
+- `docs/FINAL_DOCUMENTATION.md`
+- `docs/SCREENSHOT_FEATURE_CHECKLIST.md`
+- `docs/FINAL_TEST_SCENARIOS.md`
+- `docs/DEMO_ACCOUNTS_AND_SEED.md`
+- `docs/THESIS_ARCHITECTURE_AND_TESTING_NARRATIVE.md`
+
 ## Quick Start
 
 1. Pastikan dependency Flutter sudah ter-install.

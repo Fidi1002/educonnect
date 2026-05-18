@@ -265,6 +265,14 @@ class BookingController {
     await _repository.processStudentSessionReminders(studentUid);
   }
 
+  Future<void> processAutoConfirmations() async {
+    await _repository.processAutoConfirmSessions();
+  }
+
+  Future<void> markSessionStartedByTutor(String sessionId) {
+    return _runLoadingTask(() => _repository.markSessionStartedByTutor(sessionId));
+  }
+
   Future<void> markSessionDoneByTutor(String sessionId) {
     return _runLoadingTask(() => _repository.markSessionDoneByTutor(sessionId));
   }

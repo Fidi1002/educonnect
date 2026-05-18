@@ -121,7 +121,9 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
                                     _searchController.clear();
                                     setState(() {});
                                   },
-                                  icon: const Icon(FluentIcons.dismiss_24_regular),
+                                  icon: const Icon(
+                                    FluentIcons.dismiss_24_regular,
+                                  ),
                                 ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(18),
@@ -620,7 +622,9 @@ class _TutorBookingList extends ConsumerWidget {
                 controller: summaryController,
                 decoration: InputDecoration(
                   labelText: 'Ringkasan materi',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -629,7 +633,9 @@ class _TutorBookingList extends ConsumerWidget {
                 maxLines: 2,
                 decoration: InputDecoration(
                   labelText: 'Catatan tutor',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -637,7 +643,9 @@ class _TutorBookingList extends ConsumerWidget {
                 controller: homeworkTitleController,
                 decoration: InputDecoration(
                   labelText: 'Judul PR (opsional)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -646,7 +654,9 @@ class _TutorBookingList extends ConsumerWidget {
                 maxLines: 2,
                 decoration: InputDecoration(
                   labelText: 'Deskripsi PR (opsional)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -655,7 +665,9 @@ class _TutorBookingList extends ConsumerWidget {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context, false),
-                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
                       child: const Text('Batal'),
                     ),
                   ),
@@ -663,7 +675,9 @@ class _TutorBookingList extends ConsumerWidget {
                   Expanded(
                     child: FilledButton(
                       onPressed: () => Navigator.pop(context, true),
-                      style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
                       child: const Text('Simpan'),
                     ),
                   ),
@@ -713,7 +727,8 @@ class _TutorBookingList extends ConsumerWidget {
     if (items.isEmpty) {
       return AppEmptyState(
         message: emptyMessage,
-        hint: 'Saat ada aktivitas booking dari murid, detail pengelolaannya akan muncul di sini.',
+        hint:
+            'Saat ada aktivitas booking dari murid, detail pengelolaannya akan muncul di sini.',
         icon: FluentIcons.hat_graduation_24_regular,
       );
     }
@@ -741,286 +756,412 @@ class _TutorBookingList extends ConsumerWidget {
         ...List.generate(items.length, (index) {
           final item = items[index];
           final sessionsAsync = ref.watch(bookingSessionsProvider(item.id));
-          final requestsAsync = ref.watch(sessionChangeRequestsProvider(item.id));
+          final requestsAsync = ref.watch(
+            sessionChangeRequestsProvider(item.id),
+          );
           final learningAsync = ref.watch(
             sessionLearningRecordsProvider(item.id),
           );
           final currentUid = ref.watch(authStateProvider).value?.uid ?? '';
+          final profileAsync = ref.watch(userProfileProvider(item.studentUid));
+          final realName = profileAsync.valueOrNull?.displayName;
+          final String displayStudentName;
+          if (realName != null && realName.isNotEmpty && realName != 'Murid') {
+            displayStudentName = realName;
+          } else if (item.studentName.isNotEmpty &&
+              item.studentName != 'Murid') {
+            displayStudentName = item.studentName;
+          } else {
+            displayStudentName = profileAsync.isLoading
+                ? 'Memuat profil...'
+                : 'Murid Baru';
+          }
+
           return Padding(
-            padding: EdgeInsets.only(bottom: index == items.length - 1 ? 0 : 10),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            item.subject,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
+            padding: EdgeInsets.only(
+              bottom: index == items.length - 1 ? 0 : 16,
+            ),
+            child: Container(
+              decoration: TutorUi.raisedCardDecoration(radius: 20),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF2E8FF),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        TutorStatusBadge.booking(status: item.status),
-                      ],
-                    ),
-                Text(
-                  'Murid: ${item.studentName.isEmpty ? item.studentUid : item.studentName}',
-                ),
-                Text(
-                  'Paket: ${item.packageMonths} bulan • ${item.sessionsPerWeek}x/minggu',
-                ),
-                Text(
-                  'Periode: ${item.packageStartDate.day}/${item.packageStartDate.month}/${item.packageStartDate.year}'
-                  ' - ${item.packageEndDate.day}/${item.packageEndDate.month}/${item.packageEndDate.year}',
-                ),
-                if (item.weeklySchedule.isNotEmpty)
-                  Text(
-                    'Jadwal tetap: ${item.weeklySchedule.map((slot) => '${slot.weekdayLabel} ${slot.timeLabel}').join(' • ')}',
+                        child: const Icon(
+                          FluentIcons.book_24_regular,
+                          color: Color(0xFF7B2CBF),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.subject,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                              ),
+                            ),
+                            Text(
+                              displayStudentName,
+                              style: const TextStyle(
+                                color: Color(0xFF655C74),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TutorStatusBadge.booking(status: item.status),
+                    ],
                   ),
-                Text(
-                  'Jadwal: ${item.sessionStart.day}/${item.sessionStart.month}/${item.sessionStart.year} '
-                  '${item.sessionStart.hour.toString().padLeft(2, '0')}:${item.sessionStart.minute.toString().padLeft(2, '0')}',
-                ),
-                Text('Durasi: ${item.durationMinutes} menit'),
-                Text('Biaya: Rp ${item.totalAmount}'),
-                if (item.message.trim().isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text('Catatan: ${item.message}'),
-                ],
-                const SizedBox(height: 10),
-                Text(
-                  'Riwayat Pertemuan',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                sessionsAsync.when(
-                  data: (sessions) {
-                    if (sessions.isEmpty) {
-                      return const AppEmptyState(
-                        message: 'Belum ada sesi terjadwal.',
-                        hint: 'Sesi akan muncul setelah booking aktif dan jadwal paket terbentuk.',
-                        icon: Icons.event_busy_outlined,
-                        fullScreen: false,
-                      );
-                    }
-                    final shortlist = _selectDisplayedSessions(
-                      sessions,
-                      focusedSessionId,
-                    );
-                    return Column(
-                      children: shortlist.map((session) {
-                        final isFocusedSession =
-                            focusedSessionId != null &&
-                            focusedSessionId!.isNotEmpty &&
-                            session.id == focusedSessionId;
-                        final request = _findPendingRequest(
-                          session.id,
-                          requestsAsync.valueOrNull ?? const [],
-                        );
-                        final learningRecord = _findLearningRecord(
-                          session.id,
-                          learningAsync.valueOrNull ?? const [],
-                        );
-                        final canMarkDone =
-                            session.status == BookingSessionStatus.scheduled &&
-                            session.sessionEnd.isBefore(DateTime.now());
-                        final canMarkStudentNoShow =
-                            session.status == BookingSessionStatus.scheduled &&
-                            session.sessionEnd.isBefore(DateTime.now());
-                        final canRequestChange =
-                            request == null &&
-                            session.status == BookingSessionStatus.scheduled &&
-                            session.sessionStart.isAfter(DateTime.now());
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          key: isFocusedSession ? focusedSessionKey : null,
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            color: isFocusedSession
-                                ? const Color(0xFFF8F0FF)
-                                : Theme.of(
-                                    context,
-                                  ).colorScheme.surfaceContainerHigh,
-                            border: isFocusedSession
-                                ? Border.all(
-                                    color: const Color(0xFF7B2CBF),
-                                    width: 1.4,
-                                  )
-                                : null,
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _InfoTile(
+                          title: 'Paket',
+                          value:
+                              '${item.packageMonths} bln • ${item.sessionsPerWeek}x/mgg',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _InfoTile(
+                          title: 'Durasi',
+                          value: '${item.durationMinutes} mnt/sesi',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  _InfoTile(
+                    title: 'Periode',
+                    value:
+                        '${item.packageStartDate.day}/${item.packageStartDate.month}/${item.packageStartDate.year} - ${item.packageEndDate.day}/${item.packageEndDate.month}/${item.packageEndDate.year}',
+                  ),
+                  if (item.weeklySchedule.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _InfoTile(
+                      title: 'Jadwal Rutin',
+                      value: item.weeklySchedule
+                          .map(
+                            (slot) => '${slot.weekdayLabel} ${slot.timeLabel}',
+                          )
+                          .join(' • '),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _InfoTile(
+                          title: 'Biaya',
+                          value: 'Rp ${item.totalAmount}',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _InfoTile(
+                          title: 'Mulai',
+                          value:
+                              '${item.sessionStart.day}/${item.sessionStart.month}/${item.sessionStart.year} ${item.sessionStart.hour.toString().padLeft(2, '0')}:${item.sessionStart.minute.toString().padLeft(2, '0')}',
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (item.message.trim().isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: TutorUi.softPanelDecoration(
+                        color: const Color(0xFFFFF7ED),
+                        radius: 12,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Catatan Murid',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF9A4D00),
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      '${session.sessionStart.day}/${session.sessionStart.month} '
-                                      '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
-                                      ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  TutorStatusBadge.session(status: session.status),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Builder(
-                                builder: (context) {
-                                  if (learningRecord == null) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        if (learningRecord.materialSummary
-                                            .trim()
-                                            .isNotEmpty)
-                                          Text(
-                                            'Materi: ${learningRecord.materialSummary}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        if (learningRecord.materialNotes
-                                            .trim()
-                                            .isNotEmpty)
-                                          Text(
-                                            'Catatan: ${learningRecord.materialNotes}',
-                                          ),
-                                        if (learningRecord.hasHomework) ...[
-                                          Text(
-                                            'PR: ${learningRecord.homeworkTitle}',
-                                          ),
-                                          Text(
-                                            'Status PR: ${learningRecord.homeworkStatus.label}',
-                                          ),
-                                          if (learningRecord.studentSubmission
-                                              .trim()
-                                              .isNotEmpty)
-                                            Text(
-                                              'Jawaban murid: ${learningRecord.studentSubmission}',
-                                            ),
-                                        ],
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                              if (request != null) ...[
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
+                          const SizedBox(height: 4),
+                          Text(
+                            item.message,
+                            style: const TextStyle(color: Color(0xFF7A3D00)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  const Divider(color: Color(0xFFE9E3F2)),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Riwayat Pertemuan',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  sessionsAsync.when(
+                    data: (sessions) {
+                      if (sessions.isEmpty) {
+                        return const AppEmptyState(
+                          message: 'Belum ada sesi terjadwal.',
+                          hint:
+                              'Sesi akan muncul setelah booking aktif dan jadwal paket terbentuk.',
+                          icon: Icons.event_busy_outlined,
+                          fullScreen: false,
+                        );
+                      }
+                      final shortlist = _selectDisplayedSessions(
+                        sessions,
+                        focusedSessionId,
+                      );
+                      return Column(
+                        children: shortlist.map((session) {
+                          final isFocusedSession =
+                              focusedSessionId != null &&
+                              focusedSessionId!.isNotEmpty &&
+                              session.id == focusedSessionId;
+                          final request = _findPendingRequest(
+                            session.id,
+                            requestsAsync.valueOrNull ?? const [],
+                          );
+                          final learningRecord = _findLearningRecord(
+                            session.id,
+                            learningAsync.valueOrNull ?? const [],
+                          );
+                          final canStartSession =
+                              session.status ==
+                                  BookingSessionStatus.scheduled &&
+                              session.sessionStart
+                                      .difference(DateTime.now())
+                                      .inMinutes <=
+                                  15 &&
+                              session.sessionEnd.isAfter(DateTime.now());
+                          final canMarkDone =
+                              (session.status ==
+                                      BookingSessionStatus.scheduled ||
+                                  session.status ==
+                                      BookingSessionStatus.inProgress) &&
+                              session.sessionEnd.isBefore(DateTime.now());
+                          final canMarkStudentNoShow =
+                              (session.status ==
+                                      BookingSessionStatus.scheduled ||
+                                  session.status ==
+                                      BookingSessionStatus.inProgress) &&
+                              session.sessionEnd.isBefore(DateTime.now());
+                          final canRequestChange =
+                              request == null &&
+                              session.status ==
+                                  BookingSessionStatus.scheduled &&
+                              session.sessionStart.isAfter(DateTime.now());
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            key: isFocusedSession ? focusedSessionKey : null,
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: isFocusedSession
+                                  ? const Color(0xFFF8F0FF)
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHigh,
+                              border: isFocusedSession
+                                  ? Border.all(
+                                      color: const Color(0xFF7B2CBF),
+                                      width: 1.4,
+                                    )
+                                  : null,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    TutorStatusBadge.custom(
-                                      label:
-                                          'Request ${request.requestType} menunggu persetujuan',
-                                      background: const Color(0xFFF2E8FF),
-                                      foreground: const Color(0xFF7B2CBF),
+                                    Expanded(
+                                      child: Text(
+                                        '${session.sessionStart.day}/${session.sessionStart.month} '
+                                        '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
+                                        ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    TutorStatusBadge.session(
+                                      status: session.status,
                                     ),
                                   ],
                                 ),
-                                if (request.targetUid == currentUid) ...[
+                                const SizedBox(height: 4),
+                                Builder(
+                                  builder: (context) {
+                                    if (learningRecord == null) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (learningRecord.materialSummary
+                                              .trim()
+                                              .isNotEmpty)
+                                            Text(
+                                              'Materi: ${learningRecord.materialSummary}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          if (learningRecord.materialNotes
+                                              .trim()
+                                              .isNotEmpty)
+                                            Text(
+                                              'Catatan: ${learningRecord.materialNotes}',
+                                            ),
+                                          if (learningRecord.hasHomework) ...[
+                                            Text(
+                                              'PR: ${learningRecord.homeworkTitle}',
+                                            ),
+                                            Text(
+                                              'Status PR: ${learningRecord.homeworkStatus.label}',
+                                            ),
+                                            if (learningRecord.studentSubmission
+                                                .trim()
+                                                .isNotEmpty)
+                                              Text(
+                                                'Jawaban murid: ${learningRecord.studentSubmission}',
+                                              ),
+                                          ],
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                                if (request != null) ...[
+                                  const SizedBox(height: 6),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      TutorStatusBadge.custom(
+                                        label:
+                                            'Request ${request.requestType} menunggu persetujuan',
+                                        background: const Color(0xFFF2E8FF),
+                                        foreground: const Color(0xFF7B2CBF),
+                                      ),
+                                    ],
+                                  ),
+                                  if (request.targetUid == currentUid) ...[
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton(
+                                            onPressed: isLoading
+                                                ? null
+                                                : () => ref
+                                                      .read(
+                                                        bookingControllerProvider,
+                                                      )
+                                                      .respondSessionChangeRequest(
+                                                        requestId: request.id,
+                                                        approved: false,
+                                                      ),
+                                            child: const Text('Tolak'),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: FilledButton(
+                                            onPressed: isLoading
+                                                ? null
+                                                : () => ref
+                                                      .read(
+                                                        bookingControllerProvider,
+                                                      )
+                                                      .respondSessionChangeRequest(
+                                                        requestId: request.id,
+                                                        approved: true,
+                                                      ),
+                                            child: const Text('Setujui'),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                                if (canStartSession) ...[
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: FilledButton.icon(
+                                      onPressed: isLoading
+                                          ? null
+                                          : () async {
+                                              try {
+                                                await ref
+                                                    .read(
+                                                      bookingControllerProvider,
+                                                    )
+                                                    .markSessionStartedByTutor(
+                                                      session.id,
+                                                    );
+                                                if (!context.mounted) return;
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Sesi dimulai! Jangan lupa tandai selesai setelah kelas berakhir.',
+                                                    ),
+                                                  ),
+                                                );
+                                              } catch (e) {
+                                                if (!context.mounted) return;
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      'Gagal memulai sesi: $e',
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                      icon: const Icon(
+                                        FluentIcons.play_circle_24_regular,
+                                      ),
+                                      label: const Text('Mulai Sesi'),
+                                    ),
+                                  ),
+                                ],
+                                if (canMarkDone) ...[
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [
                                       Expanded(
-                                        child: OutlinedButton(
-                                          onPressed: isLoading
-                                              ? null
-                                              : () => ref
-                                                    .read(
-                                                      bookingControllerProvider,
-                                                    )
-                                                    .respondSessionChangeRequest(
-                                                      requestId: request.id,
-                                                      approved: false,
-                                                    ),
-                                          child: const Text('Tolak'),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
                                         child: FilledButton(
-                                          onPressed: isLoading
-                                              ? null
-                                              : () => ref
-                                                    .read(
-                                                      bookingControllerProvider,
-                                                    )
-                                                    .respondSessionChangeRequest(
-                                                      requestId: request.id,
-                                                      approved: true,
-                                                    ),
-                                          child: const Text('Setujui'),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                              if (canMarkDone) ...[
-                                  const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: FilledButton(
-                                        onPressed: isLoading
-                                            ? null
-                                            : () async {
-                                                try {
-                                                  await ref
-                                                      .read(
-                                                        bookingControllerProvider,
-                                                      )
-                                                      .markSessionDoneByTutor(
-                                                        session.id,
-                                                      );
-                                                  if (!context.mounted) {
-                                                    return;
-                                                  }
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        'Pertemuan berhasil ditandai selesai dan sekarang menunggu konfirmasi murid.',
-                                                      ),
-                                                    ),
-                                                  );
-                                                } on Exception catch (error) {
-                                                  if (!context.mounted) {
-                                                    return;
-                                                  }
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                        'Gagal update sesi: ${error.toString()}',
-                                                      ),
-                                                    ),
-                                                  );
-                                                }
-                                              },
-                                        child: const Text('Tandai Sesi Selesai'),
-                                      ),
-                                    ),
-                                    if (canMarkStudentNoShow) ...[
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: OutlinedButton.icon(
                                           onPressed: isLoading
                                               ? null
                                               : () async {
@@ -1029,7 +1170,7 @@ class _TutorBookingList extends ConsumerWidget {
                                                         .read(
                                                           bookingControllerProvider,
                                                         )
-                                                        .markStudentNoShow(
+                                                        .markSessionDoneByTutor(
                                                           session.id,
                                                         );
                                                     if (!context.mounted) {
@@ -1040,7 +1181,7 @@ class _TutorBookingList extends ConsumerWidget {
                                                     ).showSnackBar(
                                                       const SnackBar(
                                                         content: Text(
-                                                          'Sesi berhasil ditandai sebagai murid tidak hadir.',
+                                                          'Pertemuan berhasil ditandai selesai dan sekarang menunggu konfirmasi murid.',
                                                         ),
                                                       ),
                                                     );
@@ -1053,143 +1194,90 @@ class _TutorBookingList extends ConsumerWidget {
                                                     ).showSnackBar(
                                                       SnackBar(
                                                         content: Text(
-                                                          'Gagal memperbarui kehadiran murid. Coba lagi. ${error.toString()}',
+                                                          'Gagal update sesi: ${error.toString()}',
                                                         ),
                                                       ),
                                                     );
                                                   }
                                                 },
-                                          icon: const Icon(
-                                            FluentIcons.person_prohibited_24_regular,
-                                          ),
-                                          label: const Text(
-                                            'Murid Tidak Hadir',
+                                          child: const Text(
+                                            'Tandai Sesi Selesai',
                                           ),
                                         ),
                                       ),
+                                      if (canMarkStudentNoShow) ...[
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            onPressed: isLoading
+                                                ? null
+                                                : () async {
+                                                    try {
+                                                      await ref
+                                                          .read(
+                                                            bookingControllerProvider,
+                                                          )
+                                                          .markStudentNoShow(
+                                                            session.id,
+                                                          );
+                                                      if (!context.mounted) {
+                                                        return;
+                                                      }
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'Sesi berhasil ditandai sebagai murid tidak hadir.',
+                                                          ),
+                                                        ),
+                                                      );
+                                                    } on Exception catch (
+                                                      error
+                                                    ) {
+                                                      if (!context.mounted) {
+                                                        return;
+                                                      }
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                            'Gagal memperbarui kehadiran murid. Coba lagi. ${error.toString()}',
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                  },
+                                            icon: const Icon(
+                                              FluentIcons
+                                                  .person_prohibited_24_regular,
+                                            ),
+                                            label: const Text(
+                                              'Murid Tidak Hadir',
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
-                                  ],
-                                ),
-                              ],
-                              if (session.status ==
-                                  BookingSessionStatus.disputedPending) ...[
-                                const SizedBox(height: 8),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: FilledButton.icon(
-                                    onPressed: isLoading
-                                        ? null
-                                        : () async {
-                                            try {
-                                              await ref
-                                                  .read(
-                                                    bookingControllerProvider,
-                                                  )
-                                                  .resolveDisputeByTutor(
-                                                    session.id,
-                                                  );
-                                              if (!context.mounted) {
-                                                return;
-                                              }
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'Dispute berhasil ditutup dan status sesi diperbarui.',
-                                                  ),
-                                                ),
-                                              );
-                                            } on Exception catch (error) {
-                                              if (!context.mounted) {
-                                                return;
-                                              }
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    'Gagal menutup dispute. Coba lagi sebentar lagi. ${error.toString()}',
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          },
-                                    icon: const Icon(FluentIcons.certificate_24_regular),
-                                    label: const Text('Tutup Dispute'),
                                   ),
-                                ),
-                              ],
-                              if (canRequestChange) ...[
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: OutlinedButton(
-                                        onPressed: isLoading
-                                            ? null
-                                            : () => _showCancelRequestDialog(
-                                                context: context,
-                                                ref: ref,
-                                                sessionId: session.id,
-                                              ),
-                                        child: const Text('Ajukan Batal'),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: FilledButton(
-                                        onPressed: isLoading
-                                            ? null
-                                            : () =>
-                                                  _showRescheduleRequestDialog(
-                                                    context: context,
-                                                    ref: ref,
-                                                    sessionId: session.id,
-                                                    durationMinutes:
-                                                        item.durationMinutes,
-                                                  ),
-                                        child: const Text('Ajukan Reschedule'),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton.icon(
+                                ],
+                                if (session.status ==
+                                    BookingSessionStatus.disputedPending) ...[
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: FilledButton.icon(
                                       onPressed: isLoading
                                           ? null
-                                          : () => _showLearningRecordDialog(
-                                              context: context,
-                                              ref: ref,
-                                              booking: item,
-                                              sessionId: session.id,
-                                              existing: learningRecord,
-                                            ),
-                                      icon: const Icon(
-                                        FluentIcons.book_24_regular,
-                                      ),
-                                      label: const Text('Materi & PR'),
-                                    ),
-                                  ),
-                                  if (learningRecord != null &&
-                                      learningRecord.homeworkStatus ==
-                                          HomeworkStatus.submitted) ...[
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: FilledButton.tonalIcon(
-                                        onPressed: isLoading
-                                            ? null
-                                            : () async {
+                                          : () async {
+                                              try {
                                                 await ref
                                                     .read(
                                                       bookingControllerProvider,
                                                     )
-                                                    .markHomeworkReviewed(
-                                                      sessionId: session.id,
+                                                    .resolveDisputeByTutor(
+                                                      session.id,
                                                     );
                                                 if (!context.mounted) {
                                                   return;
@@ -1199,100 +1287,207 @@ class _TutorBookingList extends ConsumerWidget {
                                                 ).showSnackBar(
                                                   const SnackBar(
                                                     content: Text(
-                                                      'PR berhasil ditandai sebagai sudah direview.',
+                                                      'Dispute berhasil ditutup dan status sesi diperbarui.',
                                                     ),
                                                   ),
                                                 );
-                                              },
-                                        icon: const Icon(Icons.task_alt),
-                                        label: const Text('Review PR'),
+                                              } on Exception catch (error) {
+                                                if (!context.mounted) {
+                                                  return;
+                                                }
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      'Gagal menutup dispute. Coba lagi sebentar lagi. ${error.toString()}',
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                      icon: const Icon(
+                                        FluentIcons.certificate_24_regular,
+                                      ),
+                                      label: const Text('Tutup Dispute'),
+                                    ),
+                                  ),
+                                ],
+                                if (canRequestChange) ...[
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton(
+                                          onPressed: isLoading
+                                              ? null
+                                              : () => _showCancelRequestDialog(
+                                                  context: context,
+                                                  ref: ref,
+                                                  sessionId: session.id,
+                                                ),
+                                          child: const Text('Ajukan Batal'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: FilledButton(
+                                          onPressed: isLoading
+                                              ? null
+                                              : () =>
+                                                    _showRescheduleRequestDialog(
+                                                      context: context,
+                                                      ref: ref,
+                                                      sessionId: session.id,
+                                                      durationMinutes:
+                                                          item.durationMinutes,
+                                                    ),
+                                          child: const Text(
+                                            'Ajukan Reschedule',
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed: isLoading
+                                            ? null
+                                            : () => _showLearningRecordDialog(
+                                                context: context,
+                                                ref: ref,
+                                                booking: item,
+                                                sessionId: session.id,
+                                                existing: learningRecord,
+                                              ),
+                                        icon: const Icon(
+                                          FluentIcons.book_24_regular,
+                                        ),
+                                        label: const Text('Materi & PR'),
                                       ),
                                     ),
+                                    if (learningRecord != null &&
+                                        learningRecord.homeworkStatus ==
+                                            HomeworkStatus.submitted) ...[
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: FilledButton.tonalIcon(
+                                          onPressed: isLoading
+                                              ? null
+                                              : () async {
+                                                  await ref
+                                                      .read(
+                                                        bookingControllerProvider,
+                                                      )
+                                                      .markHomeworkReviewed(
+                                                        sessionId: session.id,
+                                                      );
+                                                  if (!context.mounted) {
+                                                    return;
+                                                  }
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'PR berhasil ditandai sebagai sudah direview.',
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                          icon: const Icon(Icons.task_alt),
+                                          label: const Text('Review PR'),
+                                        ),
+                                      ),
+                                    ],
                                   ],
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  },
-                  loading: () => const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: AppLoadingState(
-                      message: 'Memuat sesi booking...',
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
+                    loading: () => const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: AppLoadingState(
+                        message: 'Memuat sesi booking...',
+                        fullScreen: false,
+                      ),
+                    ),
+                    error: (error, _) => AppErrorState(
+                      message: 'Gagal memuat sesi booking.',
+                      detail: error.toString(),
+                      onRetry: () =>
+                          ref.invalidate(bookingSessionsProvider(item.id)),
                       fullScreen: false,
                     ),
                   ),
-                  error: (error, _) => AppErrorState(
-                    message: 'Gagal memuat sesi booking.',
-                    detail: error.toString(),
-                    onRetry: () => ref.invalidate(bookingSessionsProvider(item.id)),
-                    fullScreen: false,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                if (item.status == BookingStatus.pending)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: isLoading
-                              ? null
-                              : () => onRespond(
-                                  bookingId: item.id,
-                                  status: BookingStatus.rejected,
-                                  successMessage: 'Booking ditolak.',
-                                ),
-                          child: const Text('Tolak'),
+                  const SizedBox(height: 10),
+                  if (item.status == BookingStatus.pending)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: isLoading
+                                ? null
+                                : () => onRespond(
+                                    bookingId: item.id,
+                                    status: BookingStatus.rejected,
+                                    successMessage: 'Booking ditolak.',
+                                  ),
+                            child: const Text('Tolak'),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: isLoading
-                              ? null
-                              : () => onRespond(
-                                  bookingId: item.id,
-                                  status: BookingStatus.awaitingPayment,
-                                  successMessage:
-                                      'Booking diterima. Menunggu pembayaran murid.',
-                                ),
-                          child: const Text('Terima'),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: isLoading
+                                ? null
+                                : () => onRespond(
+                                    bookingId: item.id,
+                                    status: BookingStatus.awaitingPayment,
+                                    successMessage:
+                                        'Booking diterima. Menunggu pembayaran murid.',
+                                  ),
+                            child: const Text('Terima'),
+                          ),
                         ),
-                      ),
-                    ],
-                  )
-                else if (item.status == BookingStatus.paid)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Booking akan selesai otomatis saat seluruh sesi sudah mencapai status final.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: () => context.pushNamed(
-                          ChatPage.routeName,
-                          pathParameters: {'bookingId': item.id},
+                      ],
+                    )
+                  else if (item.status == BookingStatus.paid)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Booking akan selesai otomatis saat seluruh sesi sudah mencapai status final.',
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
-                        icon: const Icon(FluentIcons.chat_24_regular),
-                        label: const Text('Chat'),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: () => context.pushNamed(
+                            ChatPage.routeName,
+                            pathParameters: {'bookingId': item.id},
+                          ),
+                          icon: const Icon(FluentIcons.chat_24_regular),
+                          label: const Text('Chat'),
+                        ),
+                      ],
+                    )
+                  else
+                    OutlinedButton.icon(
+                      onPressed: () => context.pushNamed(
+                        ChatPage.routeName,
+                        pathParameters: {'bookingId': item.id},
                       ),
-                    ],
-                  )
-                else
-                  OutlinedButton.icon(
-                    onPressed: () => context.pushNamed(
-                      ChatPage.routeName,
-                      pathParameters: {'bookingId': item.id},
+                      icon: const Icon(FluentIcons.chat_24_regular),
+                      label: const Text('Buka Chat'),
                     ),
-                    icon: const Icon(FluentIcons.chat_24_regular),
-                    label: const Text('Buka Chat'),
-                  ),
-                  ],
-                ),
+                ],
               ),
             ),
           ).animate().fade(delay: (index * 50).ms, duration: 400.ms).slideY(begin: 0.1, curve: Curves.easeOut);
@@ -1363,6 +1558,45 @@ class _TutorActionSummaryCard extends StatelessWidget {
                 foreground: const Color(0xFF206A42),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  const _InfoTile({required this.title, required this.value});
+
+  final String title;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: TutorUi.softPanelDecoration(
+        color: const Color(0xFFF7F9FF),
+        radius: 12,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: const Color(0xFF655C74),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF191622),
+            ),
           ),
         ],
       ),

@@ -3,6 +3,7 @@ import 'package:educonnect/features/auth/data/repositories/auth_repository.dart'
 import 'package:educonnect/features/auth/data/repositories/user_repository.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/auth/presentation/pages/auth_page.dart';
+import 'package:educonnect/features/auth/presentation/pages/edit_profile_page.dart';
 import 'package:educonnect/features/auth/presentation/pages/role_onboarding_page.dart';
 import 'package:educonnect/features/availability/presentation/pages/tutor_availability_page.dart';
 import 'package:educonnect/features/booking/presentation/pages/student_bookings_page.dart';
@@ -10,6 +11,7 @@ import 'package:educonnect/features/booking/presentation/pages/tutor_bookings_pa
 import 'package:educonnect/features/chat/presentation/pages/chat_page.dart';
 import 'package:educonnect/features/chat/presentation/pages/inbox_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_ebook_page.dart';
+import 'package:educonnect/features/home/presentation/pages/tutor_ebook_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_home_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_learning_journal_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_profile_page.dart';
@@ -23,6 +25,8 @@ import 'package:educonnect/features/home/presentation/pages/tutor_study_calendar
 import 'package:educonnect/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:educonnect/features/tutor/presentation/pages/tutor_detail_page.dart';
 import 'package:educonnect/features/tutor/presentation/pages/tutor_profile_form_page.dart';
+import 'package:educonnect/features/tutor/presentation/pages/tutor_profile_page.dart';
+import 'package:educonnect/features/wallet/presentation/pages/tutor_wallet_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -85,6 +89,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: RoleOnboardingPage.routePath,
         name: RoleOnboardingPage.routeName,
         builder: (context, state) => const RoleOnboardingPage(),
+      ),
+      GoRoute(
+        path: EditProfilePage.routePath,
+        name: EditProfilePage.routeName,
+        builder: (context, state) => const EditProfilePage(),
       ),
       ShellRoute(
         builder: (context, state, child) {
@@ -163,6 +172,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const TutorBookingsPage(),
           ),
           GoRoute(
+            path: TutorProfilePage.routePath,
+            name: TutorProfilePage.routeName,
+            builder: (context, state) => const TutorProfilePage(),
+          ),
+          GoRoute(
             path: TutorProfileFormPage.routePath,
             name: TutorProfileFormPage.routeName,
             builder: (context, state) => const TutorProfileFormPage(),
@@ -176,6 +190,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: TutorAvailabilityPage.routePath,
             name: TutorAvailabilityPage.routeName,
             builder: (context, state) => const TutorAvailabilityPage(),
+          ),
+          GoRoute(
+            path: TutorWalletPage.routePath,
+            name: TutorWalletPage.routeName,
+            builder: (context, state) => const TutorWalletPage(),
+          ),
+          GoRoute(
+            path: '/tutor-ebooks',
+            name: TutorEbookPage.routeName,
+            builder: (context, state) => const TutorEbookPage(),
           ),
         ],
       ),

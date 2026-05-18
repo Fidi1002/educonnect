@@ -1,5 +1,6 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
+import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/booking/application/booking_controller.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
 import 'package:educonnect/features/booking/domain/models/booking_session.dart';
@@ -53,20 +54,23 @@ class TutorStudentsPage extends ConsumerWidget {
                   const <SessionLearningRecord>[];
               final now = DateTime.now();
 
-              final activeBookings = bookings.where((booking) {
-                final isActiveStatus =
-                    booking.status == BookingStatus.awaitingPayment ||
-                    booking.status == BookingStatus.paid;
-                final inRange = !booking.packageEndDate.isBefore(
-                  DateTime(now.year, now.month, now.day),
-                );
-                return isActiveStatus && inRange;
-              }).toList(growable: false);
+              final activeBookings = bookings
+                  .where((booking) {
+                    final isActiveStatus =
+                        booking.status == BookingStatus.awaitingPayment ||
+                        booking.status == BookingStatus.paid;
+                    final inRange = !booking.packageEndDate.isBefore(
+                      DateTime(now.year, now.month, now.day),
+                    );
+                    return isActiveStatus && inRange;
+                  })
+                  .toList(growable: false);
 
               if (activeBookings.isEmpty) {
                 return const AppEmptyState(
                   message: 'Belum ada murid aktif saat ini.',
-                  hint: 'Saat booking tutor berjalan, maksimal dua murid aktif akan muncul di sini.',
+                  hint:
+                      'Saat booking tutor berjalan, maksimal dua murid aktif akan muncul di sini.',
                   icon: FluentIcons.people_24_regular,
                 );
               }
@@ -80,29 +84,33 @@ class TutorStudentsPage extends ConsumerWidget {
                   .toSet()
                   .toList(growable: false);
 
-              final studentModels = studentUids
-                  .map((studentUid) {
+              final studentModels =
+                  studentUids.map((studentUid) {
                     final studentBookings = activeBookings
                         .where((booking) => booking.studentUid == studentUid)
                         .toList(growable: false);
-                    final studentSessions = sessions.where((session) {
-                      final booking = bookingMap[session.bookingId];
-                      return booking?.studentUid == studentUid;
-                    }).toList(growable: false);
+                    final studentSessions = sessions
+                        .where((session) {
+                          final booking = bookingMap[session.bookingId];
+                          return booking?.studentUid == studentUid;
+                        })
+                        .toList(growable: false);
                     final pendingRecords = pendingHomework
                         .where((record) => record.studentUid == studentUid)
                         .toList(growable: false);
 
-                    final nextCandidates = studentSessions
-                        .where(
-                          (session) =>
-                              session.status == BookingSessionStatus.scheduled &&
-                              session.sessionStart.isAfter(now),
-                        )
-                        .toList()
-                      ..sort(
-                        (a, b) => a.sessionStart.compareTo(b.sessionStart),
-                      );
+                    final nextCandidates =
+                        studentSessions
+                            .where(
+                              (session) =>
+                                  session.status ==
+                                      BookingSessionStatus.scheduled &&
+                                  session.sessionStart.isAfter(now),
+                            )
+                            .toList()
+                          ..sort(
+                            (a, b) => a.sessionStart.compareTo(b.sessionStart),
+                          );
                     final nextSession = nextCandidates.isEmpty
                         ? null
                         : nextCandidates.first;
@@ -131,13 +139,11 @@ class TutorStudentsPage extends ConsumerWidget {
                       totalSessionCount: studentSessions.length,
                       pendingHomeworkCount: pendingRecords.length,
                     );
-                  })
-                  .toList()
-                ..sort(
-                  (a, b) => b.pendingHomeworkCount.compareTo(
-                    a.pendingHomeworkCount,
-                  ),
-                );
+                  }).toList()..sort(
+                    (a, b) => b.pendingHomeworkCount.compareTo(
+                      a.pendingHomeworkCount,
+                    ),
+                  );
 
               final totalPendingHomework = studentModels.fold<int>(
                 0,
@@ -147,7 +153,9 @@ class TutorStudentsPage extends ConsumerWidget {
                 0,
                 (sum, student) => sum + student.sessionTodayCount,
               );
-              final shownStudents = studentModels.take(2).toList(growable: false);
+              final shownStudents = studentModels
+                  .take(2)
+                  .toList(growable: false);
 
               return ListView(
                 padding: const EdgeInsets.all(16),
@@ -223,16 +231,13 @@ class _StudentsOverviewCard extends StatelessWidget {
           const SizedBox(height: 8),
           const Text(
             'Pantau murid yang sedang aktif belajar, sesi yang dekat, dan PR yang perlu kamu respons.',
-            style: TextStyle(color: Color(0xFFEBDFF6)),
+            style: TextStyle(color: Colors.white70),
           ),
           const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
-                child: _TopMetricPill(
-                  label: 'Murid',
-                  value: '$activeStudents',
-                ),
+                child: _TopMetricPill(label: 'Murid', value: '$activeStudents'),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -283,7 +288,7 @@ class _TopMetricPill extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(color: Color(0xFFEBDFF6), fontSize: 12),
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
         ],
       ),
@@ -291,14 +296,17 @@ class _TopMetricPill extends StatelessWidget {
   }
 }
 
-class _StudentCard extends StatelessWidget {
+class _StudentCard extends ConsumerWidget {
   const _StudentCard({required this.model, required this.onOpen});
 
   final _TutorStudentModel model;
   final VoidCallback onOpen;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(userProfileProvider(model.studentUid));
+    final studentName = profileAsync.valueOrNull?.displayName ?? model.studentName;
+    final displayStudentName = studentName.isEmpty ? '?' : studentName;
     final progressLabel = model.totalSessionCount == 0
         ? 'Belum ada progres sesi'
         : '${model.confirmedCount}/${model.totalSessionCount} sesi final';
@@ -313,13 +321,13 @@ class _StudentCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: const Color(0xFFEDE4F7),
+                backgroundColor: const Color(0xFFEAF2FF),
                 child: Text(
-                  model.studentName.isNotEmpty
-                      ? model.studentName[0].toUpperCase()
+                  displayStudentName != '?'
+                      ? displayStudentName[0].toUpperCase()
                       : '?',
                   style: const TextStyle(
-                    color: Color(0xFF5B2B85),
+                    color: Color(0xFF4B176E),
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -330,7 +338,7 @@ class _StudentCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      model.studentName,
+                      displayStudentName,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -360,10 +368,7 @@ class _StudentCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _InfoTile(
-                  title: 'Progress',
-                  value: progressLabel,
-                ),
+                child: _InfoTile(title: 'Progress', value: progressLabel),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -380,7 +385,7 @@ class _StudentCard extends StatelessWidget {
             value: model.nextSession == null
                 ? 'Belum ada sesi terdekat'
                 : '${model.nextSession!.sessionStart.day}/${model.nextSession!.sessionStart.month} '
-                    '${model.nextSession!.sessionStart.hour.toString().padLeft(2, '0')}:${model.nextSession!.sessionStart.minute.toString().padLeft(2, '0')}',
+                      '${model.nextSession!.sessionStart.hour.toString().padLeft(2, '0')}:${model.nextSession!.sessionStart.minute.toString().padLeft(2, '0')}',
           ),
           const SizedBox(height: 10),
           _InfoTile(
@@ -419,7 +424,7 @@ class _InfoTile extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: TutorUi.softPanelDecoration(
-        color: const Color(0xFFF8F5FB),
+        color: const Color(0xFFF7F9FF),
         radius: 16,
       ),
       child: Column(
@@ -427,9 +432,9 @@ class _InfoTile extends StatelessWidget {
         children: [
           Text(
             title,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF655C74),
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: const Color(0xFF655C74)),
           ),
           const SizedBox(height: 4),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -455,7 +460,7 @@ class _TinyChip extends StatelessWidget {
       child: Text(
         label,
         style: const TextStyle(
-          color: Color(0xFF5B2B85),
+          color: Color(0xFF4B176E),
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),

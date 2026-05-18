@@ -217,15 +217,21 @@ class _CalendarSessionCard extends StatelessWidget {
       ),
       child: ListTile(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 10,
+        ),
         leading: Container(
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: const Color(0xFFE6F0F2),
+            color: const Color(0xFFEAF2FF),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: const Icon(FluentIcons.hat_graduation_24_regular, color: Color(0xFF21425B)),
+          child: const Icon(
+            FluentIcons.hat_graduation_24_regular,
+            color: Color(0xFF4B176E),
+          ),
         ),
         title: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,7 +277,7 @@ class _InfoPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFE5ECF0),
+        color: const Color(0xFFEAF2FF),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -280,7 +286,7 @@ class _InfoPill extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              color: Color(0xFF21425B),
+              color: Color(0xFF4B176E),
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -288,7 +294,7 @@ class _InfoPill extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: Color(0xFF21425B),
+              color: Color(0xFF4B176E),
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -305,7 +311,8 @@ class _CalendarEmptyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return const AppEmptyState(
       message: 'Tidak ada sesi di tanggal ini.',
-      hint: 'Pilih tanggal lain atau cek booking aktif untuk melihat jadwal mengajar.',
+      hint:
+          'Pilih tanggal lain atau cek booking aktif untuk melihat jadwal mengajar.',
       icon: FluentIcons.calendar_checkmark_24_regular,
     );
   }

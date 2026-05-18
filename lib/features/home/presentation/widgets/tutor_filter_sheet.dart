@@ -13,7 +13,7 @@ Future<TutorDiscoveryFilter?> showTutorFilterSheet({
   return showModalBottomSheet<TutorDiscoveryFilter>(
     context: context,
     isScrollControlled: true,
-    showDragHandle: true,
+    backgroundColor: Colors.transparent,
     builder: (context) {
       return _TutorFilterSheet(
         initialFilter: initialFilter,
@@ -60,6 +60,9 @@ class TutorActiveFilterChips extends StatelessWidget {
     if (filter.maxDistanceKm != null) {
       chips.add(_PillLabel(label: '≤ ${filter.maxDistanceKm!.toStringAsFixed(0)} km'));
     }
+    if (filter.minExperienceYears > 0) {
+      chips.add(_PillLabel(label: '${filter.minExperienceYears}+ thn exp'));
+    }
 
     return Wrap(
       spacing: 8,
@@ -101,6 +104,8 @@ class _TutorFilterSheetState extends State<_TutorFilterSheet> {
   late double _minRating;
   late bool _useDistanceCap;
   late double _distanceCap;
+  late int _minExperience;
+  late Set<String> _selectedDays;
 
   @override
   void initState() {
@@ -109,12 +114,18 @@ class _TutorFilterSheetState extends State<_TutorFilterSheet> {
     final maxPrice = widget.maxAvailablePrice.toDouble();
     _selectedSubject = widget.initialFilter.subject;
     _priceRange = RangeValues(
-      (widget.initialFilter.minPrice ?? minPrice).toDouble().clamp(minPrice, maxPrice),
-      (widget.initialFilter.maxPrice ?? maxPrice).toDouble().clamp(minPrice, maxPrice),
+      (widget.initialFilter.minPrice ?? minPrice)
+          .toDouble()
+          .clamp(minPrice, maxPrice),
+      (widget.initialFilter.maxPrice ?? maxPrice)
+          .toDouble()
+          .clamp(minPrice, maxPrice),
     );
     _minRating = widget.initialFilter.minRating;
     _useDistanceCap = widget.initialFilter.maxDistanceKm != null;
     _distanceCap = widget.initialFilter.maxDistanceKm ?? widget.currentRadiusKm;
+    _minExperience = widget.initialFilter.minExperienceYears;
+    _selectedDays = Set.from(widget.initialFilter.preferredDays);
   }
 
   @override
@@ -123,134 +134,217 @@ class _TutorFilterSheetState extends State<_TutorFilterSheet> {
     final maxPrice = widget.maxAvailablePrice.toDouble();
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + bottomInset),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Filter Tutor',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      padding: EdgeInsets.fromLTRB(24, 8, 24, 24 + bottomInset),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 48,
+              height: 5,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAF2FF),
+                borderRadius: BorderRadius.circular(999),
+              ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Mapel',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Filter Pencarian',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF4B176E),
+                ),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(context, TutorDiscoveryFilter.empty),
+                child: const Text('Reset Semua'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _sectionHeader('Mata Pelajaran'),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: widget.categories.map((category) {
-                return ChoiceChip(
-                  label: Text(category),
-                  selected: _selectedSubject == category,
-                  onSelected: (_) => setState(() => _selectedSubject = category),
+                final isSelected = _selectedSubject == category;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(category),
+                    selected: isSelected,
+                    onSelected: (_) =>
+                        setState(() => _selectedSubject = category),
+                  ),
                 );
               }).toList(),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Harga per jam',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 24),
+          _sectionHeader('Harga per Jam'),
+          RangeSlider(
+            values: _priceRange,
+            min: minPrice,
+            max: maxPrice <= minPrice ? minPrice + 1 : maxPrice,
+            divisions: 20,
+            activeColor: const Color(0xFFFF1377),
+            inactiveColor: const Color(0xFFF3F0F7),
+            labels: RangeLabels(
+              'Rp ${_priceRange.start.round()}',
+              'Rp ${_priceRange.end.round()}',
             ),
-            RangeSlider(
-              values: _priceRange,
-              min: minPrice,
-              max: maxPrice <= minPrice ? minPrice + 1 : maxPrice,
-              divisions: 6,
-              labels: RangeLabels(
-                'Rp ${_priceRange.start.round()}',
-                'Rp ${_priceRange.end.round()}',
+            onChanged: (values) => setState(() => _priceRange = values),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Rp ${minPrice.round()}'),
+              Text(
+                'Rp ${_priceRange.start.round()} - Rp ${_priceRange.end.round()}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFFF1377),
+                ),
               ),
-              onChanged: (values) => setState(() => _priceRange = values),
+              Text('Rp ${maxPrice.round()}'),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionHeader('Rating Min'),
+                    const SizedBox(height: 12),
+                    SegmentedButton<double>(
+                      segments: const [
+                        ButtonSegment(value: 0, label: Text('Semua')),
+                        ButtonSegment(value: 4, label: Text('4.0+')),
+                        ButtonSegment(value: 4.5, label: Text('4.5+')),
+                      ],
+                      selected: {_minRating},
+                      showSelectedIcon: false,
+                      style: SegmentedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onSelectionChanged: (selection) {
+                        setState(() => _minRating = selection.first);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionHeader('Pengalaman'),
+                    const SizedBox(height: 12),
+                    SegmentedButton<int>(
+                      segments: const [
+                        ButtonSegment(value: 0, label: Text('Semua')),
+                        ButtonSegment(value: 3, label: Text('3th+')),
+                        ButtonSegment(value: 5, label: Text('5th+')),
+                      ],
+                      selected: {_minExperience},
+                      showSelectedIcon: false,
+                      style: SegmentedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onSelectionChanged: (selection) {
+                        setState(() => _minExperience = selection.first);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: _sectionHeader('Batasi Jarak Maksimal'),
+            subtitle: Text(
+              _useDistanceCap
+                  ? 'Tampilkan tutor dalam radius ${_distanceCap.toStringAsFixed(0)} km'
+                  : 'Gunakan radius default pencarian',
+              style: const TextStyle(fontSize: 12),
             ),
-            Text(
-              'Rp ${_priceRange.start.round()} - Rp ${_priceRange.end.round()}',
+            thumbColor: WidgetStateProperty.all(const Color(0xFFFF1377)),
+            trackColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? const Color(0xFFFF1377).withValues(alpha: 0.5) : null),
+            value: _useDistanceCap,
+            onChanged: (value) => setState(() => _useDistanceCap = value),
+          ),
+          if (_useDistanceCap)
+            Slider(
+              value: _distanceCap.clamp(1, 20),
+              min: 1,
+              max: 20,
+              divisions: 19,
+              activeColor: const Color(0xFFFF1377),
+              thumbColor: const Color(0xFFFF1377),
+              label: '${_distanceCap.toStringAsFixed(0)} km',
+              onChanged: (value) => setState(() => _distanceCap = value),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Rating minimum',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<double>(
-              segments: const [
-                ButtonSegment(value: 0, label: Text('Semua')),
-                ButtonSegment(value: 4, label: Text('4.0+')),
-                ButtonSegment(value: 4.5, label: Text('4.5+')),
-              ],
-              selected: {_minRating},
-              onSelectionChanged: (selection) {
-                setState(() => _minRating = selection.first);
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: FilledButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  TutorDiscoveryFilter(
+                    subject: _selectedSubject,
+                    minPrice: _priceRange.start.round() <= minPrice.round()
+                        ? null
+                        : _priceRange.start.round(),
+                    maxPrice: _priceRange.end.round() >= maxPrice.round()
+                        ? null
+                        : _priceRange.end.round(),
+                    minRating: _minRating,
+                    maxDistanceKm: _useDistanceCap ? _distanceCap : null,
+                    minExperienceYears: _minExperience,
+                    preferredDays: _selectedDays,
+                  ),
+                );
               },
-            ),
-            const SizedBox(height: 16),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Batasi jarak'),
-              subtitle: Text(
-                _useDistanceCap
-                    ? 'Maksimal ${_distanceCap.toStringAsFixed(0)} km'
-                    : 'Ikuti radius pencarian aktif',
-              ),
-              value: _useDistanceCap,
-              onChanged: (value) => setState(() => _useDistanceCap = value),
-            ),
-            if (_useDistanceCap)
-              Slider(
-                value: _distanceCap.clamp(1, 20),
-                min: 1,
-                max: 20,
-                divisions: 19,
-                label: '${_distanceCap.toStringAsFixed(0)} km',
-                onChanged: (value) => setState(() => _distanceCap = value),
-              ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context, TutorDiscoveryFilter.empty),
-                    child: const Text('Reset'),
-                  ),
+              style: FilledButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      Navigator.pop(
-                        context,
-                        TutorDiscoveryFilter(
-                          subject: _selectedSubject,
-                          minPrice: _priceRange.start.round() <= minPrice.round()
-                              ? null
-                              : _priceRange.start.round(),
-                          maxPrice: _priceRange.end.round() >= maxPrice.round()
-                              ? null
-                              : _priceRange.end.round(),
-                          minRating: _minRating,
-                          maxDistanceKm: _useDistanceCap ? _distanceCap : null,
-                        ),
-                      );
-                    },
-                    child: const Text('Terapkan'),
-                  ),
-                ),
-              ],
+              ),
+              child: const Text('Terapkan Filter'),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w800,
+        color: Color(0xFF4B176E),
       ),
     );
   }
@@ -266,14 +360,16 @@ class _PillLabel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1E8FB),
+        color: const Color(0xFFEAF2FF),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFD3DFFB)),
       ),
       child: Text(
         label,
         style: const TextStyle(
           color: Color(0xFF4B176E),
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
+          fontSize: 11,
         ),
       ),
     );

@@ -1,5 +1,6 @@
 enum BookingSessionStatus {
   scheduled,
+  inProgress,
   donePendingConfirmation,
   confirmed,
   disputedPending,
@@ -18,6 +19,8 @@ extension BookingSessionStatusX on BookingSessionStatus {
     switch (this) {
       case BookingSessionStatus.scheduled:
         return 'scheduled';
+      case BookingSessionStatus.inProgress:
+        return 'in_progress';
       case BookingSessionStatus.donePendingConfirmation:
         return 'done_pending_confirmation';
       case BookingSessionStatus.confirmed:
@@ -47,6 +50,8 @@ extension BookingSessionStatusX on BookingSessionStatus {
     switch (this) {
       case BookingSessionStatus.scheduled:
         return 'Terjadwal';
+      case BookingSessionStatus.inProgress:
+        return 'Sedang Berlangsung';
       case BookingSessionStatus.donePendingConfirmation:
         return 'Menunggu Konfirmasi';
       case BookingSessionStatus.confirmed:
@@ -75,6 +80,7 @@ extension BookingSessionStatusX on BookingSessionStatus {
   bool get isTerminal {
     switch (this) {
       case BookingSessionStatus.scheduled:
+      case BookingSessionStatus.inProgress:
       case BookingSessionStatus.donePendingConfirmation:
       case BookingSessionStatus.disputedPending:
         return false;
@@ -117,6 +123,8 @@ extension BookingSessionStatusX on BookingSessionStatus {
         return BookingSessionStatus.studentNoShow;
       case 'tutor_no_show':
         return BookingSessionStatus.tutorNoShow;
+      case 'in_progress':
+        return BookingSessionStatus.inProgress;
       case 'scheduled':
       default:
         return BookingSessionStatus.scheduled;

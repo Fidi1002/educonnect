@@ -58,7 +58,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profil Tutor'),
+        title: const Text('Edit Profil'),
         actions: [
           IconButton(
             tooltip: 'Nonaktifkan profil',
@@ -100,10 +100,13 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
                     children: [
                       CircleAvatar(
                         radius: 44,
-                        backgroundColor: Colors.teal.shade100,
+                        backgroundColor: const Color(0xFFEAF2FF),
                         backgroundImage: avatarImage,
                         child: (_selectedImage == null && _photoUrl.isEmpty)
-                            ? const Icon(FluentIcons.person_24_regular, size: 40)
+                            ? const Icon(
+                                FluentIcons.person_24_regular,
+                                size: 40,
+                              )
                             : null,
                       ),
                       Positioned(

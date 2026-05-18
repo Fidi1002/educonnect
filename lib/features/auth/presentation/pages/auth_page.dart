@@ -55,7 +55,7 @@ class _AuthPageState extends ConsumerState<AuthPage>
             child: Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF1E1E59), Color(0xFFFF1377)],
+                  colors: [Color(0xFF4B176E), Color(0xFFFF1377)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -147,7 +147,7 @@ class _AuthPageState extends ConsumerState<AuthPage>
                               children: [
                                 TabBar(
                                   controller: _tabController,
-                                  labelColor: const Color(0xFF1E1E59),
+                                  labelColor: const Color(0xFF4B176E),
                                   unselectedLabelColor: const Color(0xFF667085),
                                   indicatorColor: const Color(0xFFFF1377),
                                   indicatorWeight: 3,
@@ -272,7 +272,7 @@ class _AuthPageState extends ConsumerState<AuthPage>
           onPressed: isLoading ? null : _onRegisterPressed,
           style: FilledButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            backgroundColor: const Color(0xFF1E1E59),
+            backgroundColor: const Color(0xFF4B176E),
           ),
           child: Text(isLoading ? 'Memproses...' : 'Buat Akun', style: const TextStyle(fontSize: 16)),
         ),

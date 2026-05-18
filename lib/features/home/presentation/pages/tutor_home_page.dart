@@ -22,6 +22,7 @@ import 'package:educonnect/features/tutor/application/tutor_profile_controller.d
 import 'package:educonnect/features/tutor/domain/models/tutor_profile.dart';
 import 'package:educonnect/features/tutor/presentation/pages/tutor_profile_form_page.dart';
 import 'package:educonnect/features/tutor/presentation/widgets/tutor_ui.dart';
+import 'package:educonnect/features/wallet/presentation/pages/tutor_wallet_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -64,7 +65,8 @@ class TutorHomePage extends ConsumerWidget {
         pendingHomeworkAsync: pendingHomeworkAsync,
         onLogout: () => ref.read(authControllerProvider).signOut(),
       ),
-      loading: () => const AppLoadingState(message: 'Memuat dashboard tutor...'),
+      loading: () =>
+          const AppLoadingState(message: 'Memuat dashboard tutor...'),
       error: (error, _) => _TutorHomeScaffold(
         profile: null,
         tutorProfile: tutorProfileAsync.valueOrNull,
@@ -122,35 +124,40 @@ class _TutorHomeScaffold extends StatelessWidget {
     final now = DateTime.now();
     final bookings = bookingsAsync.valueOrNull ?? const <BookingItem>[];
     final sessions = sessionsAsync.valueOrNull ?? const <BookingSession>[];
-    final availability = availabilityAsync.valueOrNull ?? const <TutorAvailabilitySlot>[];
+    final availability =
+        availabilityAsync.valueOrNull ?? const <TutorAvailabilitySlot>[];
     final pendingHomeworkCount = pendingHomeworkAsync.valueOrNull?.length ?? 0;
     final pendingHomeworkRecords =
         pendingHomeworkAsync.valueOrNull ?? const <SessionLearningRecord>[];
     final firstPendingHomework = pendingHomeworkRecords.isEmpty
         ? null
         : (pendingHomeworkRecords.toList()
-          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt))).first;
+                ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)))
+              .first;
 
-    final activeBookings = bookings.where((booking) {
-      return booking.status == BookingStatus.awaitingPayment ||
-          booking.status == BookingStatus.paid;
-    }).toList(growable: false);
+    final activeBookings = bookings
+        .where((booking) {
+          return booking.status == BookingStatus.awaitingPayment ||
+              booking.status == BookingStatus.paid;
+        })
+        .toList(growable: false);
     final activeStudents = activeBookings
         .map((booking) => booking.studentUid)
         .toSet()
         .length;
     final todayStart = DateTime(now.year, now.month, now.day);
     final tomorrow = todayStart.add(const Duration(days: 1));
-    final todaySessions = sessions.where((session) {
-      return !session.sessionStart.isBefore(todayStart) &&
-          session.sessionStart.isBefore(tomorrow);
-    }).toList(growable: false);
+    final todaySessions = sessions
+        .where((session) {
+          return !session.sessionStart.isBefore(todayStart) &&
+              session.sessionStart.isBefore(tomorrow);
+        })
+        .toList(growable: false);
     final upcomingSessions = sessions.where((session) {
       return session.sessionStart.isAfter(now) &&
           (session.status == BookingSessionStatus.scheduled ||
               session.status == BookingSessionStatus.donePendingConfirmation);
-    }).toList()
-      ..sort((a, b) => a.sessionStart.compareTo(b.sessionStart));
+    }).toList()..sort((a, b) => a.sessionStart.compareTo(b.sessionStart));
     final reviewNeededCount = sessions.where((session) {
       return session.status == BookingSessionStatus.disputedPending ||
           session.status == BookingSessionStatus.donePendingConfirmation;
@@ -196,7 +203,10 @@ class _TutorHomeScaffold extends StatelessWidget {
       }).length;
     }
 
-    final weeklySessionCount = countSessionsInRange(weekRangeStart, nextWeekStart);
+    final weeklySessionCount = countSessionsInRange(
+      weekRangeStart,
+      nextWeekStart,
+    );
     final weeklyConfirmedCount = countConfirmedInRange(
       weekRangeStart,
       nextWeekStart,
@@ -231,7 +241,10 @@ class _TutorHomeScaffold extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tutor Dashboard'),
+        title: const Text(
+          'Tutor Dashboard',
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 24),
+        ),
         actions: [
           _BadgeIconButton(
             count: unreadNotifications,
@@ -243,7 +256,10 @@ class _TutorHomeScaffold extends StatelessWidget {
             onTap: () => context.pushNamed(InboxPage.routeName),
             icon: FluentIcons.chat_24_regular,
           ),
-          IconButton(onPressed: onLogout, icon: const Icon(FluentIcons.sign_out_24_regular)),
+          IconButton(
+            onPressed: onLogout,
+            icon: const Icon(FluentIcons.sign_out_24_regular),
+          ),
         ],
       ),
       body: ListView(
@@ -258,7 +274,10 @@ class _TutorHomeScaffold extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(FluentIcons.wifi_off_24_regular, color: colorScheme.onErrorContainer),
+                  Icon(
+                    FluentIcons.wifi_off_24_regular,
+                    color: colorScheme.onErrorContainer,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -310,7 +329,8 @@ class _TutorHomeScaffold extends StatelessWidget {
                     ? 'Belum ada sesi untuk hari ini'
                     : 'Fokus pada kelas terdekatmu',
                 icon: FluentIcons.calendar_empty_24_regular,
-                color: const Color(0xFFF3EAD8),
+                color: const Color(0xFFF7F9FF),
+                accentColor: const Color(0xFF4B176E),
               ),
               _MetricCard(
                 title: 'Booking Baru',
@@ -319,7 +339,8 @@ class _TutorHomeScaffold extends StatelessWidget {
                     ? 'Belum ada booking yang menunggu respon'
                     : 'Segera respon booking baru',
                 icon: FluentIcons.mail_unread_24_regular,
-                color: const Color(0xFFE6F0F2),
+                color: const Color(0xFFF7F9FF),
+                accentColor: const Color(0xFFFF1377),
               ),
               _MetricCard(
                 title: 'Menunggu Bayar',
@@ -328,7 +349,8 @@ class _TutorHomeScaffold extends StatelessWidget {
                     ? 'Belum ada pembayaran yang tertunda'
                     : 'Pantau progres pembayaran murid',
                 icon: FluentIcons.money_24_regular,
-                color: const Color(0xFFF7E7DF),
+                color: const Color(0xFFF7F9FF),
+                accentColor: const Color(0xFF4B176E),
               ),
               _MetricCard(
                 title: 'Perlu Review',
@@ -337,7 +359,8 @@ class _TutorHomeScaffold extends StatelessWidget {
                     ? 'Belum ada sesi yang perlu ditinjau'
                     : 'Tinjau sesi yang masih pending',
                 icon: Icons.rule_folder_outlined,
-                color: const Color(0xFFEAE7F6),
+                color: const Color(0xFFF7F9FF),
+                accentColor: const Color(0xFFFF1377),
               ),
             ],
           ),
@@ -364,17 +387,21 @@ class _TutorHomeScaffold extends StatelessWidget {
           const SizedBox(height: 14),
           _TutorStatusStrip(
             activeStudents: activeStudents,
-            nextSession: upcomingSessions.isEmpty ? null : upcomingSessions.first,
+            nextSession: upcomingSessions.isEmpty
+                ? null
+                : upcomingSessions.first,
             bookings: bookings,
             availability: availability,
-            onOpenStudents: () => context.pushNamed(TutorStudentsPage.routeName),
+            onOpenStudents: () =>
+                context.pushNamed(TutorStudentsPage.routeName),
             onOpenAvailability: () =>
                 context.pushNamed(TutorAvailabilityPage.routeName),
           ),
           const SizedBox(height: 14),
           _QuickHomeworkCard(
             pendingHomeworkCount: pendingHomeworkCount,
-            onOpenStudents: () => context.pushNamed(TutorStudentsPage.routeName),
+            onOpenStudents: () =>
+                context.pushNamed(TutorStudentsPage.routeName),
             onReviewLatest: firstPendingHomework == null
                 ? null
                 : () => context.pushNamed(
@@ -403,6 +430,12 @@ class _TutorHomeScaffold extends StatelessWidget {
             onPressed: () => context.pushNamed(TutorBookingsPage.routeName),
             icon: const Icon(Icons.schedule_send),
             label: const Text('Kelola Booking Murid'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => context.pushNamed(TutorWalletPage.routeName),
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            label: const Text('Cek Dompet & Penghasilan'),
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
@@ -492,7 +525,7 @@ class _TutorHeroCard extends StatelessWidget {
           const Text(
             'Tutor Command Center',
             style: TextStyle(
-              color: Color(0xFFFFE8C5),
+              color: Colors.white70,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -508,7 +541,7 @@ class _TutorHeroCard extends StatelessWidget {
           const SizedBox(height: 6),
           const Text(
             'Pantau kelas aktif, PR yang harus direview, dan ritme mengajarmu dari satu tempat.',
-            style: TextStyle(color: Color(0xFFE7EEF2), height: 1.35),
+            style: TextStyle(color: Colors.white70, height: 1.35),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -523,14 +556,8 @@ class _TutorHeroCard extends StatelessWidget {
                 label: 'Consistency',
                 value: '${consistencyScore.toStringAsFixed(0)}%',
               ),
-              _HeroPill(
-                label: 'Murid Aktif',
-                value: '$activeStudents / 2',
-              ),
-              _HeroPill(
-                label: 'PR Pending',
-                value: '$pendingHomeworkCount',
-              ),
+              _HeroPill(label: 'Murid Aktif', value: '$activeStudents / 2'),
+              _HeroPill(label: 'PR Pending', value: '$pendingHomeworkCount'),
             ],
           ),
         ],
@@ -558,7 +585,7 @@ class _HeroPill extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(color: Color(0xFFF5D59B), fontSize: 12),
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
           const SizedBox(height: 3),
           Text(
@@ -581,6 +608,7 @@ class _MetricCard extends StatelessWidget {
     required this.note,
     required this.icon,
     required this.color,
+    required this.accentColor,
   });
 
   final String title;
@@ -588,6 +616,7 @@ class _MetricCard extends StatelessWidget {
   final String note;
   final IconData icon;
   final Color color;
+  final Color accentColor;
 
   @override
   Widget build(BuildContext context) {
@@ -596,11 +625,12 @@ class _MetricCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFC9D8F2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon),
+          Icon(icon, color: accentColor),
           const Spacer(),
           Text(
             value,
@@ -648,12 +678,15 @@ class _TodayFocusCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Fokus Hari Ini',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
-              TextButton(onPressed: onOpenCalendar, child: const Text('Kalender')),
+              TextButton(
+                onPressed: onOpenCalendar,
+                child: const Text('Kalender'),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -684,10 +717,13 @@ class _TodayFocusCard extends StatelessWidget {
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF21425B),
+                        color: const Color(0xFF4B176E),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(FluentIcons.hat_graduation_24_regular, color: Colors.white),
+                      child: const Icon(
+                        FluentIcons.hat_graduation_24_regular,
+                        color: Colors.white,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -838,7 +874,7 @@ class _QuickHomeworkCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: TutorUi.teal,
+        color: TutorUi.navy,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Row(

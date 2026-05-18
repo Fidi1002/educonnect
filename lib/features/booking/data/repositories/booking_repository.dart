@@ -348,6 +348,10 @@ class BookingRepository {
     );
   }
 
+  Future<void> processAutoConfirmSessions() async {
+    await _client.rpc('process_auto_confirm_sessions');
+  }
+
   Stream<List<SessionChangeRequest>> watchBookingSessionChangeRequests(
     String bookingId,
   ) {
@@ -673,6 +677,17 @@ class BookingRepository {
     await _syncBookingCompletionState(session['booking_id'] as String? ?? '');
   }
 
+  Future<void> markSessionStartedByTutor(String sessionId) async {
+    final now = DateTime.now().toUtc().toIso8601String();
+    await _client
+        .from('booking_sessions')
+        .update({
+          'status': BookingSessionStatus.inProgress.value,
+          'updated_at': now,
+        })
+        .eq('id', sessionId);
+  }
+
   Future<void> markSessionDoneByTutor(String sessionId) async {
     final row = await _client
         .from('booking_sessions')
@@ -712,9 +727,9 @@ class BookingRepository {
     }
 
     final status = BookingSessionStatusX.fromValue(row['status'] as String?);
-    if (status != BookingSessionStatus.scheduled) {
+    if (status != BookingSessionStatus.scheduled && status != BookingSessionStatus.inProgress) {
       throw const PostgrestException(
-        message: 'No-show hanya bisa ditandai pada sesi terjadwal.',
+        message: 'No-show hanya bisa ditandai pada sesi terjadwal atau sedang berlangsung.',
       );
     }
 
@@ -761,9 +776,9 @@ class BookingRepository {
     }
 
     final status = BookingSessionStatusX.fromValue(row['status'] as String?);
-    if (status != BookingSessionStatus.scheduled) {
+    if (status != BookingSessionStatus.scheduled && status != BookingSessionStatus.inProgress) {
       throw const PostgrestException(
-        message: 'No-show hanya bisa ditandai pada sesi terjadwal.',
+        message: 'No-show hanya bisa ditandai pada sesi terjadwal atau sedang berlangsung.',
       );
     }
 

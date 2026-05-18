@@ -3,11 +3,11 @@ import 'package:educonnect/features/booking/domain/models/booking_status.dart';
 import 'package:flutter/material.dart';
 
 class TutorUi {
-  static const Color ink = Color(0xFF21425B);
-  static const Color teal = Color(0xFF2E5B6E);
-  static const Color gold = Color(0xFFD8A24E);
-  static const Color cream = Color(0xFFF7F4EE);
-  static const Color lavender = Color(0xFFEDE4F7);
+  static const Color ink = Color(0xFF4B176E);
+  static const Color navy = Color(0xFF4B176E);
+  static const Color pink = Color(0xFFFF1377);
+  static const Color cream = Color(0xFFF7F9FF);
+  static const Color lavender = Color(0xFFEAF2FF);
   static const Color mint = Color(0xFFE0F2E7);
   static const Color rose = Color(0xFFF7DCE0);
   static const Color peach = Color(0xFFFFE9D5);
@@ -15,7 +15,7 @@ class TutorUi {
   static const Color slate = Color(0xFFF3F4F6);
 
   static const LinearGradient heroGradientPrimary = LinearGradient(
-    colors: [Color(0xFF1A2E45), Color(0xFF2E5B6E), Color(0xFFD8A24E)],
+    colors: [Color(0xFF4B176E), Color(0xFFFF1377)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -66,14 +66,12 @@ class TutorUi {
 }
 
 class TutorStatusBadge extends StatelessWidget {
-  const TutorStatusBadge.booking({
-    super.key,
-    required BookingStatus status,
-  }) : _bookingStatus = status,
-       _sessionStatus = null,
-       _label = null,
-       _background = null,
-       _foreground = null;
+  const TutorStatusBadge.booking({super.key, required BookingStatus status})
+    : _bookingStatus = status,
+      _sessionStatus = null,
+      _label = null,
+      _background = null,
+      _foreground = null;
 
   const TutorStatusBadge.session({
     super.key,
@@ -106,8 +104,9 @@ class TutorStatusBadge extends StatelessWidget {
     final style = switch ((_label, _bookingStatus, _sessionStatus)) {
       (final String label, _, _) => (label, _background!, _foreground!),
       (_, final BookingStatus bookingStatus, _) => _bookingStyle(bookingStatus),
-      (_, _, final BookingSessionStatus sessionStatus) =>
-        _sessionStyle(sessionStatus),
+      (_, _, final BookingSessionStatus sessionStatus) => _sessionStyle(
+        sessionStatus,
+      ),
       _ => throw StateError('TutorStatusBadge style belum lengkap.'),
     };
 
@@ -130,15 +129,27 @@ class TutorStatusBadge extends StatelessWidget {
 
   static (String, Color, Color) _bookingStyle(BookingStatus status) {
     return switch (status) {
-      BookingStatus.pending => (status.label, TutorUi.peach, const Color(0xFF9A4D00)),
+      BookingStatus.pending => (
+        status.label,
+        TutorUi.peach,
+        const Color(0xFF9A4D00),
+      ),
       BookingStatus.awaitingPayment => (
         status.label,
         TutorUi.rose,
         const Color(0xFFA6334A),
       ),
-      BookingStatus.paid => (status.label, TutorUi.mint, const Color(0xFF206A42)),
+      BookingStatus.paid => (
+        status.label,
+        TutorUi.mint,
+        const Color(0xFF206A42),
+      ),
       BookingStatus.completed => (status.label, TutorUi.cloud, TutorUi.ink),
-      BookingStatus.rejected => (status.label, TutorUi.slate, const Color(0xFF4B5563)),
+      BookingStatus.rejected => (
+        status.label,
+        TutorUi.slate,
+        const Color(0xFF4B5563),
+      ),
       BookingStatus.cancelled => (
         status.label,
         const Color(0xFFF2E7E8),
@@ -153,6 +164,11 @@ class TutorStatusBadge extends StatelessWidget {
         'Terjadwal',
         const Color(0xFFE6F0F2),
         TutorUi.ink,
+      ),
+      BookingSessionStatus.inProgress => (
+        'Sedang Berlangsung',
+        const Color(0xFFE1F5FE),
+        const Color(0xFF0277BD),
       ),
       BookingSessionStatus.donePendingConfirmation => (
         'Menunggu Konfirmasi',
