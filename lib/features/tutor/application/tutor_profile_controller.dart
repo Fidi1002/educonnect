@@ -55,6 +55,20 @@ class TutorProfileController {
     );
   }
 
+  Future<String> uploadDocument(File file, String docType) async {
+    final uid = _requireUid();
+    return _runLoadingTask(
+      () => _repository.uploadTutorDocument(uid: uid, file: file, docType: docType),
+    );
+  }
+
+  Future<void> simulateAdminAction(String status, {String? reason}) async {
+    final uid = _requireUid();
+    await _runLoadingTask(
+      () => _repository.simulateAdminAction(uid, status, reason: reason),
+    );
+  }
+
   Future<void> deactivateMyProfile() async {
     final uid = _requireUid();
     await _runLoadingTask(() => _repository.deactivateTutorProfile(uid));

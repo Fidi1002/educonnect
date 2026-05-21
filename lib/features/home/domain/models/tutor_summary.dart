@@ -13,6 +13,7 @@ class TutorSummary {
     required this.consistencyScore,
     required this.experienceYears,
     this.distanceFromUserKm,
+    this.recommendationScore,
   });
 
   final String uid;
@@ -28,6 +29,7 @@ class TutorSummary {
   final double consistencyScore;
   final int experienceYears;
   final double? distanceFromUserKm;
+  final double? recommendationScore;
 
   bool matchesKeyword(String query) {
     if (query.isEmpty) {
@@ -38,3 +40,4 @@ class TutorSummary {
         subjects.any((subject) => subject.toLowerCase().contains(keyword));
   }
 }
+

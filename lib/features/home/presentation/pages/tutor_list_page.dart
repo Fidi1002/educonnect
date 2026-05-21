@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 enum TutorSortOption { ratingDesc, distanceAsc, priceAsc, priceDesc }
 
@@ -28,10 +29,15 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
   TutorSortOption _sortOption = TutorSortOption.ratingDesc;
   TutorDiscoveryFilter _filter = TutorDiscoveryFilter.empty;
   int _visibleCount = 25;
+  
+  bool _isMapView = false;
+  TutorSummary? _selectedTutorForMap;
+  GoogleMapController? _mapController;
 
   @override
   void dispose() {
     _searchController.dispose();
+    _mapController?.dispose();
     super.dispose();
   }
 
@@ -42,8 +48,21 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
     final nearbyTutorsAsync = ref.watch(nearbyTutorsProvider);
     final fallbackTutorsAsync = ref.watch(activeTutorsProvider);
     final tutorsAsync = location == null ? fallbackTutorsAsync : nearbyTutorsAsync;
+    
     return Scaffold(
       appBar: AppBar(title: const Text('Semua Tutor')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          setState(() {
+            _isMapView = !_isMapView;
+            _selectedTutorForMap = null;
+          });
+        },
+        backgroundColor: const Color(0xFF4B176E),
+        foregroundColor: Colors.white,
+        icon: Icon(_isMapView ? FluentIcons.list_24_regular : FluentIcons.map_24_regular),
+        label: Text(_isMapView ? 'Lihat Daftar' : 'Lihat Peta'),
+      ),
       body: tutorsAsync.when(
         data: (tutors) {
           final categories = _buildCategories(tutors);
@@ -54,6 +73,15 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
           );
           _sortTutors(filtered, _sortOption);
           final visible = filtered.take(_visibleCount).toList();
+
+          if (_isMapView) {
+            return _buildMapView(
+              tutors: filtered,
+              userLocation: location,
+              radiusKm: radiusKm,
+              categories: categories,
+            );
+          }
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -166,6 +194,350 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
           fullScreen: true,
         ),
       ),
+    );
+  }
+
+  Widget _buildMapView({
+    required List<TutorSummary> tutors,
+    required UserLocationState? userLocation,
+    required double radiusKm,
+    required List<String> categories,
+  }) {
+    LatLng center = const LatLng(-6.2088, 106.8456); // Jakarta default
+    if (userLocation != null) {
+      center = LatLng(userLocation.latitude, userLocation.longitude);
+    } else if (tutors.isNotEmpty) {
+      center = LatLng(tutors.first.latitude, tutors.first.longitude);
+    }
+
+    final Set<Marker> markers = {};
+    if (userLocation != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('user_location'),
+          position: LatLng(userLocation.latitude, userLocation.longitude),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          infoWindow: const InfoWindow(title: 'Lokasi Anda'),
+        ),
+      );
+    }
+
+    for (final tutor in tutors) {
+      markers.add(
+        Marker(
+          markerId: MarkerId(tutor.uid),
+          position: LatLng(tutor.latitude, tutor.longitude),
+          onTap: () {
+            setState(() {
+              _selectedTutorForMap = tutor;
+            });
+          },
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: center,
+            zoom: 12,
+          ),
+          onMapCreated: (controller) => _mapController = controller,
+          markers: markers,
+          myLocationButtonEnabled: false,
+          zoomControlsEnabled: false,
+        ),
+        
+        Positioned(
+          top: 16,
+          left: 16,
+          right: 16,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1A000000),
+                      blurRadius: 16,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (_) {
+                    setState(() {
+                      _visibleCount = 25;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    hintText: 'Cari tutor atau mapel...',
+                    prefixIcon: Icon(FluentIcons.search_24_regular),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x10000000),
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: DropdownButton<TutorSortOption>(
+                              value: _sortOption,
+                              isExpanded: true,
+                              underline: const SizedBox(),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF191622),
+                                fontWeight: FontWeight.bold,
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: TutorSortOption.ratingDesc, child: Text('Sort: Rating')),
+                                DropdownMenuItem(value: TutorSortOption.distanceAsc, child: Text('Sort: Terdekat')),
+                                DropdownMenuItem(value: TutorSortOption.priceAsc, child: Text('Sort: Murah')),
+                                DropdownMenuItem(value: TutorSortOption.priceDesc, child: Text('Sort: Mahal')),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() {
+                                    _sortOption = value;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      final result = await showTutorFilterSheet(
+                        context: context,
+                        initialFilter: _filter,
+                        categories: categories,
+                        minAvailablePrice: _minPrice(tutors),
+                        maxAvailablePrice: _maxPrice(tutors),
+                        currentRadiusKm: radiusKm,
+                      );
+                      if (result != null) {
+                        setState(() {
+                          _filter = result;
+                          _visibleCount = 25;
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4B176E),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x204B176E),
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(FluentIcons.options_24_regular, color: Colors.white, size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            'Filter',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        if (_selectedTutorForMap != null)
+          Positioned(
+            bottom: 96,
+            left: 16,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1F000000),
+                    blurRadius: 24,
+                    offset: Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: const Color(0xFFF3F0F7),
+                        backgroundImage: _selectedTutorForMap!.photoUrl.isNotEmpty
+                            ? NetworkImage(_selectedTutorForMap!.photoUrl)
+                            : null,
+                        child: _selectedTutorForMap!.photoUrl.isEmpty
+                            ? const Icon(FluentIcons.person_24_regular, size: 28, color: Color(0xFF4B176E))
+                            : null,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _selectedTutorForMap!.name,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF191622),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const Icon(FluentIcons.star_16_filled, size: 14, color: Color(0xFFFFB224)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _selectedTutorForMap!.rating.toStringAsFixed(1),
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '(${_selectedTutorForMap!.totalReviews} Ulasan)',
+                                  style: const TextStyle(fontSize: 12, color: Color(0xFF718096)),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _selectedTutorForMap!.subjects.isEmpty
+                                  ? 'Mapel Umum'
+                                  : _selectedTutorForMap!.subjects.join(', '),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF4B176E),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Rp ${_selectedTutorForMap!.pricePerHour}/jam',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF191622),
+                                  ),
+                                ),
+                                if (_selectedTutorForMap!.distanceFromUserKm != null)
+                                  Text(
+                                    '${_selectedTutorForMap!.distanceFromUserKm!.toStringAsFixed(1)} km',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF718096),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
+                                onPressed: () {
+                                  context.pushNamed(
+                                    TutorDetailPage.routeName,
+                                    pathParameters: {'tutorId': _selectedTutorForMap!.uid},
+                                  );
+                                },
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFF4B176E),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Lihat Detail Profil',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedTutorForMap = null;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF1F5F9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close, size: 16, color: Color(0xFF64748B)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 

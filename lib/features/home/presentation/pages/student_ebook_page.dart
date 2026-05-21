@@ -1,4 +1,7 @@
 import 'package:educonnect/features/home/application/ebook_controller.dart';
+import 'package:educonnect/features/home/application/pdf_cache_controller.dart';
+import 'package:educonnect/features/home/domain/models/library_ebook.dart';
+import 'package:educonnect/features/home/presentation/pages/pdf_reader_page.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -97,13 +100,7 @@ class StudentEbookPage extends ConsumerWidget {
                 children: ebooks.map((item) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16),
-                    child: _EbookCard(
-                      title: item.title,
-                      description: item.description,
-                      tutorName: item.tutorName ?? 'EduConnect',
-                      meta: '${item.fileSizeMb.toStringAsFixed(1)} MB • ${item.format}',
-                      accentColor: Color(int.parse(item.accentColorHex.replaceAll('#', '0xFF'))),
-                    ),
+                    child: _EbookCard(ebook: item),
                   );
                 }).toList(),
               );
@@ -117,23 +114,19 @@ class StudentEbookPage extends ConsumerWidget {
   }
 }
 
-class _EbookCard extends StatelessWidget {
+class _EbookCard extends ConsumerWidget {
   const _EbookCard({
-    required this.title,
-    required this.description,
-    required this.tutorName,
-    required this.meta,
-    required this.accentColor,
+    required this.ebook,
   });
 
-  final String title;
-  final String description;
-  final String tutorName;
-  final String meta;
-  final Color accentColor;
+  final LibraryEbook ebook;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cacheState = ref.watch(pdfCacheStateProvider(ebook));
+    final accentColor = Color(int.parse(ebook.accentColorHex.replaceAll('#', '0xFF')));
+    final meta = '${ebook.fileSizeMb.toStringAsFixed(1)} MB • ${ebook.format}';
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -173,7 +166,7 @@ class _EbookCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    ebook.title,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
@@ -182,7 +175,7 @@ class _EbookCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    description,
+                    ebook.description,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -207,7 +200,7 @@ class _EbookCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Oleh: $tutorName',
+                            'Oleh: ${ebook.tutorName ?? "EduConnect"}',
                             style: const TextStyle(
                               fontSize: 10,
                               color: Color(0xFF9BA5B7),
@@ -216,40 +209,113 @@ class _EbookCard extends StatelessWidget {
                         ],
                       ),
                       const Spacer(),
-                      ElevatedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Sedang membuka "$title"...'),
-                              backgroundColor: accentColor,
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accentColor,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Baca',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                        ),
-                      ),
+                      _buildActionButton(context, ref, cacheState, accentColor),
                     ],
                   ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(
+    BuildContext context,
+    WidgetRef ref,
+    PdfCacheState cacheState,
+    Color accentColor,
+  ) {
+    if (cacheState.isDownloading) {
+      return SizedBox(
+        width: 36,
+        height: 36,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CircularProgressIndicator(
+              value: cacheState.progress > 0 ? cacheState.progress : null,
+              color: accentColor,
+              strokeWidth: 3,
+            ),
+            Text(
+              '${(cacheState.progress * 100).toStringAsFixed(0)}%',
+              style: const TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (cacheState.isDownloaded) {
+      return ElevatedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (context) => PdfReaderPage(
+                title: ebook.title,
+                localPath: cacheState.localPath,
+                accentColor: accentColor,
+              ),
+            ),
+          );
+        },
+        icon: const Icon(FluentIcons.book_open_24_regular, size: 14),
+        label: const Text(
+          'Baca',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: accentColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+
+    // Default: Not Downloaded
+    return OutlinedButton.icon(
+      onPressed: () async {
+        try {
+          await ref.read(pdfCacheStateProvider(ebook).notifier).download();
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Gagal mengunduh e-book: $e')),
+            );
+          }
+        }
+      },
+      icon: const Icon(FluentIcons.arrow_download_24_regular, size: 14),
+      label: const Text(
+        'Unduh',
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: accentColor,
+        side: BorderSide(color: accentColor),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
     );

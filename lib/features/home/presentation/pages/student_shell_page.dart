@@ -21,7 +21,10 @@ class StudentShellPage extends StatelessWidget {
     final selectedIndex = _indexFromLocation(currentLocation);
 
     return Scaffold(
-      body: child,
+      body: Padding(
+        padding: const EdgeInsets.only(bottom: 96),
+        child: child,
+      ),
       extendBody: true,
       bottomNavigationBar: SafeArea(
         child: Container(

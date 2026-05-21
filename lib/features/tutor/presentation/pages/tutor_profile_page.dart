@@ -6,6 +6,7 @@ import 'package:educonnect/features/availability/presentation/pages/tutor_availa
 import 'package:educonnect/features/tutor/application/tutor_profile_controller.dart';
 import 'package:educonnect/features/tutor/presentation/pages/tutor_profile_form_page.dart';
 import 'package:educonnect/features/home/presentation/pages/tutor_ebook_page.dart';
+import 'package:educonnect/features/wallet/presentation/pages/tutor_wallet_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -236,6 +237,21 @@ class TutorProfilePage extends ConsumerWidget {
                               subtitle: 'Tentukan jadwal kosong untuk mengajar',
                               onTap: () => context.pushNamed(
                                 TutorAvailabilityPage.routeName,
+                              ),
+                            ),
+                            const Divider(
+                              height: 1,
+                              indent: 64,
+                              color: Color(0xFFF1F5F9),
+                            ),
+                            _ProfileMenuTile(
+                              icon: FluentIcons.money_24_regular,
+                              iconBgColor: const Color(0xFFDCFCE7),
+                              iconColor: const Color(0xFF15803D),
+                              title: 'Dompet & Penghasilan',
+                              subtitle: 'Cek saldo dan riwayat penarikan',
+                              onTap: () => context.pushNamed(
+                                TutorWalletPage.routeName,
                               ),
                             ),
                             const Divider(

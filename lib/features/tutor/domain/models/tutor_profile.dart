@@ -16,6 +16,10 @@ class TutorProfile {
     required this.totalReviews,
     required this.consistencyScore,
     required this.isActive,
+    this.verificationStatus = 'none',
+    this.identityCardUrl,
+    this.certificateUrl,
+    this.rejectionReason,
   });
 
   final String uid;
@@ -34,6 +38,10 @@ class TutorProfile {
   final int totalReviews;
   final double consistencyScore;
   final bool isActive;
+  final String verificationStatus;
+  final String? identityCardUrl;
+  final String? certificateUrl;
+  final String? rejectionReason;
 
   factory TutorProfile.empty(String uid) {
     return TutorProfile(
@@ -52,7 +60,57 @@ class TutorProfile {
       rating: 0,
       totalReviews: 0,
       consistencyScore: 0,
-      isActive: true,
+      isActive: false,
+      verificationStatus: 'none',
+      identityCardUrl: null,
+      certificateUrl: null,
+      rejectionReason: null,
+    );
+  }
+
+  TutorProfile copyWith({
+    String? uid,
+    String? displayName,
+    String? photoUrl,
+    String? bio,
+    List<String>? subjects,
+    num? pricePerHour,
+    int? experienceYears,
+    String? experienceDescription,
+    String? locationLabel,
+    double? latitude,
+    double? longitude,
+    String? geohash,
+    double? rating,
+    int? totalReviews,
+    double? consistencyScore,
+    bool? isActive,
+    String? verificationStatus,
+    String? identityCardUrl,
+    String? certificateUrl,
+    String? rejectionReason,
+  }) {
+    return TutorProfile(
+      uid: uid ?? this.uid,
+      displayName: displayName ?? this.displayName,
+      photoUrl: photoUrl ?? this.photoUrl,
+      bio: bio ?? this.bio,
+      subjects: subjects ?? this.subjects,
+      pricePerHour: pricePerHour ?? this.pricePerHour,
+      experienceYears: experienceYears ?? this.experienceYears,
+      experienceDescription: experienceDescription ?? this.experienceDescription,
+      locationLabel: locationLabel ?? this.locationLabel,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      geohash: geohash ?? this.geohash,
+      rating: rating ?? this.rating,
+      totalReviews: totalReviews ?? this.totalReviews,
+      consistencyScore: consistencyScore ?? this.consistencyScore,
+      isActive: isActive ?? this.isActive,
+      verificationStatus: verificationStatus ?? this.verificationStatus,
+      identityCardUrl: identityCardUrl ?? this.identityCardUrl,
+      certificateUrl: certificateUrl ?? this.certificateUrl,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
     );
   }
 }

@@ -3,9 +3,11 @@ import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/auth/presentation/pages/edit_profile_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_learning_journal_page.dart';
+import 'package:educonnect/features/home/presentation/widgets/student_preferences_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 
 class StudentProfilePage extends ConsumerWidget {
   const StudentProfilePage({super.key});
@@ -205,6 +207,19 @@ class StudentProfilePage extends ConsumerWidget {
                               onTap: () => context.pushNamed(
                                 StudentLearningJournalPage.routeName,
                               ),
+                            ),
+                            const Divider(
+                              height: 1,
+                              indent: 64,
+                              color: Color(0xFFF1F5F9),
+                            ),
+                            _ProfileMenuTile(
+                              icon: FluentIcons.filter_24_regular,
+                              iconBgColor: const Color(0xFFE0F7FA),
+                              iconColor: const Color(0xFF00796B),
+                              title: 'Preferensi Belajar',
+                              subtitle: 'Atur mata pelajaran & batas budget les',
+                              onTap: () => StudentPreferencesSheet.show(context),
                             ),
                             const Divider(
                               height: 1,

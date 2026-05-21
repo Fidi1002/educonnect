@@ -5,7 +5,6 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:go_router/go_router.dart';
 
 class TutorEbookPage extends ConsumerWidget {
   const TutorEbookPage({super.key});
@@ -197,6 +196,9 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
 
     setState(() => _isLoading = true);
 
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     try {
       final currentUid = ref.read(authStateProvider).value?.uid ?? '';
       await ref
@@ -209,16 +211,15 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
             accentColorHex: '#4B176E', // Default premium color
           );
 
-      if (!mounted) return;
-      context.pop();
-      ScaffoldMessenger.of(context).showSnackBar(
+      navigator.pop();
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('E-Book berhasil diunggah!')),
       );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal mengunggah: $e')));
+      final errorMessage = e.toString().replaceAll('Exception: ', '');
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Gagal mengunggah: $errorMessage')),
+      );
       setState(() => _isLoading = false);
     }
   }

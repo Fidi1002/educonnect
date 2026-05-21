@@ -137,7 +137,8 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
                         items: upcoming,
                         isLoading: isLoading,
                         emptyMessage: 'Belum ada booking aktif saat ini.',
-                        onPayDummy: (bookingId) => _payDummy(bookingId),
+                        onPay: (bookingId, paymentMethod) =>
+                            _payWebhook(bookingId, paymentMethod),
                         focusedSessionId: focusedSessionId,
                         focusedSessionKey: focusedSessionKey,
                       ),
@@ -145,7 +146,8 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
                         items: history,
                         isLoading: isLoading,
                         emptyMessage: 'Belum ada riwayat booking.',
-                        onPayDummy: (bookingId) => _payDummy(bookingId),
+                        onPay: (bookingId, paymentMethod) =>
+                            _payWebhook(bookingId, paymentMethod),
                         focusedSessionId: focusedSessionId,
                         focusedSessionKey: focusedSessionKey,
                       ),
@@ -197,18 +199,21 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
     });
   }
 
-  Future<void> _payDummy(String bookingId) async {
+  Future<void> _payWebhook(String bookingId, String paymentMethod) async {
     try {
       await ref
           .read(bookingControllerProvider)
-          .payDummyBooking(bookingId: bookingId);
+          .paySecureWebhookBooking(
+            bookingId: bookingId,
+            paymentMethod: paymentMethod,
+          );
       if (!mounted) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Pembayaran berhasil dikonfirmasi. Booking sekarang aktif.',
+            'Pembayaran berhasil dikonfirmasi via Webhook Server!',
           ),
         ),
       );
@@ -219,7 +224,7 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Gagal memproses pembayaran. Coba lagi sebentar lagi. ${error.toString()}',
+            'Gagal memproses verifikasi webhook. ${error.toString()}',
           ),
         ),
       );
@@ -289,7 +294,7 @@ class _StudentBookingOverview extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF316FF6).withValues(alpha: 0.1),
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: const Text(
@@ -304,7 +309,7 @@ class _StudentBookingOverview extends StatelessWidget {
               const Spacer(),
               const Icon(
                 FluentIcons.calendar_ltr_24_regular,
-                color: Color(0xFF316FF6),
+                color: Color(0xFF6366F1),
               ),
             ],
           ),
@@ -338,7 +343,7 @@ class _StudentBookingOverview extends StatelessWidget {
                 child: _OverviewMetricPill(
                   label: 'Aktif',
                   value: '$active',
-                  accent: const Color(0xFF316FF6),
+                  accent: const Color(0xFF6366F1),
                   icon: FluentIcons.book_open_24_regular,
                 ),
               ),
@@ -441,7 +446,7 @@ class _BookingList extends StatelessWidget {
     required this.items,
     required this.isLoading,
     required this.emptyMessage,
-    required this.onPayDummy,
+    required this.onPay,
     required this.focusedSessionId,
     required this.focusedSessionKey,
   });
@@ -449,7 +454,7 @@ class _BookingList extends StatelessWidget {
   final List<BookingItem> items;
   final bool isLoading;
   final String emptyMessage;
-  final ValueChanged<String> onPayDummy;
+  final void Function(String bookingId, String paymentMethod) onPay;
   final String? focusedSessionId;
   final GlobalKey? focusedSessionKey;
 
@@ -457,67 +462,17 @@ class _BookingList extends StatelessWidget {
     BuildContext context,
     BookingItem item,
   ) async {
-    final confirmed = await showModalBottomSheet<bool>(
+    final paymentMethod = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Pilih Metode Pembayaran',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Total Tagihan: Rp ${item.totalAmount}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF0F766E),
-                ),
-              ),
-              const SizedBox(height: 24),
-              ListTile(
-                leading: const Icon(
-                  Icons.account_balance,
-                  color: Color(0xFF4B176E),
-                ),
-                title: const Text('Transfer Bank (Virtual Account)'),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: Color(0xFFE7D8F5)),
-                ),
-                onTap: () => Navigator.pop(context, true),
-              ),
-              const SizedBox(height: 12),
-              ListTile(
-                leading: const Icon(
-                  Icons.account_balance_wallet,
-                  color: Color(0xFF4B176E),
-                ),
-                title: const Text('E-Wallet (GoPay / OVO / Dana)'),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: Color(0xFFE7D8F5)),
-                ),
-                onTap: () => Navigator.pop(context, true),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        );
+        return _SecureCheckoutSheet(item: item);
       },
     );
 
-    if (confirmed == true) {
-      onPayDummy(item.id);
+    if (paymentMethod != null) {
+      onPay(item.id, paymentMethod);
     }
   }
 
@@ -541,7 +496,7 @@ class _BookingList extends StatelessWidget {
         return _BookingCard(
               item: item,
               paymentLoading: isLoading,
-              onPayDummy: item.status == BookingStatus.awaitingPayment
+              onPay: item.status == BookingStatus.awaitingPayment
                   ? () => _showMockPaymentGateway(context, item)
                   : null,
               focusedSessionId: focusedSessionId,
@@ -559,14 +514,14 @@ class _BookingCard extends ConsumerWidget {
   const _BookingCard({
     required this.item,
     required this.paymentLoading,
-    this.onPayDummy,
+    this.onPay,
     this.focusedSessionId,
     this.focusedSessionKey,
   });
 
   final BookingItem item;
   final bool paymentLoading;
-  final VoidCallback? onPayDummy;
+  final VoidCallback? onPay;
   final String? focusedSessionId;
   final GlobalKey? focusedSessionKey;
 
@@ -655,7 +610,7 @@ class _BookingCard extends ConsumerWidget {
                 _InfoChip(
                   icon: Icons.schedule_rounded,
                   label: _formatDateTimeShort(item.sessionStart),
-                  accent: const Color(0xFF316FF6),
+                  accent: const Color(0xFF6366F1),
                 ),
                 _InfoChip(
                   icon: FluentIcons.money_24_regular,
@@ -1274,17 +1229,17 @@ class _BookingCard extends ConsumerWidget {
                   ),
                 ],
               )
-            else if (onPayDummy != null)
+            else if (onPay != null)
               Row(
                 children: [
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: paymentLoading ? null : onPayDummy,
+                      onPressed: paymentLoading ? null : onPay,
                       icon: const Icon(FluentIcons.money_24_regular),
                       label: Text(
                         paymentLoading
-                            ? 'Memproses...'
-                            : 'Bayar Sekarang (Dummy)',
+                            ? 'Memverifikasi Webhook...'
+                            : 'Bayar Sekarang',
                       ),
                     ),
                   ),
@@ -2042,5 +1997,468 @@ class _ReviewBottomSheetState extends ConsumerState<_ReviewBottomSheet> {
         ],
       ),
     );
+  }
+}
+
+class _SecureCheckoutSheet extends StatefulWidget {
+  const _SecureCheckoutSheet({
+    required this.item,
+  });
+
+  final BookingItem item;
+
+  @override
+  State<_SecureCheckoutSheet> createState() => _SecureCheckoutSheetState();
+}
+
+class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
+  String _selectedMethod = 'gopay'; // 'gopay' or 'bca_va'
+  bool _isProcessing = false;
+  String _processingMessage = '';
+
+  @override
+  Widget build(BuildContext context) {
+    const double serviceFee = 4000;
+    final double totalBill = widget.item.totalAmount + serviceFee;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: _isProcessing
+            ? _buildProcessingView()
+            : _buildCheckoutView(totalBill, serviceFee),
+      ),
+    );
+  }
+
+  Widget _buildProcessingView() {
+    return Column(
+      key: const ValueKey('processing'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 32),
+        const SizedBox(
+          width: 60,
+          height: 60,
+          child: CircularProgressIndicator(
+            color: Color(0xFF7B2CBF),
+            strokeWidth: 5,
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          _processingMessage,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF191622),
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Simulasi ini memvalidasi Signature Key MD5 secara server-to-server asinkron.',
+          style: TextStyle(
+            fontSize: 12,
+            color: Color(0xFF756E81),
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 32),
+      ],
+    );
+  }
+
+  Widget _buildCheckoutView(double totalBill, double serviceFee) {
+    return Column(
+      key: const ValueKey('checkout'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Handle bar
+        Center(
+          child: Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE2E8F0),
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F766E).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.security,
+                    color: Color(0xFF0F766E),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Portal Pembayaran',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFB703).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFFB703).withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.bug_report, size: 12, color: Color(0xFFB7791F)),
+                  SizedBox(width: 4),
+                  Text(
+                    'Sandbox Webhook',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFB7791F),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        // Tagihan Box
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Biaya Les'),
+                  Text(
+                    'Rp ${widget.item.totalAmount.toInt()}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Biaya Layanan'),
+                  Text(
+                    'Rp ${serviceFee.toInt()}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const Divider(height: 20, color: Color(0xFFE2E8F0)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total Pembayaran',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  Text(
+                    'Rp ${totalBill.toInt()}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF7B2CBF),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          'Pilih Metode Pembayaran',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+        ),
+        const SizedBox(height: 10),
+        // GoPay Select
+        _buildMethodTile(
+          id: 'gopay',
+          icon: Icons.qr_code_scanner,
+          title: 'GoPay / QRIS Dinamis',
+          subtitle: 'Scan QR Code instan dari aplikasi e-wallet',
+        ),
+        const SizedBox(height: 10),
+        // Virtual Account Select
+        _buildMethodTile(
+          id: 'bca_va',
+          icon: Icons.account_balance,
+          title: 'BCA Virtual Account',
+          subtitle: 'Transfer via m-BCA / ATM (Simulasi otomatis)',
+        ),
+        const SizedBox(height: 16),
+
+        // Detail per metode
+        AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          child: Container(
+            key: ValueKey(_selectedMethod),
+            child: _selectedMethod == 'gopay'
+                ? _buildGopayDetail()
+                : _buildVaDetail(),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Tombol Bayar
+        FilledButton(
+          onPressed: _startSimulatedWebhookProcess,
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF7B2CBF),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.bolt, color: Colors.white),
+              SizedBox(width: 8),
+              Text(
+                'Bayar Sekarang (Simulasikan Webhook)',
+                style: TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMethodTile({
+    required String id,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    final isSelected = _selectedMethod == id;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedMethod = id;
+        });
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF7B2CBF).withValues(alpha: 0.04) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF7B2CBF) : const Color(0xFFE2E8F0),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF7B2CBF).withValues(alpha: 0.1) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: isSelected ? const Color(0xFF7B2CBF) : const Color(0xFF64748B),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: isSelected ? const Color(0xFF7B2CBF) : const Color(0xFF191622),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF756E81)),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: isSelected ? const Color(0xFF7B2CBF) : const Color(0xFFCBD5E1),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGopayDetail() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFCBD5E1)),
+            ),
+            child: const Icon(
+              Icons.qr_code_2,
+              size: 72,
+              color: Color(0xFF191622),
+            ),
+          ),
+          const SizedBox(width: 16),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Instruksi Pembayaran QRIS',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  '1. Pindai kode QR menggunakan aplikasi GoPay, OVO, Dana, atau LinkAja.\n'
+                  '2. Sistem simulasi ini akan memicu webhook server otomatis setelah tombol konfirmasi ditekan.',
+                  style: TextStyle(fontSize: 11, height: 1.4, color: Color(0xFF475569)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVaDetail() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Nomor Virtual Account BCA',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '88012893829103',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F766E),
+                  letterSpacing: 1.1,
+                ),
+              ),
+              InkWell(
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Nomor VA berhasil disalin!')),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.copy, size: 14, color: Color(0xFF0F766E)),
+                      SizedBox(width: 4),
+                      Text(
+                        'Salin',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F766E),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Transfer tepat sejumlah total pembayaran via m-BCA atau ATM BCA. Pembayaran akan terverifikasi secara instan.',
+            style: TextStyle(fontSize: 11, height: 1.3, color: Color(0xFF475569)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _startSimulatedWebhookProcess() async {
+    setState(() {
+      _isProcessing = true;
+      _processingMessage = 'Menghubungi server Payment Gateway...';
+    });
+
+    await Future.delayed(const Duration(milliseconds: 1200));
+
+    if (!mounted) return;
+    setState(() {
+      _processingMessage = 'Membuat transaksi dan kalkulasi Signature Key...';
+    });
+
+    await Future.delayed(const Duration(milliseconds: 1000));
+
+    if (!mounted) return;
+    setState(() {
+      _processingMessage = 'Memicu Secure Webhook asinkron (handle_secure_webhook_payment)...';
+    });
+
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    if (!mounted) return;
+    Navigator.pop(context, _selectedMethod);
   }
 }

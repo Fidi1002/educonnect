@@ -268,21 +268,34 @@ class BookingRepository {
     );
   }
 
-  Future<void> completeDummyPayment({
+  Future<void> processSecureWebhookPayment({
     required String bookingId,
     required String studentUid,
+    required String paymentMethod,
+    required String signatureKey,
   }) async {
     await _expireStaleBookings(bookingId: bookingId);
     final paymentResult = await _client.rpc(
-      'complete_dummy_booking_payment',
-      params: {'p_booking_id': bookingId},
+      'handle_secure_webhook_payment',
+      params: {
+        'p_booking_id': bookingId,
+        'p_payment_method': paymentMethod,
+        'p_signature_key': signatureKey,
+      },
     );
     final paymentMap = switch (paymentResult) {
+      final Map<dynamic, dynamic> row => Map<String, dynamic>.from(row),
       final List<dynamic> rows when rows.isNotEmpty && rows.first is Map =>
         Map<String, dynamic>.from(rows.first as Map),
-      final Map<dynamic, dynamic> row => Map<String, dynamic>.from(row),
       _ => const <String, dynamic>{},
     };
+
+    if (paymentMap['success'] == false) {
+      throw PostgrestException(
+        message: paymentMap['message'] as String? ?? 'Gagal memproses pembayaran webhook.',
+      );
+    }
+
     final paidStudentUid = paymentMap['student_uid'] as String? ?? '';
     if (paidStudentUid != studentUid) {
       throw const PostgrestException(message: 'Booking ini bukan milik kamu.');
@@ -298,9 +311,9 @@ class BookingRepository {
     await _createNotification(
       userUid: tutorUid,
       actorUid: studentUid,
-      category: 'payment',
+      category: 'booking',
       title: 'Pembayaran Diterima',
-      body: 'Murid sudah menyelesaikan pembayaran booking.',
+      body: 'Murid telah membayar booking. Sesi les telah aktif.',
       targetType: 'booking',
       targetId: bookingId,
     );
@@ -1565,6 +1578,30 @@ class BookingRepository {
       'target_id': targetId,
       'is_read': false,
     });
+  }
+  Future<List<BookingWeeklySlot>> fetchBookedWeeklySlots(String tutorUid) async {
+    final today = DateTime.now().toUtc().toIso8601String();
+    final rows = await _client
+        .from('bookings')
+        .select('weekly_schedule')
+        .eq('tutor_uid', tutorUid)
+        .gte('package_end_date', today)
+        .inFilter('status', [
+          BookingStatus.pending.value,
+          BookingStatus.awaitingPayment.value,
+          BookingStatus.paid.value,
+        ]);
+
+    final bookedSlots = <BookingWeeklySlot>[];
+    for (final row in (rows as List<dynamic>)) {
+      final scheduleRaw = row['weekly_schedule'] as List<dynamic>? ?? [];
+      for (final item in scheduleRaw) {
+        if (item is Map<String, dynamic>) {
+          bookedSlots.add(BookingWeeklySlot.fromMap(item));
+        }
+      }
+    }
+    return bookedSlots;
   }
 }
 

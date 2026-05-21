@@ -38,6 +38,14 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
   double? _latitude;
   double? _longitude;
 
+  String _verificationStatus = 'none';
+  String? _identityCardUrl;
+  String? _certificateUrl;
+  String? _rejectionReason;
+
+  File? _selectedKtpFile;
+  File? _selectedCertificateFile;
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -48,6 +56,371 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
     _experienceDescriptionController.dispose();
     _locationController.dispose();
     super.dispose();
+  }
+
+  int _calculateCompletenessScore() {
+    int score = 0;
+    if (_selectedCertificateFile != null || (_certificateUrl != null && _certificateUrl!.isNotEmpty)) {
+      score += 40;
+    }
+    if (_selectedKtpFile != null || (_identityCardUrl != null && _identityCardUrl!.isNotEmpty)) {
+      score += 30;
+    }
+    if (_bioController.text.trim().length >= 20 && _experienceDescriptionController.text.trim().isNotEmpty) {
+      score += 20;
+    }
+    if ((_selectedImage != null || _photoUrl.isNotEmpty) && _latitude != null && _longitude != null) {
+      score += 10;
+    }
+    return score;
+  }
+
+  Widget _buildVerificationStatusBanner() {
+    Color bannerColor;
+    IconData icon;
+    String title;
+    String description;
+
+    switch (_verificationStatus) {
+      case 'pending':
+        bannerColor = const Color(0xFFD97706);
+        icon = FluentIcons.clock_24_regular;
+        title = 'Menunggu Verifikasi Admin';
+        description = 'Profil Anda sedang diperiksa oleh tim kurasi admin. Saat ini profil Anda tersembunyi dari peta & daftar pencarian murid.';
+        break;
+      case 'rejected':
+        bannerColor = const Color(0xFFDC2626);
+        icon = FluentIcons.dismiss_circle_24_regular;
+        title = 'Verifikasi Profil Ditolak';
+        description = 'Alasan penolakan: "${_rejectionReason ?? 'Dokumen kurang lengkap atau buram'}"\nSilakan perbaiki dokumen di bawah ini dan ajukan ulang.';
+        break;
+      case 'approved':
+        bannerColor = const Color(0xFF16A34A);
+        icon = FluentIcons.checkmark_circle_24_regular;
+        title = 'Terverifikasi Resmi';
+        description = 'Profil Anda telah disetujui! Akun Anda kini aktif secara publik di peta geospasial & pencarian murid.';
+        break;
+      case 'none':
+      default:
+        bannerColor = const Color(0xFF4B176E);
+        icon = FluentIcons.warning_24_regular;
+        title = 'Kurasi Profil Wajib';
+        description = 'Unggah dokumen identitas & bukti sertifikasi pengajar di bawah untuk mengajukan kurasi kelayakan sebelum akun Anda dipublikasikan.';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bannerColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: bannerColor.withValues(alpha: 0.3), width: 1.5),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: bannerColor, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: bannerColor,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: bannerColor.withValues(alpha: 0.8),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompletenessScoreCard() {
+    final score = _calculateCompletenessScore();
+    Color scoreColor = const Color(0xFFDC2626);
+    if (score >= 80) {
+      scoreColor = const Color(0xFF16A34A);
+    } else if (score >= 50) {
+      scoreColor = const Color(0xFFD97706);
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Skor Kelayakan Kurasi',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF4B176E)),
+              ),
+              Text(
+                '$score/100',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: scoreColor),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: score / 100,
+              backgroundColor: const Color(0xFFF1F5F9),
+              color: scoreColor,
+              minHeight: 8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            score < 70
+                ? '⚠️ Tambah sertifikat atau perbaiki biodata Anda untuk mencapai batas layak (min. 70%).'
+                : ' Layak diajukan! Admin akan segera melakukan verifikasi keaslian dokumen Anda.',
+            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVerificationUploadSection() {
+    return Container(
+      margin: const EdgeInsets.only(top: 12, bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Dokumen Penunjang Kurasi',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF4B176E),
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          const Text(
+            '1. Foto Kartu Tanda Penduduk (KTP)',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF191622)),
+          ),
+          const SizedBox(height: 6),
+          InkWell(
+            onTap: _pickKtp,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(FluentIcons.contact_card_24_regular, color: Color(0xFF4B176E)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _selectedKtpFile != null
+                          ? "Terpilih: ${_selectedKtpFile!.path.split('/').last}"
+                          : (_identityCardUrl != null && _identityCardUrl!.isNotEmpty)
+                              ? "Foto KTP Terunggah"
+                              : "Pilih Foto KTP Anda...",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: (_selectedKtpFile != null || _identityCardUrl != null)
+                            ? const Color(0xFF191622)
+                            : const Color(0xFF94A3B8),
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (_identityCardUrl != null && _identityCardUrl!.isNotEmpty)
+                    const Icon(FluentIcons.checkmark_12_filled, color: Color(0xFF16A34A), size: 16),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          const Text(
+            '2. Sertifikat Pendidik / Bukti Keahlian',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF191622)),
+          ),
+          const SizedBox(height: 6),
+          InkWell(
+            onTap: _pickCertificate,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(FluentIcons.document_24_regular, color: Color(0xFF4B176E)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _selectedCertificateFile != null
+                          ? "Terpilih: ${_selectedCertificateFile!.path.split('/').last}"
+                          : (_certificateUrl != null && _certificateUrl!.isNotEmpty)
+                              ? "Sertifikat Pendidik Terunggah"
+                              : "Pilih Sertifikat Pendidik Anda...",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: (_selectedCertificateFile != null || _certificateUrl != null)
+                            ? const Color(0xFF191622)
+                            : const Color(0xFF94A3B8),
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (_certificateUrl != null && _certificateUrl!.isNotEmpty)
+                    const Icon(FluentIcons.checkmark_12_filled, color: Color(0xFF16A34A), size: 16),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminSimulationSection(String tutorUid) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFCBD5E1), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(FluentIcons.shield_keyhole_24_regular, color: Color(0xFF4B176E), size: 20),
+              SizedBox(width: 8),
+              Text(
+                '[SIMULASI PANEL ADMIN]',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF4B176E),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Gunakan panel di bawah ini untuk mensimulasikan persetujuan atau penolakan kurasi berkas tutor langsung ke database Anda.',
+            style: TextStyle(fontSize: 11, color: Color(0xFF475569), fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    try {
+                      await ref.read(tutorProfileControllerProvider).simulateAdminAction('approved');
+                      _showMessage('Simulasi: Profil Tutor berhasil disetujui (Aktif)!');
+                    } catch (e) {
+                      _showMessage('Simulasi gagal: $e');
+                    }
+                  },
+                  icon: const Icon(FluentIcons.checkmark_circle_24_regular, size: 16),
+                  label: const Text('Setujui (Approve)'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF16A34A),
+                    side: const BorderSide(color: Color(0xFF16A34A)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final reasonController = TextEditingController(text: 'Foto berkas sertifikat buram dan tidak terbaca.');
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          title: const Text('Simulasi Tolak Verifikasi'),
+                          content: TextFormField(
+                            controller: reasonController,
+                            decoration: const InputDecoration(labelText: 'Alasan Penolakan'),
+                          ),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+                            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Tolak')),
+                          ],
+                        );
+                      },
+                    );
+                    if (confirm != true) return;
+                    try {
+                      await ref.read(tutorProfileControllerProvider).simulateAdminAction(
+                            'rejected',
+                            reason: reasonController.text.trim(),
+                          );
+                      _showMessage('Simulasi: Profil Tutor berhasil ditolak!');
+                    } catch (e) {
+                      _showMessage('Simulasi gagal: $e');
+                    }
+                  },
+                  icon: const Icon(FluentIcons.dismiss_circle_24_regular, size: 16),
+                  label: const Text('Tolak (Reject)'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFDC2626),
+                    side: const BorderSide(color: Color(0xFFDC2626)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -95,6 +468,8 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                _buildVerificationStatusBanner(),
+                _buildCompletenessScoreCard(),
                 Center(
                   child: Stack(
                     children: [
@@ -247,11 +622,17 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
                         : 'Gunakan lokasi saat ini',
                   ),
                 ),
+                
+                _buildVerificationUploadSection(),
+
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: isSaving ? null : _onSavePressed,
                   child: Text(isSaving ? 'Menyimpan...' : 'Simpan Profil'),
                 ),
+
+                const SizedBox(height: 16),
+                _buildAdminSimulationSection(currentUser.uid),
               ],
             ),
           );
@@ -297,6 +678,12 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
         : fallbackPhoto;
     _latitude = existing.latitude;
     _longitude = existing.longitude;
+
+    _verificationStatus = existing.verificationStatus;
+    _identityCardUrl = existing.identityCardUrl;
+    _certificateUrl = existing.certificateUrl;
+    _rejectionReason = existing.rejectionReason;
+
     _isInitialized = true;
   }
 
@@ -312,6 +699,30 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
     }
     setState(() {
       _selectedImage = File(picked.path);
+    });
+  }
+
+  Future<void> _pickKtp() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+    if (picked == null) return;
+    setState(() {
+      _selectedKtpFile = File(picked.path);
+    });
+  }
+
+  Future<void> _pickCertificate() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+    setState(() {
+      _selectedCertificateFile = File(picked.path);
     });
   }
 
@@ -356,6 +767,24 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
       if (_selectedImage != null) {
         photoUrl = await controller.uploadPhoto(_selectedImage!);
       }
+
+      var identityCardUrl = _identityCardUrl;
+      var certificateUrl = _certificateUrl;
+      var verificationStatus = _verificationStatus;
+
+      if (_selectedKtpFile != null) {
+        identityCardUrl = await controller.uploadDocument(_selectedKtpFile!, 'ktp');
+        verificationStatus = 'pending';
+      }
+      if (_selectedCertificateFile != null) {
+        certificateUrl = await controller.uploadDocument(_selectedCertificateFile!, 'certificate');
+        verificationStatus = 'pending';
+      }
+
+      if (verificationStatus == 'none' && (identityCardUrl != null || certificateUrl != null)) {
+        verificationStatus = 'pending';
+      }
+
       final profile = TutorProfile(
         uid: user.uid,
         displayName: _nameController.text.trim(),
@@ -372,8 +801,13 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
         rating: existing?.rating ?? 0,
         totalReviews: existing?.totalReviews ?? 0,
         consistencyScore: existing?.consistencyScore ?? 0,
-        isActive: true,
+        isActive: verificationStatus == 'approved',
+        verificationStatus: verificationStatus,
+        identityCardUrl: identityCardUrl,
+        certificateUrl: certificateUrl,
+        rejectionReason: verificationStatus == 'rejected' ? _rejectionReason : null,
       );
+
       await controller.saveProfile(profile);
       if (!mounted) {
         return;
@@ -447,7 +881,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
       return 'Koneksi internet bermasalah. Periksa jaringan lalu coba lagi.';
     }
     if (raw.contains('storage') || raw.contains('bucket')) {
-      return 'Upload foto gagal. Pastikan file valid lalu coba lagi.';
+      return 'Upload berkas gagal. Pastikan file valid lalu coba lagi.';
     }
     if (raw.contains('permission') || raw.contains('not allowed')) {
       return 'Akses ditolak oleh server. Cek policy Supabase untuk profil tutor.';

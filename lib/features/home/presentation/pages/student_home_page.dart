@@ -12,11 +12,13 @@ import 'package:educonnect/features/chat/application/chat_controller.dart';
 import 'package:educonnect/features/chat/presentation/pages/inbox_page.dart';
 import 'package:educonnect/features/home/application/nearby_tutor_controller.dart';
 import 'package:educonnect/features/home/application/tutor_controller.dart';
+import 'package:educonnect/features/home/application/recommendation_controller.dart';
 import 'package:educonnect/features/home/domain/models/tutor_summary.dart';
 import 'package:educonnect/features/booking/presentation/pages/student_bookings_page.dart';
 import 'package:educonnect/features/home/presentation/models/tutor_discovery_filter.dart';
 import 'package:educonnect/features/home/presentation/pages/tutor_list_page.dart';
 import 'package:educonnect/features/home/presentation/widgets/tutor_filter_sheet.dart';
+import 'package:educonnect/features/home/presentation/widgets/student_preferences_sheet.dart';
 import 'package:educonnect/features/notifications/application/notification_controller.dart';
 import 'package:educonnect/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:educonnect/features/tutor/presentation/pages/tutor_detail_page.dart';
@@ -37,6 +39,7 @@ class StudentHomePage extends ConsumerStatefulWidget {
 class _StudentHomePageState extends ConsumerState<StudentHomePage> {
   final TextEditingController _searchController = TextEditingController();
   TutorDiscoveryFilter _filter = TutorDiscoveryFilter.empty;
+  bool _hasTriggeredPreferences = false;
 
   @override
   void initState() {
@@ -54,6 +57,15 @@ class _StudentHomePageState extends ConsumerState<StudentHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Auto-trigger preferensi belajar murid jika terdeteksi kosong
+    ref.listen<AsyncValue<AppUserProfile?>>(currentUserProfileProvider, (previous, next) {
+      final profile = next.valueOrNull;
+      if (profile != null && profile.preferredSubjects.isEmpty && !_hasTriggeredPreferences) {
+        _hasTriggeredPreferences = true;
+        StudentPreferencesSheet.show(context);
+      }
+    });
+
     final profileAsync = ref.watch(currentUserProfileProvider);
     final nearbyTutorsAsync = ref.watch(nearbyTutorsProvider);
     final fallbackTutorsAsync = ref.watch(activeTutorsProvider);
@@ -153,6 +165,7 @@ class _HomeBody extends ConsumerWidget {
     final greetingName = profile?.displayName.isNotEmpty == true
         ? profile!.displayName
         : 'Sahabat Belajar';
+    final recommendedTutorsAsync = ref.watch(recommendedTutorsProvider);
     final filteredTutors = applyTutorDiscoveryFilters(
       tutors: tutors,
       query: searchController.text,
@@ -251,6 +264,54 @@ class _HomeBody extends ConsumerWidget {
           const SizedBox(height: 24),
           const _StudentMetricCards(),
           const SizedBox(height: 32),
+
+          // Section: Rekomendasi Pintar (Fase 3)
+          recommendedTutorsAsync.when(
+            data: (recTutors) {
+              if (recTutors.isEmpty) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Rekomendasi Tutor Terbaik',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF4B176E),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => StudentPreferencesSheet.show(context),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFFF1377),
+                        ),
+                        child: const Text('Ubah Preferensi'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 140,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: recTutors.length,
+                      itemBuilder: (context, index) {
+                        final tutor = recTutors[index];
+                        final score = tutor.recommendationScore ?? 0.0;
+                        return _RecommendedTutorCard(tutor: tutor, matchScore: score);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
+          ),
 
           // Section: PR & Progress
           Row(
@@ -1413,7 +1474,7 @@ class _StudentMetricCards extends StatelessWidget {
         children: [
           _MetricCard(
             icon: Icons.calendar_month_rounded,
-            iconColor: const Color(0xFF316FF6),
+            iconColor: const Color(0xFF6366F1),
             title: 'Jadwal\nBelajar',
             subtitle: 'Lihat sesi berikutnya',
           ),
@@ -1702,3 +1763,147 @@ class _EmptyHomeworkCard extends StatelessWidget {
     );
   }
 }
+
+class _RecommendedTutorCard extends StatelessWidget {
+  const _RecommendedTutorCard({required this.tutor, required this.matchScore});
+
+  final TutorSummary tutor;
+  final double matchScore;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 260,
+      margin: const EdgeInsets.only(right: 16, bottom: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4B176E).withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: () => context.pushNamed(
+            TutorDetailPage.routeName,
+            pathParameters: {'tutorUid': tutor.uid},
+          ),
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundImage: tutor.photoUrl.isNotEmpty
+                          ? NetworkImage(tutor.photoUrl)
+                          : null,
+                      child: tutor.photoUrl.isEmpty
+                          ? const Icon(Icons.person, size: 30)
+                          : null,
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: Colors.amber,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.star,
+                        color: Colors.white,
+                        size: 8,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF4B176E), Color(0xFFFF1377)],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${matchScore.toStringAsFixed(0)}% Match',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        tutor.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: Color(0xFF1A202C),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        tutor.subjects.join(', '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on, size: 10, color: Colors.redAccent),
+                          const SizedBox(width: 2),
+                          Text(
+                            tutor.distanceFromUserKm != null
+                                ? '${tutor.distanceFromUserKm!.toStringAsFixed(1)} km'
+                                : 'Terdekat',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            'Rp ${tutor.pricePerHour.toStringAsFixed(0)}/j',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              color: Color(0xFFFF1377),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

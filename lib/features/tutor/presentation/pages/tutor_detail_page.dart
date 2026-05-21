@@ -811,18 +811,154 @@ class _ReviewsList extends ConsumerWidget {
             ),
           );
         }
+
+        // Calculate statistics
+        final totalCount = reviews.length;
+        final ratingCounts = <int, int>{5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
+        var totalSum = 0.0;
+        for (final r in reviews) {
+          totalSum += r.rating;
+          final roundedRating = r.rating.round().clamp(1, 5);
+          ratingCounts[roundedRating] = (ratingCounts[roundedRating] ?? 0) + 1;
+        }
+        final averageRating = totalCount > 0 ? totalSum / totalCount : 0.0;
         
         return Column(
-          children: reviews.map((r) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _ReviewCard(
-              studentName: r.studentName ?? 'Siswa Tanpa Nama',
-              rating: r.rating,
-              comment: r.reviewText,
-              date: DateFormat('dd MMM yyyy').format(r.createdAt.toLocal()),
-              photoUrl: r.studentPhotoUrl,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Premium Rating Breakdown Card
+            Container(
+              margin: const EdgeInsets.only(bottom: 24),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x08000000),
+                    blurRadius: 20,
+                    offset: Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  // Left side: Big Average Rating
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        averageRating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF191622),
+                          height: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(5, (index) {
+                          final isFilled = index < averageRating.floor();
+                          return Icon(
+                            isFilled ? FluentIcons.star_16_filled : FluentIcons.star_16_regular,
+                            size: 14,
+                            color: const Color(0xFFFFB224),
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'dari $totalCount ulasan',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF718096),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 24),
+                  // Vertical divider
+                  Container(
+                    width: 1,
+                    height: 80,
+                    color: const Color(0xFFF1F5F9),
+                  ),
+                  const SizedBox(width: 24),
+                  // Right side: Bar distribution
+                  Expanded(
+                    child: Column(
+                      children: List.generate(5, (index) {
+                        final star = 5 - index;
+                        final count = ratingCounts[star] ?? 0;
+                        final percentage = totalCount > 0 ? count / totalCount : 0.0;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            children: [
+                              Text(
+                                '$star',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF718096),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                FluentIcons.star_12_filled,
+                                size: 10,
+                                color: Color(0xFFFFB224),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: percentage,
+                                    backgroundColor: const Color(0xFFF1F5F9),
+                                    color: const Color(0xFF4B176E),
+                                    minHeight: 6,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                width: 20,
+                                child: Text(
+                                  '$count',
+                                  textAlign: TextAlign.right,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF718096),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          )).toList(),
+            
+            // List of Reviews
+            ...reviews.map((r) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _ReviewCard(
+                studentName: r.studentName ?? 'Siswa Tanpa Nama',
+                rating: r.rating,
+                comment: r.reviewText,
+                date: DateFormat('dd MMM yyyy').format(r.createdAt.toLocal()),
+                photoUrl: r.studentPhotoUrl,
+              ),
+            )),
+          ],
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -846,8 +982,22 @@ class _ReviewCard extends StatelessWidget {
   final String date;
   final String? photoUrl;
 
+  String _maskName(String name) {
+    if (name.isEmpty) return 'Siswa Tersembunyi';
+    final parts = name.trim().split(' ');
+    final maskedParts = parts.map((part) {
+      if (part.length <= 2) {
+        return '${part[0]}*';
+      }
+      return part.substring(0, 2) + '*' * (part.length - 2);
+    });
+    return maskedParts.join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final maskedStudentName = _maskName(studentName);
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -874,7 +1024,7 @@ class _ReviewCard extends StatelessWidget {
                     : null,
                 child: photoUrl == null || photoUrl!.isEmpty
                     ? Text(
-                        studentName.isNotEmpty ? studentName[0].toUpperCase() : '?',
+                        maskedStudentName.isNotEmpty ? maskedStudentName[0].toUpperCase() : '?',
                         style: const TextStyle(
                           color: Color(0xFF4B176E),
                           fontWeight: FontWeight.w800,
@@ -888,7 +1038,7 @@ class _ReviewCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      studentName,
+                      maskedStudentName,
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF191622),
@@ -1222,6 +1372,8 @@ class _BookingScheduleSelectionSheetState
   Widget build(BuildContext context) {
     final availabilityAsync =
         ref.watch(tutorAvailabilityByTutorProvider(widget.tutor.uid));
+    final bookedSlotsAsync =
+        ref.watch(tutorBookedWeeklySlotsProvider(widget.tutor.uid));
 
     return Container(
       decoration: const BoxDecoration(
@@ -1272,6 +1424,7 @@ class _BookingScheduleSelectionSheetState
                   );
                 }
 
+                final bookedSlots = bookedSlotsAsync.valueOrNull ?? const [];
                 final grouped = _groupAvailability(slots);
                 final sortedKeys = grouped.keys.toList()
                   ..sort(
@@ -1302,28 +1455,37 @@ class _BookingScheduleSelectionSheetState
                           runSpacing: 8,
                           children: daySlots.map((slot) {
                             final isSelected = _selectedSlots.contains(slot);
+                            
+                            // Check if this specific slot is already booked by another student
+                            final isBooked = bookedSlots.any((b) =>
+                                b.weekday == slot.weekday &&
+                                b.startTime == slot.startTime &&
+                                b.endTime == slot.endTime);
+
                             return InkWell(
-                              onTap: () {
-                                setState(() {
-                                  if (isSelected) {
-                                    _selectedSlots.remove(slot);
-                                  } else {
-                                    if (_selectedSlots.length <
-                                        widget.sessionsPerWeek) {
-                                      _selectedSlots.add(slot);
-                                    } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Kamu hanya bisa memilih ${widget.sessionsPerWeek} jadwal.',
-                                          ),
-                                          duration: const Duration(seconds: 2),
-                                        ),
-                                      );
-                                    }
-                                  }
-                                });
-                              },
+                              onTap: isBooked
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        if (isSelected) {
+                                          _selectedSlots.remove(slot);
+                                        } else {
+                                          if (_selectedSlots.length <
+                                              widget.sessionsPerWeek) {
+                                            _selectedSlots.add(slot);
+                                          } else {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Kamu hanya bisa memilih ${widget.sessionsPerWeek} jadwal.',
+                                                ),
+                                                duration: const Duration(seconds: 2),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      });
+                                    },
                               borderRadius: BorderRadius.circular(12),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -1331,31 +1493,51 @@ class _BookingScheduleSelectionSheetState
                                   vertical: 10,
                                 ),
                                 decoration: BoxDecoration(
-                                  color:
-                                      isSelected
+                                  color: isBooked
+                                      ? const Color(0xFFF1F5F9)
+                                      : isSelected
                                           ? const Color(0xFF4B176E)
                                           : Colors.white,
                                   border: Border.all(
-                                    color:
-                                        isSelected
+                                    color: isBooked
+                                        ? const Color(0xFFE2E8F0)
+                                        : isSelected
                                             ? const Color(0xFF4B176E)
                                             : const Color(0xFFE2E8F0),
                                   ),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Text(
-                                  '${slot.startLabel} - ${slot.endLabel}',
-                                  style: TextStyle(
-                                    color:
-                                        isSelected
-                                            ? Colors.white
-                                            : const Color(0xFF4A5568),
-                                    fontWeight:
-                                        isSelected
-                                            ? FontWeight.w700
-                                            : FontWeight.normal,
-                                  ),
-                                ),
+                                child: isBooked
+                                    ? Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            FluentIcons.lock_closed_24_regular,
+                                            size: 14,
+                                            color: Color(0xFF94A3B8),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            '${slot.startLabel} - ${slot.endLabel}',
+                                            style: const TextStyle(
+                                              color: Color(0xFF94A3B8),
+                                              decoration: TextDecoration.lineThrough,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : Text(
+                                        '${slot.startLabel} - ${slot.endLabel}',
+                                        style: TextStyle(
+                                          color: isSelected
+                                              ? Colors.white
+                                              : const Color(0xFF4A5568),
+                                          fontWeight: isSelected
+                                              ? FontWeight.w700
+                                              : FontWeight.normal,
+                                        ),
+                                      ),
                               ),
                             );
                           }).toList(),

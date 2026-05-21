@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:educonnect/features/auth/data/repositories/user_repository.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/auth/domain/models/auth_user.dart';
@@ -137,9 +139,14 @@ void main() {
           expected: 0,
         );
 
-        await studentBookingRepo.completeDummyPayment(
+        final bytes = utf8.encode('${paidBookingId}EDUCONNECT_SECRET_SERVER_KEY');
+        final signatureKey = md5.convert(bytes).toString();
+
+        await studentBookingRepo.processSecureWebhookPayment(
           bookingId: paidBookingId,
           studentUid: studentUser.uid,
+          paymentMethod: 'gopay',
+          signatureKey: signatureKey,
         );
         await _expectBookingStatus(
           repo: studentBookingRepo,

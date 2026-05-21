@@ -64,6 +64,10 @@ class TutorProfileRepository {
       'longitude': profile.longitude,
       'geohash': profile.geohash,
       'is_active': profile.isActive,
+      'verification_status': profile.verificationStatus,
+      'identity_card_url': profile.identityCardUrl,
+      'certificate_url': profile.certificateUrl,
+      'rejection_reason': profile.rejectionReason,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'uid');
   }
@@ -84,6 +88,38 @@ class TutorProfileRepository {
     );
 
     return bucket.getPublicUrl(filePath);
+  }
+
+  Future<String> uploadTutorDocument({
+    required String uid,
+    required File file,
+    required String docType, // 'ktp' atau 'certificate'
+  }) async {
+    final bucket = _client.storage.from('tutor-documents');
+    final extension = file.path.split('.').last.toLowerCase();
+    final filePath =
+        '$uid/${docType}_${DateTime.now().millisecondsSinceEpoch}.$extension';
+
+    await bucket.uploadBinary(
+      filePath,
+      await file.readAsBytes(),
+      fileOptions: const FileOptions(upsert: false),
+    );
+
+    return bucket.getPublicUrl(filePath);
+  }
+
+  Future<void> simulateAdminAction(
+    String uid,
+    String status, {
+    String? reason,
+  }) async {
+    await _client.from('tutors').update({
+      'verification_status': status,
+      'is_active': status == 'approved',
+      'rejection_reason': reason,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('uid', uid);
   }
 
   Future<void> deactivateTutorProfile(String uid) async {
@@ -140,6 +176,19 @@ class TutorProfileRepository {
           (tutorMap['is_active'] as bool?) ??
           (tutorMap['isActive'] as bool?) ??
           true,
+      verificationStatus:
+          (tutorMap['verification_status'] as String?) ??
+          (tutorMap['verificationStatus'] as String?) ??
+          'none',
+      identityCardUrl:
+          (tutorMap['identity_card_url'] as String?) ??
+          (tutorMap['identityCardUrl'] as String?),
+      certificateUrl:
+          (tutorMap['certificate_url'] as String?) ??
+          (tutorMap['certificateUrl'] as String?),
+      rejectionReason:
+          (tutorMap['rejection_reason'] as String?) ??
+          (tutorMap['rejectionReason'] as String?),
     );
   }
 }

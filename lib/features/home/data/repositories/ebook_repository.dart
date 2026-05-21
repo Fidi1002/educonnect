@@ -49,7 +49,25 @@ class EbookRepository {
     required File pdfFile,
     required String accentColorHex,
   }) async {
-    // 1. Upload file ke Supabase Storage (bucket: ebooks)
+    // 1. Baca byte berkas untuk validasi keamanan sebelum unggah
+    final fileBytes = await pdfFile.readAsBytes();
+    
+    // Validasi Ukuran Berkas (Maksimal 15MB)
+    final double sizeMb = fileBytes.length / (1024 * 1024);
+    if (sizeMb > 15.0) {
+      throw Exception('Ukuran berkas melebihi batas maksimal 15MB (Ukuran file: ${sizeMb.toStringAsFixed(2)}MB).');
+    }
+
+    // Validasi Magic Bytes PDF (%PDF-)
+    if (fileBytes.length < 4 ||
+        fileBytes[0] != 0x25 || // '%'
+        fileBytes[1] != 0x50 || // 'P'
+        fileBytes[2] != 0x44 || // 'D'
+        fileBytes[3] != 0x46) { // 'F'
+      throw Exception('Format berkas tidak valid. Berkas harus merupakan dokumen PDF asli (Magic Bytes mismatch).');
+    }
+
+    // 2. Upload file ke Supabase Storage (bucket: ebooks)
     final fileName = '${tutorUid}_${DateTime.now().millisecondsSinceEpoch}.pdf';
     final filePath = 'uploads/$fileName';
     
@@ -61,12 +79,8 @@ class EbookRepository {
 
     // Dapatkan public URL
     final publicUrl = _client.storage.from('ebooks').getPublicUrl(filePath);
-    
-    // Hitung ukuran file dalam MB
-    final bytes = await pdfFile.length();
-    final sizeMb = bytes / (1024 * 1024);
 
-    // 2. Simpan metadata ke tabel library_ebooks
+    // 3. Simpan metadata ke tabel library_ebooks
     await _client.from('library_ebooks').insert({
       'tutor_uid': tutorUid,
       'title': title.trim(),

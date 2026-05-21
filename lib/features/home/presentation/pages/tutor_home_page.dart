@@ -20,9 +20,7 @@ import 'package:educonnect/features/notifications/application/notification_contr
 import 'package:educonnect/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:educonnect/features/tutor/application/tutor_profile_controller.dart';
 import 'package:educonnect/features/tutor/domain/models/tutor_profile.dart';
-import 'package:educonnect/features/tutor/presentation/pages/tutor_profile_form_page.dart';
 import 'package:educonnect/features/tutor/presentation/widgets/tutor_ui.dart';
-import 'package:educonnect/features/wallet/presentation/pages/tutor_wallet_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -411,43 +409,6 @@ class _TutorHomeScaffold extends StatelessWidget {
                       'sessionId': firstPendingHomework.sessionId,
                     },
                   ),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'Aksi Cepat',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed: () => context.pushNamed(TutorProfileFormPage.routeName),
-            icon: const Icon(Icons.edit_note),
-            label: const Text('Lengkapi Profil Tutor'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => context.pushNamed(TutorBookingsPage.routeName),
-            icon: const Icon(Icons.schedule_send),
-            label: const Text('Kelola Booking Murid'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => context.pushNamed(TutorWalletPage.routeName),
-            icon: const Icon(Icons.account_balance_wallet_outlined),
-            label: const Text('Cek Dompet & Penghasilan'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => context.pushNamed(TutorStudentsPage.routeName),
-            icon: const Icon(Icons.people_outline),
-            label: const Text('Buka Murid Aktif'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => context.pushNamed(TutorAvailabilityPage.routeName),
-            icon: const Icon(Icons.access_time_outlined),
-            label: const Text('Rapikan Availability'),
           ),
         ],
       ),

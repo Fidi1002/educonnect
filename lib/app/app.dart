@@ -16,14 +16,14 @@ class EduConnectApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     const brandPink = Color(0xFFFF1377);
     const brandNavy = Color(0xFF4B176E);
-    const brandBlue = Color(0xFF316FF6);
+    const brandBlue = Color(0xFF6366F1); // Premium Indigo
     const surface = Color(0xFFF7F9FF);
     const surfaceSoft = Color(0xFFEAF2FF);
     const textMuted = Color(0xFF667085);
 
     final colorScheme =
         ColorScheme.fromSeed(
-          seedColor: brandBlue,
+          seedColor: brandNavy, // Seed from main brand color
           brightness: Brightness.light,
         ).copyWith(
           primary: brandNavy,

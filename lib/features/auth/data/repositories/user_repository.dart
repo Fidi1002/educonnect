@@ -132,7 +132,7 @@ class UserRepository {
       'location_label': '',
       'rating': 0,
       'total_reviews': 0,
-      'is_active': true,
+      'is_active': false,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'uid');
   }
@@ -242,7 +242,89 @@ class UserRepository {
       distanceFromUserKm: map['distance_km'] is num
           ? (map['distance_km'] as num).toDouble()
           : null,
+      recommendationScore: map['recommendation_score'] is num
+          ? (map['recommendation_score'] as num).toDouble()
+          : null,
     );
+  }
+
+  Stream<List<TutorSummary>> watchRecommendedTutors({
+    required String studentUid,
+    required double latitude,
+    required double longitude,
+    required double radiusKm,
+    int maxResults = 25,
+  }) async* {
+    yield await _fetchRecommendedTutors(
+      studentUid: studentUid,
+      latitude: latitude,
+      longitude: longitude,
+      radiusKm: radiusKm,
+      maxResults: maxResults,
+    );
+
+    yield* Stream<int>.periodic(
+      const Duration(seconds: 20),
+      (tick) => tick,
+    ).asyncMap((_) {
+      return _fetchRecommendedTutors(
+        studentUid: studentUid,
+        latitude: latitude,
+        longitude: longitude,
+        radiusKm: radiusKm,
+        maxResults: maxResults,
+      );
+    });
+  }
+
+  Future<List<TutorSummary>> _fetchRecommendedTutors({
+    required String studentUid,
+    required double latitude,
+    required double longitude,
+    required double radiusKm,
+    required int maxResults,
+  }) async {
+    try {
+      final rows = await _client.rpc(
+        'get_recommended_tutors',
+        params: {
+          'p_student_uid': studentUid,
+          'p_latitude': latitude,
+          'p_longitude': longitude,
+          'p_radius_km': radiusKm,
+          'p_limit': maxResults,
+        },
+      );
+
+      if (rows is! List) {
+        return <TutorSummary>[];
+      }
+
+      return rows
+          .whereType<Map<String, dynamic>>()
+          .map(_mapTutorSummary)
+          .toList();
+    } catch (e) {
+      // Fallback ke normal jika RPC gagal/belum dieksekusi secara lokal
+      return _fetchNearbyTutors(
+        latitude: latitude,
+        longitude: longitude,
+        radiusKm: radiusKm,
+        maxResults: maxResults,
+      );
+    }
+  }
+
+  Future<void> updateStudentPreferences({
+    required String uid,
+    required List<String> preferredSubjects,
+    required double maxPricePreference,
+  }) async {
+    await _client.from('users').update({
+      'preferred_subjects': preferredSubjects,
+      'max_price_preference': maxPricePreference,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('uid', uid);
   }
 
   String _readString(
@@ -290,3 +372,4 @@ class UserRepository {
     return fallback is bool ? fallback : false;
   }
 }
+

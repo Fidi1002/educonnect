@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/booking/data/repositories/booking_repository.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
@@ -61,6 +63,11 @@ final bookingSessionsProvider = StreamProvider.autoDispose
           .watch(bookingRepositoryProvider)
           .watchBookingSessions(bookingId);
     });
+
+final tutorBookedWeeklySlotsProvider = FutureProvider.autoDispose
+    .family<List<BookingWeeklySlot>, String>((ref, tutorUid) {
+  return ref.watch(bookingRepositoryProvider).fetchBookedWeeklySlots(tutorUid);
+});
 
 final myStudentSessionsStreamProvider = StreamProvider<List<BookingSession>>((ref) {
   final user = ref.watch(authStateProvider).value;
@@ -250,12 +257,20 @@ class BookingController {
     );
   }
 
-  Future<void> payDummyBooking({required String bookingId}) async {
+  Future<void> paySecureWebhookBooking({
+    required String bookingId,
+    required String paymentMethod,
+  }) async {
     final studentUid = _requireUid();
+    final bytes = utf8.encode('${bookingId}EDUCONNECT_SECRET_SERVER_KEY');
+    final signatureKey = md5.convert(bytes).toString();
+
     await _runLoadingTask(
-      () => _repository.completeDummyPayment(
+      () => _repository.processSecureWebhookPayment(
         bookingId: bookingId,
         studentUid: studentUid,
+        paymentMethod: paymentMethod,
+        signatureKey: signatureKey,
       ),
     );
   }
