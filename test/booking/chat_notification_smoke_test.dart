@@ -9,11 +9,12 @@ import 'package:educonnect/features/availability/data/repositories/tutor_availab
 import 'package:educonnect/features/booking/data/repositories/booking_repository.dart';
 import 'package:educonnect/features/booking/domain/models/booking_status.dart';
 import 'package:educonnect/features/booking/domain/models/booking_weekly_slot.dart';
+import 'package:educonnect/features/notifications/data/repositories/push_token_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
-  test('wallet receives revenue after confirmed session', () async {
+  test('chat message insert triggers app_notification and push_delivery_queue entry', () async {
     final url = Platform.environment['SUPABASE_URL'];
     final anonKey = Platform.environment['SUPABASE_ANON_KEY'];
     expect(url, isNotNull, reason: 'SUPABASE_URL wajib diisi');
@@ -25,57 +26,63 @@ void main() {
     final studentClient = _createClient(url!, anonKey!);
     final tutorClient = _createClient(url, anonKey);
 
+    // 1. Register student & tutor
     final student = await _registerUser(
       client: studentClient,
-      email: 'wallet.student.$stamp@educonnect.com',
+      email: 'chat.student.$stamp@educonnect.com',
       password: password,
-      displayName: 'Wallet Student $stamp',
+      displayName: 'Chat Student $stamp',
       role: AppUserRole.student,
     );
     final tutor = await _registerUser(
       client: tutorClient,
-      email: 'wallet.tutor.$stamp@educonnect.com',
+      email: 'chat.tutor.$stamp@educonnect.com',
       password: password,
-      displayName: 'Wallet Tutor $stamp',
+      displayName: 'Chat Tutor $stamp',
       role: AppUserRole.tutor,
     );
 
-    await tutorClient
-        .from('tutors')
-        .update({'price_per_hour': 80000})
-        .eq('uid', tutor.uid);
+    // Register push token for tutor so push notification enqueuing trigger can process it
+    final pushTokenRepo = PushTokenRepository(client: tutorClient);
+    await pushTokenRepo.upsertDeviceToken(
+      userUid: tutor.uid,
+      token: 'tutor_push_token_$stamp',
+      platform: 'android',
+      deviceLabel: 'Tutor Test Device',
+    );
 
-    final studentRepo = BookingRepository(client: studentClient);
-    final tutorRepo = BookingRepository(client: tutorClient);
+    // Set availability so booking validation passes
     final availabilityRepo = TutorAvailabilityRepository(client: tutorClient);
-
     await availabilityRepo.addAvailabilitySlot(
       tutorUid: tutor.uid,
       weekday: DateTime.monday,
-      startTime: '15:00:00',
-      endTime: '16:00:00',
+      startTime: '16:00:00',
+      endTime: '17:00:00',
     );
     await availabilityRepo.addAvailabilitySlot(
       tutorUid: tutor.uid,
       weekday: DateTime.wednesday,
-      startTime: '15:00:00',
-      endTime: '16:00:00',
+      startTime: '16:00:00',
+      endTime: '17:00:00',
     );
 
-    final packageStartDate = _nextWeekdayDate(DateTime.now(), DateTime.monday);
+    final studentRepo = BookingRepository(client: studentClient);
+    final tutorRepo = BookingRepository(client: tutorClient);
 
+    // 2. Create Booking
+    final packageStartDate = _nextWeekdayDate(DateTime.now(), DateTime.monday);
     await studentRepo.createBooking(
       studentUid: student.uid,
       tutorUid: tutor.uid,
-      subject: 'IPAS',
+      subject: 'Matematika',
       packageStartDate: packageStartDate,
       packageMonths: 1,
       weeklySlots: const [
-        BookingWeeklySlot(weekday: DateTime.monday, startTime: '15:00:00', endTime: '16:00:00'),
-        BookingWeeklySlot(weekday: DateTime.wednesday, startTime: '15:00:00', endTime: '16:00:00'),
+        BookingWeeklySlot(weekday: DateTime.monday, startTime: '16:00:00', endTime: '17:00:00'),
+        BookingWeeklySlot(weekday: DateTime.wednesday, startTime: '16:00:00', endTime: '17:00:00'),
       ],
       durationMinutes: 60,
-      message: 'Wallet smoke test',
+      message: 'Chat integration test booking',
     );
 
     final bookingRows = await studentClient
@@ -87,22 +94,14 @@ void main() {
         .limit(1);
     final bookingId = ((bookingRows as List).first as Map<String, dynamic>)['id'] as String;
 
+    // 3. Accept booking
     await tutorRepo.updateBookingStatus(
       bookingId: bookingId,
       status: BookingStatus.awaitingPayment,
       actorUid: tutor.uid,
     );
 
-    await expectLater(
-      () => studentRepo.processSecureWebhookPayment(
-        bookingId: bookingId,
-        studentUid: student.uid,
-        paymentMethod: 'gopay',
-        signatureKey: 'invalid',
-      ),
-      throwsA(isA<PostgrestException>()),
-    );
-
+    // 4. Pay booking to activate sessions
     final validSignature = _signatureForBooking(bookingId);
     await studentRepo.processSecureWebhookPayment(
       bookingId: bookingId,
@@ -111,40 +110,64 @@ void main() {
       signatureKey: validSignature,
     );
 
-    final sessionRows = await tutorClient
-        .from('booking_sessions')
-        .select('id')
-        .eq('booking_id', bookingId)
-        .order('session_start', ascending: true)
-        .limit(1);
-    final sessionId = ((sessionRows as List).first as Map<String, dynamic>)['id'] as String;
+    // 5. Send two chat messages from student to tutor
+    // First message starts the conversation
+    await studentClient.from('messages').insert({
+      'booking_id': bookingId,
+      'sender_uid': student.uid,
+      'receiver_uid': tutor.uid,
+      'body': 'Halo Tutor, ini pesan pertama.',
+    });
 
-    await tutorRepo.markSessionDoneByTutor(sessionId);
-    await studentRepo.confirmSessionByStudent(
-      sessionId: sessionId,
-      rating: 5,
-      review: 'Tutor hadir dan sesi berjalan baik.',
-    );
+    // Second message sends content
+    await studentClient.from('messages').insert({
+      'booking_id': bookingId,
+      'sender_uid': student.uid,
+      'receiver_uid': tutor.uid,
+      'body': 'Halo Tutor, saya sudah membayar untuk kelas Matematika.',
+    });
 
-    final walletRows = await tutorClient
-        .from('tutor_wallets')
-        .select('available_balance,total_earned,pending_balance')
-        .eq('tutor_uid', tutor.uid)
-        .limit(1);
-    final wallet = ((walletRows as List).first as Map<String, dynamic>);
-    final availableBalance = (wallet['available_balance'] as num?)?.toDouble() ?? 0;
-    final totalEarned = (wallet['total_earned'] as num?)?.toDouble() ?? 0;
+    // 6. Verify app_notifications was generated automatically by database trigger trg_notify_chat_message_insert
+    final notifs = await tutorClient
+        .from('app_notifications')
+        .select()
+        .eq('user_uid', tutor.uid)
+        .eq('actor_uid', student.uid)
+        .eq('category', 'chat')
+        .order('created_at', ascending: true);
 
-    expect(availableBalance, greaterThan(0), reason: 'saldo tutor harus bertambah setelah sesi dikonfirmasi');
-    expect(totalEarned, greaterThan(0), reason: 'total pendapatan tutor harus tercatat');
+    expect(notifs.length, equals(2), reason: 'Trigger trg_notify_chat_message_insert gagal membangkitkan notifikasi chat untuk kedua pesan');
 
-    final transactionRows = await tutorClient
-        .from('wallet_transactions')
-        .select('reference_type,reference_id,amount,type')
-        .eq('tutor_uid', tutor.uid)
-        .eq('reference_type', 'booking_session')
-        .eq('reference_id', sessionId);
-    expect(transactionRows, isNotEmpty, reason: 'transaksi wallet untuk sesi harus tercatat');
+    // First notification verification (conversation started)
+    final notif1 = notifs[0] as Map<String, dynamic>;
+    expect(notif1['title'], equals('Percakapan baru dimulai'));
+    expect(notif1['body'], contains('memulai percakapan untuk booking ini'));
+
+    // Second notification verification (message content)
+    final notif2 = notifs[1] as Map<String, dynamic>;
+    expect(notif2['title'], contains('Chat Student'));
+    expect(notif2['body'], contains('Halo Tutor, saya sudah membayar'));
+
+    // 7. Verify push_delivery_queue entries were generated automatically by database trigger trg_enqueue_push_delivery_for_notification
+    final notifId1 = notif1['id'] as String;
+    final notifId2 = notif2['id'] as String;
+
+    final pushQueue1 = await tutorClient
+        .from('push_delivery_queue')
+        .select()
+        .eq('notification_id', notifId1);
+    expect(pushQueue1, isNotEmpty, reason: 'Trigger trg_enqueue_push_delivery_for_notification gagal untuk notifikasi pertama');
+    expect((pushQueue1.first as Map<String, dynamic>)['payload']['title'], equals('Percakapan baru dimulai'));
+
+    final pushQueue2 = await tutorClient
+        .from('push_delivery_queue')
+        .select()
+        .eq('notification_id', notifId2);
+    expect(pushQueue2, isNotEmpty, reason: 'Trigger trg_enqueue_push_delivery_for_notification gagal untuk notifikasi kedua');
+    
+    final payload2 = (pushQueue2.first as Map<String, dynamic>)['payload'] as Map<String, dynamic>;
+    expect(payload2['title'], contains('Chat Student'));
+    expect(payload2['body'], contains('Halo Tutor, saya sudah membayar'));
   });
 }
 

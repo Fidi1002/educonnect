@@ -66,8 +66,8 @@ void main() {
 
         final stamp = DateTime.now().millisecondsSinceEpoch;
         const password = 'EduconnectTest!123';
-        final studentEmail = 'student.flow.$stamp@educonnect.test';
-        final tutorEmail = 'tutor.flow.$stamp@educonnect.test';
+        final studentEmail = 'student.flow.$stamp@educonnect.com';
+        final tutorEmail = 'tutor.flow.$stamp@educonnect.com';
 
         final studentClient = _createTestClient(url!, anonKey!);
         final tutorClient = _createTestClient(url, anonKey);
