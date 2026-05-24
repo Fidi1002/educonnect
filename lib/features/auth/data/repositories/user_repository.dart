@@ -144,7 +144,7 @@ class UserRepository {
     final bucket = _client.storage.from('tutor-photos'); // Reusing existing bucket
     final extension = file.path.split('.').last.toLowerCase();
     final filePath =
-        'users/$uid/profile_${DateTime.now().millisecondsSinceEpoch}.$extension';
+        '$uid/profile_${DateTime.now().millisecondsSinceEpoch}.$extension';
 
     await bucket.uploadBinary(
       filePath,
