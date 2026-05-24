@@ -404,6 +404,66 @@ class _TutorBookingList extends ConsumerWidget {
     return null;
   }
 
+  void _showDisputeSupportDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.support_agent, color: Color(0xFFDC2626), size: 28),
+              SizedBox(width: 10),
+              Text(
+                'Mediasi Sesi Belajar',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              ),
+            ],
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Sesi ini sedang berada dalam status perselisihan (Disputed). Tim EduConnect akan melakukan peninjauan laporan kehadiran dan aktivitas belajar.',
+                style: TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF475569)),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Hubungi Dukungan CS Resmi:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF1E293B)),
+              ),
+              SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.phone_android, size: 16, color: Color(0xFF4B176E)),
+                  SizedBox(width: 8),
+                  Text('WhatsApp: 0812-3456-7890', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+              SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(Icons.email_outlined, size: 16, color: Color(0xFF4B176E)),
+                  SizedBox(width: 8),
+                  Text('Email: support@educonnect.com', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _showCancelRequestDialog({
     required BuildContext context,
     required WidgetRef ref,
@@ -1265,52 +1325,64 @@ class _TutorBookingList extends ConsumerWidget {
                                 if (session.status ==
                                     BookingSessionStatus.disputedPending) ...[
                                   const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: FilledButton.icon(
-                                      onPressed: isLoading
-                                          ? null
-                                          : () async {
-                                              try {
-                                                await ref
-                                                    .read(
-                                                      bookingControllerProvider,
-                                                    )
-                                                    .resolveDisputeByTutor(
-                                                      session.id,
-                                                    );
-                                                if (!context.mounted) {
-                                                  return;
-                                                }
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'Dispute berhasil ditutup dan status sesi diperbarui.',
-                                                    ),
-                                                  ),
-                                                );
-                                              } on Exception catch (error) {
-                                                if (!context.mounted) {
-                                                  return;
-                                                }
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      'Gagal menutup dispute. Coba lagi sebentar lagi. ${error.toString()}',
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                            },
-                                      icon: const Icon(
-                                        FluentIcons.certificate_24_regular,
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () =>
+                                              _showDisputeSupportDialog(context),
+                                          icon: const Icon(Icons.support_agent),
+                                          label: const Text('Hubungi CS'),
+                                        ),
                                       ),
-                                      label: const Text('Tutup Dispute'),
-                                    ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: FilledButton.icon(
+                                          onPressed: isLoading
+                                              ? null
+                                              : () async {
+                                                  try {
+                                                    await ref
+                                                        .read(
+                                                          bookingControllerProvider,
+                                                        )
+                                                        .resolveDisputeByTutor(
+                                                          session.id,
+                                                        );
+                                                    if (!context.mounted) {
+                                                      return;
+                                                    }
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'Dispute berhasil ditutup dan status sesi diperbarui.',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  } on Exception catch (error) {
+                                                    if (!context.mounted) {
+                                                      return;
+                                                    }
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'Gagal menutup dispute. Coba lagi sebentar lagi. ${error.toString()}',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                },
+                                          icon: const Icon(
+                                            FluentIcons.certificate_24_regular,
+                                          ),
+                                          label: const Text('Tutup Dispute'),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                                 if (canRequestChange) ...[

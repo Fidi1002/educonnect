@@ -139,12 +139,12 @@ void main() {
     expect(notifs.length, equals(2), reason: 'Trigger trg_notify_chat_message_insert gagal membangkitkan notifikasi chat untuk kedua pesan');
 
     // First notification verification (conversation started)
-    final notif1 = notifs[0] as Map<String, dynamic>;
+    final notif1 = notifs[0];
     expect(notif1['title'], equals('Percakapan baru dimulai'));
     expect(notif1['body'], contains('memulai percakapan untuk booking ini'));
 
     // Second notification verification (message content)
-    final notif2 = notifs[1] as Map<String, dynamic>;
+    final notif2 = notifs[1];
     expect(notif2['title'], contains('Chat Student'));
     expect(notif2['body'], contains('Halo Tutor, saya sudah membayar'));
 
@@ -157,7 +157,7 @@ void main() {
         .select()
         .eq('notification_id', notifId1);
     expect(pushQueue1, isNotEmpty, reason: 'Trigger trg_enqueue_push_delivery_for_notification gagal untuk notifikasi pertama');
-    expect((pushQueue1.first as Map<String, dynamic>)['payload']['title'], equals('Percakapan baru dimulai'));
+    expect(pushQueue1.first['payload']['title'], equals('Percakapan baru dimulai'));
 
     final pushQueue2 = await tutorClient
         .from('push_delivery_queue')
@@ -165,7 +165,7 @@ void main() {
         .eq('notification_id', notifId2);
     expect(pushQueue2, isNotEmpty, reason: 'Trigger trg_enqueue_push_delivery_for_notification gagal untuk notifikasi kedua');
     
-    final payload2 = (pushQueue2.first as Map<String, dynamic>)['payload'] as Map<String, dynamic>;
+    final payload2 = pushQueue2.first['payload'];
     expect(payload2['title'], contains('Chat Student'));
     expect(payload2['body'], contains('Halo Tutor, saya sudah membayar'));
   });
