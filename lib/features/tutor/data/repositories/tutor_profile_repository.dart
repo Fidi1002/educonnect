@@ -68,6 +68,7 @@ class TutorProfileRepository {
       'identity_card_url': profile.identityCardUrl,
       'certificate_url': profile.certificateUrl,
       'rejection_reason': profile.rejectionReason,
+      'max_student_capacity': profile.maxStudentCapacity,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'uid');
   }
@@ -109,18 +110,7 @@ class TutorProfileRepository {
     return bucket.getPublicUrl(filePath);
   }
 
-  Future<void> simulateAdminAction(
-    String uid,
-    String status, {
-    String? reason,
-  }) async {
-    await _client.from('tutors').update({
-      'verification_status': status,
-      'is_active': status == 'approved',
-      'rejection_reason': reason,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    }).eq('uid', uid);
-  }
+
 
   Future<void> deactivateTutorProfile(String uid) async {
     await _client.from('tutors').update({'is_active': false}).eq('uid', uid);
@@ -189,6 +179,10 @@ class TutorProfileRepository {
       rejectionReason:
           (tutorMap['rejection_reason'] as String?) ??
           (tutorMap['rejectionReason'] as String?),
+      maxStudentCapacity:
+          (tutorMap['max_student_capacity'] as int?) ??
+          (tutorMap['maxStudentCapacity'] as int?) ??
+          2,
     );
   }
 }

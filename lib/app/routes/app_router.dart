@@ -70,11 +70,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (role == AppUserRole.student) {
-        return isStudentRoute ? null : StudentHomePage.routePath;
+        if (isTutorRoute || isAuthRoute || isRoleRoute) {
+          return StudentHomePage.routePath;
+        }
+        return null;
       }
 
       if (role == AppUserRole.tutor) {
-        return isTutorRoute ? null : TutorHomePage.routePath;
+        if (isStudentRoute || isAuthRoute || isRoleRoute) {
+          return TutorHomePage.routePath;
+        }
+        return null;
       }
 
       return AuthPage.routePath;

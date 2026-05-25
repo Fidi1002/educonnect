@@ -74,16 +74,5 @@ class WalletController {
     }
   }
 
-  Future<void> simulatePayoutAdminAction(
-    String requestId,
-    String status, {
-    String? reason,
-  }) async {
-    _ref.read(walletLoadingProvider.notifier).state = true;
-    try {
-      await _repository.simulatePayoutAdminAction(requestId, status, reason: reason);
-    } finally {
-      _ref.read(walletLoadingProvider.notifier).state = false;
-    }
-  }
+
 }

@@ -440,6 +440,7 @@ class _HomeBody extends ConsumerWidget {
                 _LocationBadge(
                   locationText: locationText,
                   onRefresh: onRefreshLocation,
+                  locationError: locationError,
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -1692,36 +1693,148 @@ class _HomeworkProgressList extends StatelessWidget {
 }
 
 class _LocationBadge extends StatelessWidget {
-  const _LocationBadge({required this.locationText, required this.onRefresh});
+  const _LocationBadge({
+    required this.locationText,
+    required this.onRefresh,
+    this.locationError,
+  });
 
   final String locationText;
   final VoidCallback onRefresh;
+  final String? locationError;
+
+  void _showGPSGuideDialog(BuildContext context, String error) {
+    String title = 'Masalah Akses Lokasi';
+    String description = 'EduConnect tidak dapat mengakses GPS perangkat Anda. Kami menyarankan Anda untuk:';
+    List<String> steps = [
+      'Pastikan fitur GPS / Layanan Lokasi di HP Anda sudah aktif.',
+      'Periksa apakah Anda sudah memberikan izin lokasi untuk aplikasi EduConnect di setelan HP Anda.',
+      'Tekan tombol refresh (putar) di sebelah kanan untuk mendeteksi ulang lokasi.',
+    ];
+
+    if (error.toLowerCase().contains('denied')) {
+      title = 'Izin Lokasi Ditolak';
+      description = 'Anda telah menolak izin lokasi untuk aplikasi EduConnect. Untuk mencari tutor terdekat:';
+      steps = [
+        'Buka Pengaturan HP > Aplikasi > EduConnect > Izin.',
+        'Aktifkan izin lokasi ("Izinkan hanya saat aplikasi digunakan" atau "Selalu izinkan").',
+        'Kembali ke aplikasi dan tekan tombol refresh.',
+      ];
+    } else if (error.toLowerCase().contains('disabled')) {
+      title = 'Layanan GPS Mati';
+      description = 'Layanan lokasi (GPS) pada perangkat Anda saat ini dinonaktifkan. Silakan aktifkan:';
+      steps = [
+        'Tarik menu pintas (status bar) ke bawah di HP Anda.',
+        'Cari ikon Lokasi / GPS dan aktifkan.',
+        'Tekan tombol refresh pada aplikasi.',
+      ];
+    }
+
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Row(
+            children: [
+              const Icon(Icons.location_off, color: Color(0xFFFF1377), size: 28),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                description,
+                style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF475569)),
+              ),
+              const SizedBox(height: 12),
+              ...steps.map((step) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Expanded(
+                          child: Text(
+                            step,
+                            style: const TextStyle(fontSize: 12, height: 1.3, color: Color(0xFF1E293B)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Mengerti'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final hasError = locationError != null && locationError!.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: hasError ? const Color(0xFFFF1377).withValues(alpha: 0.3) : const Color(0xFFE2E8F0),
+          width: hasError ? 1.5 : 1.0,
+        ),
       ),
       child: Row(
         children: [
-          const Icon(
-            FluentIcons.location_24_regular,
-            size: 18,
-            color: Color(0xFF4B176E),
+          Icon(
+            hasError ? Icons.warning_amber_rounded : FluentIcons.location_24_regular,
+            size: 20,
+            color: hasError ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              locationText,
-              style: const TextStyle(
-                color: Color(0xFF4B176E),
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  locationText,
+                  style: TextStyle(
+                    color: hasError ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (hasError) ...[
+                  const SizedBox(height: 2),
+                  GestureDetector(
+                    onTap: () => _showGPSGuideDialog(context, locationError!),
+                    child: const Text(
+                      'Lihat Panduan GPS ➔',
+                      style: TextStyle(
+                        color: Color(0xFFFF1377),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           IconButton(
@@ -1730,7 +1843,7 @@ class _LocationBadge extends StatelessWidget {
             constraints: const BoxConstraints(),
             padding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,
-            color: const Color(0xFF4B176E),
+            color: hasError ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
           ),
         ],
       ),

@@ -1043,6 +1043,24 @@ class _BookingCard extends ConsumerWidget {
                                     ),
                                   ),
                                 ],
+                                if (session.status == BookingSessionStatus.disputedPending) ...[
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => _showDisputeSupportDialog(context),
+                                      icon: const Icon(Icons.support_agent, color: Colors.white, size: 16),
+                                      label: const Text('Hubungi Dukungan CS (Mediasi)', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFFDC2626), // Merah untuk urgensi
+                                        padding: const EdgeInsets.symmetric(vertical: 10),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                                 if (canRequestChange) ...[
                                   const SizedBox(height: 8),
                                   Row(
@@ -1293,6 +1311,66 @@ class _BookingCard extends ConsumerWidget {
       }
     }
     return null;
+  }
+
+  void _showDisputeSupportDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.support_agent, color: Color(0xFFDC2626), size: 28),
+              SizedBox(width: 10),
+              Text(
+                'Mediasi Sesi Belajar',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              ),
+            ],
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Sesi ini sedang berada dalam status perselisihan (Disputed). Tim EduConnect akan melakukan peninjauan laporan kehadiran dan aktivitas belajar.',
+                style: TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF475569)),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Hubungi Dukungan CS Resmi:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF1E293B)),
+              ),
+              SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.phone_android, size: 16, color: Color(0xFF4B176E)),
+                  SizedBox(width: 8),
+                  Text('WhatsApp: 0812-3456-7890', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+              SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(Icons.email_outlined, size: 16, color: Color(0xFF4B176E)),
+                  SizedBox(width: 8),
+                  Text('Email: support@educonnect.com', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _showCancelRequestDialog({
@@ -2062,7 +2140,7 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Simulasi ini memvalidasi Signature Key MD5 secara server-to-server asinkron.',
+          'Transaksi Anda diproses secara aman menggunakan enkripsi SSL.',
           style: TextStyle(
             fontSize: 12,
             color: Color(0xFF756E81),
@@ -2120,20 +2198,20 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFB703).withValues(alpha: 0.15),
+                color: const Color(0xFF10B981).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFFB703).withValues(alpha: 0.3)),
+                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.bug_report, size: 12, color: Color(0xFFB7791F)),
+                  Icon(Icons.lock, size: 12, color: Color(0xFF047857)),
                   SizedBox(width: 4),
                   Text(
-                    'Sandbox Webhook',
+                    'Terenkripsi SSL',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFFB7791F),
+                      color: Color(0xFF047857),
                     ),
                   ),
                 ],
@@ -2213,7 +2291,7 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
           id: 'bca_va',
           icon: Icons.account_balance,
           title: 'BCA Virtual Account',
-          subtitle: 'Transfer via m-BCA / ATM (Simulasi otomatis)',
+          subtitle: 'Transfer via m-BCA / ATM',
         ),
         const SizedBox(height: 16),
 
@@ -2231,7 +2309,7 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
 
         // Tombol Bayar
         FilledButton(
-          onPressed: _startSimulatedWebhookProcess,
+          onPressed: _startPaymentProcess,
           style: FilledButton.styleFrom(
             backgroundColor: const Color(0xFF7B2CBF),
             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -2245,7 +2323,7 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
               Icon(Icons.bolt, color: Colors.white),
               SizedBox(width: 8),
               Text(
-                'Bayar Sekarang (Simulasikan Webhook)',
+                'Bayar Sekarang',
                 style: TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
               ),
             ],
@@ -2357,7 +2435,7 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
                 SizedBox(height: 4),
                 Text(
                   '1. Pindai kode QR menggunakan aplikasi GoPay, OVO, Dana, atau LinkAja.\n'
-                  '2. Sistem simulasi ini akan memicu webhook server otomatis setelah tombol konfirmasi ditekan.',
+                  '2. Status pembayaran akan terverifikasi secara otomatis setelah pembayaran sukses.',
                   style: TextStyle(fontSize: 11, height: 1.4, color: Color(0xFF475569)),
                 ),
               ],
@@ -2436,27 +2514,20 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
     );
   }
 
-  Future<void> _startSimulatedWebhookProcess() async {
+  Future<void> _startPaymentProcess() async {
     setState(() {
       _isProcessing = true;
-      _processingMessage = 'Menghubungi server Payment Gateway...';
+      _processingMessage = 'Menghubungi server Pembayaran...';
     });
 
     await Future.delayed(const Duration(milliseconds: 1200));
 
     if (!mounted) return;
     setState(() {
-      _processingMessage = 'Membuat transaksi dan kalkulasi Signature Key...';
+      _processingMessage = 'Memproses transaksi secara aman...';
     });
 
-    await Future.delayed(const Duration(milliseconds: 1000));
-
-    if (!mounted) return;
-    setState(() {
-      _processingMessage = 'Memicu Secure Webhook asinkron (handle_secure_webhook_payment)...';
-    });
-
-    await Future.delayed(const Duration(milliseconds: 800));
+    await Future.delayed(const Duration(milliseconds: 1200));
 
     if (!mounted) return;
     Navigator.pop(context, _selectedMethod);

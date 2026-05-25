@@ -20,6 +20,7 @@ class TutorProfile {
     this.identityCardUrl,
     this.certificateUrl,
     this.rejectionReason,
+    this.maxStudentCapacity = 2,
   });
 
   final String uid;
@@ -42,6 +43,7 @@ class TutorProfile {
   final String? identityCardUrl;
   final String? certificateUrl;
   final String? rejectionReason;
+  final int maxStudentCapacity;
 
   factory TutorProfile.empty(String uid) {
     return TutorProfile(
@@ -65,6 +67,7 @@ class TutorProfile {
       identityCardUrl: null,
       certificateUrl: null,
       rejectionReason: null,
+      maxStudentCapacity: 2,
     );
   }
 
@@ -89,6 +92,7 @@ class TutorProfile {
     String? identityCardUrl,
     String? certificateUrl,
     String? rejectionReason,
+    int? maxStudentCapacity,
   }) {
     return TutorProfile(
       uid: uid ?? this.uid,
@@ -111,6 +115,7 @@ class TutorProfile {
       identityCardUrl: identityCardUrl ?? this.identityCardUrl,
       certificateUrl: certificateUrl ?? this.certificateUrl,
       rejectionReason: rejectionReason ?? this.rejectionReason,
+      maxStudentCapacity: maxStudentCapacity ?? this.maxStudentCapacity,
     );
   }
 }

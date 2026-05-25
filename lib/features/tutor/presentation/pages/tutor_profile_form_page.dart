@@ -30,6 +30,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
   final _experienceYearsController = TextEditingController();
   final _experienceDescriptionController = TextEditingController();
   final _locationController = TextEditingController();
+  final _maxStudentCapacityController = TextEditingController();
 
   final List<String> _subjects = <String>[];
   bool _isInitialized = false;
@@ -55,6 +56,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
     _experienceYearsController.dispose();
     _experienceDescriptionController.dispose();
     _locationController.dispose();
+    _maxStudentCapacityController.dispose();
     super.dispose();
   }
 
@@ -323,105 +325,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
     );
   }
 
-  Widget _buildAdminSimulationSection(String tutorUid) {
-    return Container(
-      margin: const EdgeInsets.only(top: 8, bottom: 24),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFCBD5E1), width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(FluentIcons.shield_keyhole_24_regular, color: Color(0xFF4B176E), size: 20),
-              SizedBox(width: 8),
-              Text(
-                '[SIMULASI PANEL ADMIN]',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF4B176E),
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Gunakan panel di bawah ini untuk mensimulasikan persetujuan atau penolakan kurasi berkas tutor langsung ke database Anda.',
-            style: TextStyle(fontSize: 11, color: Color(0xFF475569), fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    try {
-                      await ref.read(tutorProfileControllerProvider).simulateAdminAction('approved');
-                      _showMessage('Simulasi: Profil Tutor berhasil disetujui (Aktif)!');
-                    } catch (e) {
-                      _showMessage('Simulasi gagal: $e');
-                    }
-                  },
-                  icon: const Icon(FluentIcons.checkmark_circle_24_regular, size: 16),
-                  label: const Text('Setujui (Approve)'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF16A34A),
-                    side: const BorderSide(color: Color(0xFF16A34A)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final reasonController = TextEditingController(text: 'Foto berkas sertifikat buram dan tidak terbaca.');
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          title: const Text('Simulasi Tolak Verifikasi'),
-                          content: TextFormField(
-                            controller: reasonController,
-                            decoration: const InputDecoration(labelText: 'Alasan Penolakan'),
-                          ),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
-                            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Tolak')),
-                          ],
-                        );
-                      },
-                    );
-                    if (confirm != true) return;
-                    try {
-                      await ref.read(tutorProfileControllerProvider).simulateAdminAction(
-                            'rejected',
-                            reason: reasonController.text.trim(),
-                          );
-                      _showMessage('Simulasi: Profil Tutor berhasil ditolak!');
-                    } catch (e) {
-                      _showMessage('Simulasi gagal: $e');
-                    }
-                  },
-                  icon: const Icon(FluentIcons.dismiss_circle_24_regular, size: 16),
-                  label: const Text('Tolak (Reject)'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFDC2626),
-                    side: const BorderSide(color: Color(0xFFDC2626)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -622,6 +526,23 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
                         : 'Gunakan lokasi saat ini',
                   ),
                 ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _maxStudentCapacityController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Kapasitas maksimal murid aktif',
+                    border: OutlineInputBorder(),
+                    helperText: 'Jumlah maksimal murid aktif yang dapat memesan kelas Anda secara bersamaan.',
+                  ),
+                  validator: (value) {
+                    final capacity = int.tryParse(value ?? '');
+                    if (capacity == null || capacity <= 0) {
+                      return 'Kapasitas wajib lebih besar dari 0.';
+                    }
+                    return null;
+                  },
+                ),
                 
                 _buildVerificationUploadSection(),
 
@@ -631,8 +552,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
                   child: Text(isSaving ? 'Menyimpan...' : 'Simpan Profil'),
                 ),
 
-                const SizedBox(height: 16),
-                _buildAdminSimulationSection(currentUser.uid),
+
               ],
             ),
           );
@@ -678,6 +598,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
         : fallbackPhoto;
     _latitude = existing.latitude;
     _longitude = existing.longitude;
+    _maxStudentCapacityController.text = existing.maxStudentCapacity.toString();
 
     _verificationStatus = existing.verificationStatus;
     _identityCardUrl = existing.identityCardUrl;
@@ -806,6 +727,7 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
         identityCardUrl: identityCardUrl,
         certificateUrl: certificateUrl,
         rejectionReason: verificationStatus == 'rejected' ? _rejectionReason : null,
+        maxStudentCapacity: int.tryParse(_maxStudentCapacityController.text.trim()) ?? 2,
       );
 
       await controller.saveProfile(profile);

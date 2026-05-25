@@ -74,15 +74,5 @@ class WalletRepository {
     });
   }
 
-  Future<void> simulatePayoutAdminAction(
-    String requestId,
-    String status, {
-    String? reason,
-  }) async {
-    await _client.from('payout_requests').update({
-      'status': status,
-      'rejection_reason': reason,
-      'processed_at': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', requestId);
-  }
+
 }
