@@ -10,6 +10,7 @@ class LibraryEbook {
     required this.accentColorHex,
     required this.createdAt,
     this.tutorName,
+    this.bookingId,
   });
 
   final String id;
@@ -22,6 +23,7 @@ class LibraryEbook {
   final String accentColorHex;
   final DateTime createdAt;
   final String? tutorName;
+  final String? bookingId;
 
   factory LibraryEbook.fromJson(Map<String, dynamic> json) {
     return LibraryEbook(
@@ -37,6 +39,7 @@ class LibraryEbook {
           ? DateTime.parse(json['created_at'] as String) 
           : DateTime.now(),
       tutorName: json['tutor_name'] as String?,
+      bookingId: json['booking_id'] as String?,
     );
   }
 }

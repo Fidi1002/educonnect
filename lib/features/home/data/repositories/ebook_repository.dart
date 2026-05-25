@@ -48,6 +48,7 @@ class EbookRepository {
     required String description,
     required File pdfFile,
     required String accentColorHex,
+    String? bookingId,
   }) async {
     // 1. Baca byte berkas untuk validasi keamanan sebelum unggah
     final fileBytes = await pdfFile.readAsBytes();
@@ -89,6 +90,7 @@ class EbookRepository {
       'file_size_mb': sizeMb,
       'format': 'PDF',
       'accent_color_hex': accentColorHex,
+      'booking_id': bookingId,
     });
   }
 }

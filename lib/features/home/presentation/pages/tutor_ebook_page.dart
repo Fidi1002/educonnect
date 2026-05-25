@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/home/application/ebook_controller.dart';
+import 'package:educonnect/features/booking/application/booking_controller.dart';
+import 'package:educonnect/features/booking/domain/models/booking_status.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -168,6 +170,7 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   File? _selectedFile;
+  String? _selectedBookingId;
   bool _isLoading = false;
 
   Future<void> _pickFile() async {
@@ -209,6 +212,7 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
             description: desc,
             pdfFile: _selectedFile!,
             accentColorHex: '#4B176E', // Default premium color
+            bookingId: _selectedBookingId,
           );
 
       navigator.pop();
@@ -226,6 +230,8 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final bookingsAsync = ref.watch(myTutorBookingsProvider);
+
     return Container(
       padding: EdgeInsets.only(
         left: 24,
@@ -273,6 +279,52 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
                 borderSide: BorderSide.none,
               ),
             ),
+          ),
+          const SizedBox(height: 16),
+          bookingsAsync.when(
+            data: (bookings) {
+              final activeBookings = bookings
+                  .where((b) =>
+                      b.status == BookingStatus.paid ||
+                      b.status == BookingStatus.completed)
+                  .toList();
+
+              return DropdownButtonFormField<String?>(
+                initialValue: _selectedBookingId,
+                decoration: InputDecoration(
+                  labelText: 'Bagikan Ke (Opsional)',
+                  filled: true,
+                  fillColor: const Color(0xFFF7F9FF),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Semua Murid (Umum / Publik)'),
+                  ),
+                  ...activeBookings.map((b) => DropdownMenuItem<String?>(
+                        value: b.id,
+                        child: Text(
+                          'Privat: ${b.studentName} - ${b.subject}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      )),
+                ],
+                onChanged: (val) {
+                  setState(() {
+                    _selectedBookingId = val;
+                  });
+                },
+              );
+            },
+            loading: () => const SizedBox(
+              height: 50,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, _) => const SizedBox.shrink(),
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
