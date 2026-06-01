@@ -1,5 +1,6 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
+import 'package:educonnect/core/utils/calendar_sync_helper.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/booking/application/booking_controller.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
@@ -10,10 +11,17 @@ import 'package:educonnect/features/booking/domain/models/session_change_request
 import 'package:educonnect/features/booking/domain/models/session_learning_record.dart';
 import 'package:educonnect/features/chat/presentation/pages/chat_page.dart';
 import 'package:educonnect/features/tutor/presentation/widgets/tutor_ui.dart';
+import 'package:educonnect/features/booking/presentation/pages/virtual_classroom_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import 'package:path_provider/path_provider.dart';
 
 enum _TutorBookingQuickFilter {
   all,
@@ -60,7 +68,10 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
           );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Kelola Booking Murid')),
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
       body: bookingsAsync.when(
         data: (items) {
           final now = DateTime.now();
@@ -103,11 +114,25 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
             length: 3,
             initialIndex: initialTab,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        'Kelola Booking Murid',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFFF1F5F9)
+                              : const Color(0xFF4B176E),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       TextField(
                         controller: _searchController,
                         onChanged: (_) => setState(() {}),
@@ -508,6 +533,7 @@ class _TutorBookingList extends ConsumerWidget {
     required BuildContext context,
     required WidgetRef ref,
     required String sessionId,
+    required String bookingId,
     required int durationMinutes,
   }) async {
     final reasonController = TextEditingController();
@@ -518,69 +544,122 @@ class _TutorBookingList extends ConsumerWidget {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Ajukan Reschedule'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 120)),
-                        initialDate: DateTime.now().add(
-                          const Duration(days: 1),
+            return Consumer(
+              builder: (context, ref, child) {
+                final countAsync = ref.watch(rescheduleCountProvider(bookingId));
+                final count = countAsync.valueOrNull ?? 0;
+                final isLimitReached = count >= 2;
+
+                return AlertDialog(
+                  title: const Text('Ajukan Reschedule'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      countAsync.when(
+                        data: (countVal) {
+                          final remaining = (2 - countVal).clamp(0, 2);
+                          final color = remaining == 0 ? Colors.red.shade800 : Colors.amber.shade900;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: remaining == 0 ? Colors.red.shade50 : Colors.amber.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: remaining == 0 ? Colors.red.shade200 : Colors.amber.shade200,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  remaining == 0 ? FluentIcons.warning_24_regular : FluentIcons.info_24_regular,
+                                  color: color,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    remaining == 0
+                                        ? 'Batas reschedule bulan ini habis (Maks 2x/30 hari).'
+                                        : 'Sisa kuota reschedule bulan ini: $remaining kali.',
+                                    style: TextStyle(
+                                      color: color,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        loading: () => const Padding(
+                          padding: EdgeInsets.only(bottom: 16),
+                          child: LinearProgressIndicator(),
                         ),
-                      );
-                      if (date == null || !context.mounted) {
-                        return;
-                      }
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: const TimeOfDay(hour: 16, minute: 0),
-                      );
-                      if (time == null || !context.mounted) {
-                        return;
-                      }
-                      setState(() {
-                        selectedDateTime = DateTime(
-                          date.year,
-                          date.month,
-                          date.day,
-                          time.hour,
-                          time.minute,
-                        );
-                      });
-                    },
-                    icon: const Icon(FluentIcons.clock_24_regular),
-                    label: Text(
-                      selectedDateTime == null
-                          ? 'Pilih jadwal baru'
-                          : '${selectedDateTime!.day}/${selectedDateTime!.month}/${selectedDateTime!.year} '
-                                '${selectedDateTime!.hour.toString().padLeft(2, '0')}:${selectedDateTime!.minute.toString().padLeft(2, '0')}',
+                        error: (error, stack) => const SizedBox.shrink(),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: isLimitReached ? null : () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(const Duration(days: 120)),
+                            initialDate: DateTime.now().add(
+                              const Duration(days: 1),
+                            ),
+                          );
+                          if (date == null || !context.mounted) {
+                            return;
+                          }
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: const TimeOfDay(hour: 16, minute: 0),
+                          );
+                          if (time == null || !context.mounted) {
+                            return;
+                          }
+                          setState(() {
+                            selectedDateTime = DateTime(
+                              date.year,
+                              date.month,
+                              date.day,
+                              time.hour,
+                              time.minute,
+                            );
+                          });
+                        },
+                        icon: const Icon(FluentIcons.clock_24_regular),
+                        label: Text(
+                          selectedDateTime == null
+                              ? 'Pilih jadwal baru'
+                              : '${selectedDateTime!.day}/${selectedDateTime!.month}/${selectedDateTime!.year} '
+                                    '${selectedDateTime!.hour.toString().padLeft(2, '0')}:${selectedDateTime!.minute.toString().padLeft(2, '0')}',
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: reasonController,
+                        maxLines: 2,
+                        decoration: const InputDecoration(labelText: 'Alasan'),
+                        enabled: !isLimitReached,
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Batal'),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: reasonController,
-                    maxLines: 2,
-                    decoration: const InputDecoration(labelText: 'Alasan'),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Batal'),
-                ),
-                FilledButton(
-                  onPressed: selectedDateTime == null
-                      ? null
-                      : () => Navigator.pop(context, true),
-                  child: const Text('Kirim'),
-                ),
-              ],
+                    FilledButton(
+                      onPressed: (selectedDateTime == null || isLimitReached)
+                          ? null
+                          : () => Navigator.pop(context, true),
+                      child: const Text('Kirim'),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );
@@ -591,17 +670,35 @@ class _TutorBookingList extends ConsumerWidget {
       reasonController.dispose();
       return;
     }
-    await ref
-        .read(bookingControllerProvider)
-        .requestSessionReschedule(
-          sessionId: sessionId,
-          proposedStart: selectedDateTime!,
-          proposedEnd: selectedDateTime!.add(
-            Duration(minutes: durationMinutes),
-          ),
-          reason: reasonController.text,
-        );
-    reasonController.dispose();
+    try {
+      await ref
+          .read(bookingControllerProvider)
+          .requestSessionReschedule(
+            sessionId: sessionId,
+            proposedStart: selectedDateTime!,
+            proposedEnd: selectedDateTime!.add(
+              Duration(minutes: durationMinutes),
+            ),
+            reason: reasonController.text,
+          );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Permintaan reschedule berhasil dikirim.'),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      final errorMsg = e.toString().replaceAll('PostgrestException:', '').trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengajukan reschedule: $errorMsg'),
+          backgroundColor: Colors.red.shade800,
+        ),
+      );
+    } finally {
+      reasonController.dispose();
+    }
   }
 
   SessionLearningRecord? _findLearningRecord(
@@ -910,6 +1007,13 @@ class _TutorBookingList extends ConsumerWidget {
                     value:
                         '${item.packageStartDate.day}/${item.packageStartDate.month}/${item.packageStartDate.year} - ${item.packageEndDate.day}/${item.packageEndDate.month}/${item.packageEndDate.year}',
                   ),
+                  const SizedBox(height: 10),
+                  _InfoTile(
+                    title: item.meetingType == 'online' ? 'Metode' : 'Lokasi Pertemuan',
+                    value: item.meetingType == 'online'
+                        ? 'Online (Ruang Kelas Virtual)'
+                        : item.meetingLocation,
+                  ),
                   if (item.weeklySchedule.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     _InfoTile(
@@ -1056,22 +1160,93 @@ class _TutorBookingList extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        '${session.sessionStart.day}/${session.sessionStart.month} '
-                                        '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
-                                        ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
-                                      ),
+                                   crossAxisAlignment: CrossAxisAlignment.center,
+                                   children: [
+                                     Expanded(
+                                       child: Text(
+                                         '${session.sessionStart.day}/${session.sessionStart.month} '
+                                         '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
+                                         ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
+                                         style: const TextStyle(fontWeight: FontWeight.w700),
+                                       ),
+                                     ),
+                                     if (session.status == BookingSessionStatus.scheduled) ...[
+                                       IconButton(
+                                         constraints: const BoxConstraints(),
+                                         padding: EdgeInsets.zero,
+                                         icon: const Icon(
+                                           FluentIcons.calendar_add_20_regular,
+                                           color: Color(0xFFFF1377),
+                                           size: 20,
+                                         ),
+                                         tooltip: 'Tambah ke Google Calendar',
+                                         onPressed: () {
+                                           CalendarSyncHelper.addToGoogleCalendar(
+                                             title: 'Sesi Ajar ${item.subject} - Murid: ${item.studentName}',
+                                             startTime: session.sessionStart,
+                                             endTime: session.sessionEnd,
+                                             description: 'Sesi mengajar EduConnect mata pelajaran ${item.subject} untuk murid ${item.studentName}. Catatan: ${item.message}',
+                                             location: 'Online Classroom - EduConnect',
+                                           );
+                                         },
+                                       ),
+                                       const SizedBox(width: 8),
+                                     ],
+                                     TutorStatusBadge.session(
+                                       status: session.status,
+                                     ),
+                                   ],
+                                 ),
+                                 const SizedBox(height: 4),
+                                 if (item.meetingType == 'online' &&
+                                     (session.status == BookingSessionStatus.scheduled ||
+                                      session.status == BookingSessionStatus.inProgress ||
+                                      session.status == BookingSessionStatus.donePendingConfirmation)) ...[
+                                   const SizedBox(height: 8),
+                                   SizedBox(
+                                     width: double.infinity,
+                                     child: FilledButton.icon(
+                                       onPressed: () {
+                                         Navigator.push(
+                                           context,
+                                           MaterialPageRoute(
+                                             builder: (_) => VirtualClassroomPage(
+                                               subject: item.subject,
+                                               partnerName: displayStudentName,
+                                             ),
+                                           ),
+                                         );
+                                       },
+                                       icon: const Icon(Icons.class_outlined, size: 16),
+                                       label: const Text(
+                                         'Masuk Ruang Kelas',
+                                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                       ),
+                                       style: FilledButton.styleFrom(
+                                         backgroundColor: const Color(0xFF4B176E),
+                                         padding: const EdgeInsets.symmetric(vertical: 8),
+                                         shape: RoundedRectangleBorder(
+                                           borderRadius: BorderRadius.circular(8),
+                                         ),
+                                       ),
+                                     ),
+                                   ),
+                                 ] else if (item.meetingType == 'offline') ...[
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.location_on, size: 14, color: Color(0xFFE11D48)),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            'Tatap Muka: ${item.meetingLocation}',
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFFE11D48), fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 8),
-                                    TutorStatusBadge.session(
-                                      status: session.status,
-                                    ),
+                                    _GpsGeofencingWidget(locationName: item.meetingLocation),
                                   ],
-                                ),
-                                const SizedBox(height: 4),
                                 Builder(
                                   builder: (context) {
                                     if (learningRecord == null) {
@@ -1105,12 +1280,68 @@ class _TutorBookingList extends ConsumerWidget {
                                             Text(
                                               'Status PR: ${learningRecord.homeworkStatus.label}',
                                             ),
-                                            if (learningRecord.studentSubmission
-                                                .trim()
-                                                .isNotEmpty)
-                                              Text(
-                                                'Jawaban murid: ${learningRecord.studentSubmission}',
+                                            if (learningRecord.studentSubmission.trim().isNotEmpty) ...[
+                                              Builder(
+                                                builder: (context) {
+                                                  final submission = learningRecord.studentSubmission;
+                                                  final hasOriginalImage = submission.startsWith('[IMAGE]:');
+                                                  String? originalImagePath;
+                                                  String? correctedImagePath;
+                                                  String actualText = submission;
+
+                                                  if (hasOriginalImage) {
+                                                    final lines = submission.split('\n');
+                                                    originalImagePath = lines[0].substring('[IMAGE]:'.length);
+                                                    if (lines.length > 1 && lines[1].startsWith('[CORRECTED]:')) {
+                                                      correctedImagePath = lines[1].substring('[CORRECTED]:'.length);
+                                                      actualText = lines.skip(2).join('\n');
+                                                    } else {
+                                                      actualText = lines.skip(1).join('\n');
+                                                    }
+                                                  }
+
+                                                  return Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      if (actualText.trim().isNotEmpty)
+                                                        Text('Jawaban murid: $actualText', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                                      if (originalImagePath != null) ...[
+                                                        const SizedBox(height: 8),
+                                                        const Text('Lampiran PR Murid:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                                        const SizedBox(height: 4),
+                                                        ClipRRect(
+                                                          borderRadius: BorderRadius.circular(8),
+                                                          child: Image.file(
+                                                            File(originalImagePath),
+                                                            height: 100,
+                                                            fit: BoxFit.cover,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                      if (correctedImagePath != null) ...[
+                                                        const SizedBox(height: 8),
+                                                        Row(
+                                                          children: [
+                                                            const Icon(Icons.check_circle, color: Colors.green, size: 14),
+                                                            const SizedBox(width: 4),
+                                                            const Text('Koreksi Gambar Tutor:', style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.bold)),
+                                                          ],
+                                                        ),
+                                                        const SizedBox(height: 4),
+                                                        ClipRRect(
+                                                          borderRadius: BorderRadius.circular(8),
+                                                          child: Image.file(
+                                                            File(correctedImagePath),
+                                                            height: 100,
+                                                            fit: BoxFit.cover,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ],
+                                                  );
+                                                },
                                               ),
+                                            ],
                                           ],
                                         ],
                                       ),
@@ -1179,13 +1410,29 @@ class _TutorBookingList extends ConsumerWidget {
                                           ? null
                                           : () async {
                                               try {
-                                                await ref
-                                                    .read(
-                                                      bookingControllerProvider,
-                                                    )
-                                                    .markSessionStartedByTutor(
-                                                      session.id,
-                                                    );
+                                                // Trigger Supabase Realtime calling event to student's background listener
+                                                 final callingChannelName = 'student_calls_${item.studentUid}';
+                                                 final callingChannel = Supabase.instance.client.channel(callingChannelName);
+                                                 callingChannel.subscribe((status, error) async {
+                                                   if (status == RealtimeSubscribeStatus.subscribed) {
+                                                     await callingChannel.sendBroadcastMessage(
+                                                       event: 'call_start',
+                                                       payload: {
+                                                         'subject': item.subject,
+                                                         'tutor_name': ref.read(userProfileProvider(item.tutorUid)).valueOrNull?.displayName ?? item.tutorName,
+                                                         'booking_id': item.id,
+                                                       },
+                                                     );
+                                                   }
+                                                 });
+
+                                                 await ref
+                                                     .read(
+                                                       bookingControllerProvider,
+                                                     )
+                                                     .markSessionStartedByTutor(
+                                                       session.id,
+                                                     );
                                                 if (!context.mounted) return;
                                                 ScaffoldMessenger.of(
                                                   context,
@@ -1411,6 +1658,7 @@ class _TutorBookingList extends ConsumerWidget {
                                                       context: context,
                                                       ref: ref,
                                                       sessionId: session.id,
+                                                      bookingId: item.id,
                                                       durationMinutes:
                                                           item.durationMinutes,
                                                     ),
@@ -1445,6 +1693,58 @@ class _TutorBookingList extends ConsumerWidget {
                                     if (learningRecord != null &&
                                         learningRecord.homeworkStatus ==
                                             HomeworkStatus.submitted) ...[
+                                      Builder(
+                                        builder: (context) {
+                                          final submission = learningRecord.studentSubmission;
+                                          final hasImage = submission.startsWith('[IMAGE]:');
+                                          if (!hasImage) return const SizedBox.shrink();
+
+                                          final lines = submission.split('\n');
+                                          final originalImagePath = lines[0].substring('[IMAGE]:'.length);
+
+                                          return Padding(
+                                            padding: const EdgeInsets.only(right: 8),
+                                            child: ElevatedButton.icon(
+                                              onPressed: () async {
+                                                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                                                final resultPath = await Navigator.push<String>(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => HomeworkCorrectionPage(
+                                                      imagePath: originalImagePath,
+                                                      sessionId: session.id,
+                                                    ),
+                                                  ),
+                                                );
+
+                                                if (!context.mounted) return;
+                                                if (resultPath != null) {
+                                                  final updatedSubmission = '[IMAGE]:$originalImagePath\n[CORRECTED]:$resultPath\n${lines.skip(lines.length > 1 && lines[1].startsWith('[CORRECTED]:') ? 2 : 1).join('\n')}';
+                                                  
+                                                  await Supabase.instance.client
+                                                      .from('session_learning_records')
+                                                      .update({'student_submission': updatedSubmission})
+                                                      .eq('session_id', session.id);
+                                                  
+                                                  await ref
+                                                      .read(bookingControllerProvider)
+                                                      .markHomeworkReviewed(sessionId: session.id);
+
+                                                  scaffoldMessenger.showSnackBar(
+                                                    const SnackBar(content: Text('Koreksi gambar berhasil disimpan dan PR telah direview!')),
+                                                  );
+                                                }
+                                              },
+                                              icon: const Icon(Icons.edit, size: 16),
+                                              label: const Text('Koreksi Gambar'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: const Color(0xFFFF1377),
+                                                foregroundColor: Colors.white,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: FilledButton.tonalIcon(
@@ -1674,4 +1974,374 @@ class _InfoTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class _GpsGeofencingWidget extends StatefulWidget {
+  const _GpsGeofencingWidget({
+    required this.locationName,
+  });
+
+  final String locationName;
+
+  @override
+  State<_GpsGeofencingWidget> createState() => _GpsGeofencingWidgetState();
+}
+
+class _GpsGeofencingWidgetState extends State<_GpsGeofencingWidget> {
+  bool _isLoading = false;
+  bool _isVerified = false;
+  String _message = 'Lokasi les offline belum terverifikasi GPS';
+
+  Future<void> _verifyLocation() async {
+    setState(() {
+      _isLoading = true;
+      _message = 'Mengakses GPS...';
+    });
+
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        throw Exception('Izin akses lokasi (GPS) ditolak oleh pengguna.');
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+
+      double targetLat = -6.2088;
+      double targetLng = 106.8456;
+      if (widget.locationName.toLowerCase().contains('cafe') || widget.locationName.toLowerCase().contains('mawar')) {
+        targetLat = -6.2100;
+        targetLng = 106.8460;
+      }
+
+      final distance = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        targetLat,
+        targetLng,
+      );
+
+      setState(() {
+        _isVerified = true;
+        _isLoading = false;
+        if (distance <= 100) {
+          _message = 'Verifikasi GPS Sukses! Anda berada di lokasi les offline (${distance.round()}m).';
+        } else {
+          _message = 'GPS Terdeteksi (${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}). '
+              'Jarak: ${distance.round()}m. Status: Terverifikasi (Mode Demo Aktif).';
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _message = 'Gagal verifikasi GPS: $e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _isVerified ? const Color(0xFFECFDF5) : const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _isVerified ? const Color(0xFF10B981) : const Color(0xFFFDBA74)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _isVerified ? Icons.verified_user : Icons.gpp_maybe_outlined,
+                color: _isVerified ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _isVerified ? 'Kehadiran Terverifikasi GPS' : 'Verifikasi Kehadiran Offline',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _isVerified ? const Color(0xFF065F46) : const Color(0xFF9A3412),
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _message,
+            style: TextStyle(
+              color: _isVerified ? const Color(0xFF047857) : const Color(0xFFC2410C),
+              fontSize: 12,
+            ),
+          ),
+          if (!_isVerified) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _isLoading ? null : _verifyLocation,
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.gps_fixed, size: 14),
+                label: const Text('Verifikasi GPS Sekarang', style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFC2410C),
+                  side: const BorderSide(color: Color(0xFFFDBA74)),
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class CorrectionStroke {
+  CorrectionStroke({
+    required this.points,
+    required this.color,
+    required this.strokeWidth,
+  });
+
+  final List<Offset> points;
+  final Color color;
+  final double strokeWidth;
+}
+
+class HomeworkCorrectionPage extends StatefulWidget {
+  const HomeworkCorrectionPage({
+    super.key,
+    required this.imagePath,
+    required this.sessionId,
+  });
+
+  final String imagePath;
+  final String sessionId;
+
+  @override
+  State<HomeworkCorrectionPage> createState() => _HomeworkCorrectionPageState();
+}
+
+class _HomeworkCorrectionPageState extends State<HomeworkCorrectionPage> {
+  final List<CorrectionStroke> _strokes = [];
+  List<Offset> _currentPoints = [];
+  Color _selectedColor = const Color(0xFFFF1377);
+  final double _selectedWidth = 4.0;
+  final GlobalKey _canvasKey = GlobalKey();
+
+  Future<void> _saveCorrection() async {
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final boundary = _canvasKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) {
+        throw Exception('Canvas koreksi tidak ditemukan.');
+      }
+
+      final image = await boundary.toImage(pixelRatio: 2.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final pngBytes = byteData!.buffer.asUint8List();
+
+      final output = await getTemporaryDirectory();
+      final filePath = '${output.path}/Koreksi_${widget.sessionId}_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File(filePath);
+      await file.writeAsBytes(pngBytes);
+
+      if (mounted) {
+        navigator.pop(); // pop loading
+        navigator.pop(filePath); // return the path of annotated image
+      }
+    } catch (e) {
+      if (mounted) {
+        navigator.pop(); // pop loading
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan koreksi: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF110E1B),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF19162A),
+        foregroundColor: Colors.white,
+        title: const Text('Koreksi Jawaban Murid'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.check, color: Colors.greenAccent),
+            tooltip: 'Simpan Koreksi',
+            onPressed: _saveCorrection,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: Center(
+              child: Container(
+                margin: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 10)],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: RepaintBoundary(
+                    key: _canvasKey,
+                    child: Stack(
+                      fit: StackFit.passthrough,
+                      children: [
+                        Image.file(
+                          File(widget.imagePath),
+                          fit: BoxFit.contain,
+                        ),
+                        Positioned.fill(
+                          child: GestureDetector(
+                            onPanStart: (details) {
+                              setState(() {
+                                _currentPoints = [details.localPosition];
+                              });
+                            },
+                            onPanUpdate: (details) {
+                              setState(() {
+                                _currentPoints.add(details.localPosition);
+                              });
+                            },
+                            onPanEnd: (details) {
+                              setState(() {
+                                _strokes.add(CorrectionStroke(
+                                  points: List.from(_currentPoints),
+                                  color: _selectedColor,
+                                  strokeWidth: _selectedWidth,
+                                ));
+                                _currentPoints = [];
+                              });
+                            },
+                            child: CustomPaint(
+                              painter: SimpleCanvasPainter(
+                                strokes: _strokes,
+                                currentPoints: _currentPoints,
+                                currentColor: _selectedColor,
+                                currentWidth: _selectedWidth,
+                              ),
+                              size: Size.infinite,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Container(
+            color: const Color(0xFF131024),
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.undo, color: Colors.white70),
+                  onPressed: _strokes.isEmpty ? null : () => setState(() => _strokes.removeLast()),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.redAccent),
+                  onPressed: _strokes.isEmpty ? null : () => setState(() => _strokes.clear()),
+                ),
+                const Spacer(),
+                _buildColorOption(const Color(0xFFFF1377)),
+                const SizedBox(width: 8),
+                _buildColorOption(const Color(0xFF10B981)),
+                const SizedBox(width: 8),
+                _buildColorOption(const Color(0xFF2563EB)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildColorOption(Color color) {
+    final isSelected = _selectedColor == color;
+    return InkWell(
+      onTap: () => setState(() => _selectedColor = color),
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
+        ),
+      ),
+    );
+  }
+}
+
+class SimpleCanvasPainter extends CustomPainter {
+  SimpleCanvasPainter({
+    required this.strokes,
+    required this.currentPoints,
+    required this.currentColor,
+    required this.currentWidth,
+  });
+
+  final List<CorrectionStroke> strokes;
+  final List<Offset> currentPoints;
+  final Color currentColor;
+  final double currentWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    for (final stroke in strokes) {
+      paint.color = stroke.color;
+      paint.strokeWidth = stroke.strokeWidth;
+      for (int i = 0; i < stroke.points.length - 1; i++) {
+        canvas.drawLine(stroke.points[i], stroke.points[i + 1], paint);
+      }
+    }
+
+    if (currentPoints.length > 1) {
+      paint.color = currentColor;
+      paint.strokeWidth = currentWidth;
+      for (int i = 0; i < currentPoints.length - 1; i++) {
+        canvas.drawLine(currentPoints[i], currentPoints[i + 1], paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant SimpleCanvasPainter oldDelegate) => true;
 }

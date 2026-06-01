@@ -21,6 +21,12 @@ class TutorProfile {
     this.certificateUrl,
     this.rejectionReason,
     this.maxStudentCapacity = 2,
+    this.ktpName,
+    this.nik,
+    this.birthPlace,
+    this.birthDate,
+    this.experienceCv,
+    this.teachingLevels = const <String>[],
   });
 
   final String uid;
@@ -44,6 +50,12 @@ class TutorProfile {
   final String? certificateUrl;
   final String? rejectionReason;
   final int maxStudentCapacity;
+  final String? ktpName;
+  final String? nik;
+  final String? birthPlace;
+  final DateTime? birthDate;
+  final List<Map<String, dynamic>>? experienceCv;
+  final List<String> teachingLevels;
 
   factory TutorProfile.empty(String uid) {
     return TutorProfile(
@@ -68,6 +80,12 @@ class TutorProfile {
       certificateUrl: null,
       rejectionReason: null,
       maxStudentCapacity: 2,
+      ktpName: null,
+      nik: null,
+      birthPlace: null,
+      birthDate: null,
+      experienceCv: const <Map<String, dynamic>>[],
+      teachingLevels: const <String>[],
     );
   }
 
@@ -93,6 +111,12 @@ class TutorProfile {
     String? certificateUrl,
     String? rejectionReason,
     int? maxStudentCapacity,
+    String? ktpName,
+    String? nik,
+    String? birthPlace,
+    DateTime? birthDate,
+    List<Map<String, dynamic>>? experienceCv,
+    List<String>? teachingLevels,
   }) {
     return TutorProfile(
       uid: uid ?? this.uid,
@@ -116,6 +140,12 @@ class TutorProfile {
       certificateUrl: certificateUrl ?? this.certificateUrl,
       rejectionReason: rejectionReason ?? this.rejectionReason,
       maxStudentCapacity: maxStudentCapacity ?? this.maxStudentCapacity,
+      ktpName: ktpName ?? this.ktpName,
+      nik: nik ?? this.nik,
+      birthPlace: birthPlace ?? this.birthPlace,
+      birthDate: birthDate ?? this.birthDate,
+      experienceCv: experienceCv ?? this.experienceCv,
+      teachingLevels: teachingLevels ?? this.teachingLevels,
     );
   }
 }

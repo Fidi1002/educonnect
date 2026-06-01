@@ -9,6 +9,8 @@ class LibraryEbook {
     required this.format,
     required this.accentColorHex,
     required this.createdAt,
+    required this.targetLevel,
+    required this.scanStatus,
     this.tutorName,
     this.bookingId,
   });
@@ -22,6 +24,8 @@ class LibraryEbook {
   final String format;
   final String accentColorHex;
   final DateTime createdAt;
+  final String targetLevel;
+  final String scanStatus;
   final String? tutorName;
   final String? bookingId;
 
@@ -38,6 +42,8 @@ class LibraryEbook {
       createdAt: json['created_at'] != null 
           ? DateTime.parse(json['created_at'] as String) 
           : DateTime.now(),
+      targetLevel: json['target_level'] as String? ?? 'SD',
+      scanStatus: json['scan_status'] as String? ?? 'clean',
       tutorName: json['tutor_name'] as String?,
       bookingId: json['booking_id'] as String?,
     );

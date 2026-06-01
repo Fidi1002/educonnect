@@ -31,7 +31,10 @@ class _TutorStudyCalendarPageState
     final sessionsAsync = ref.watch(myTutorSessionsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Kalender Mengajar')),
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
       body: bookingsAsync.when(
         loading: () => const AppLoadingState(
           message: 'Memuat kalender tutor...',
@@ -61,8 +64,20 @@ class _TutorStudyCalendarPageState
               final daySummary = _buildDaySummary(selectedSessions);
 
               return ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 children: [
+                  Text(
+                    'Kalender Mengajar',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFFF1F5F9)
+                          : const Color(0xFF4B176E),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: TutorUi.raisedCardDecoration(),

@@ -22,6 +22,18 @@ class TutorDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (tutorId.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Detail Tutor')),
+        body: const AppEmptyState(
+          message: 'Profil tutor tidak tersedia.',
+          hint: 'ID Tutor tidak valid atau profil tidak dapat ditemukan.',
+          icon: FluentIcons.person_search_24_regular,
+          fullScreen: true,
+        ),
+      );
+    }
+
     final tutorAsync = ref.watch(tutorProfileByIdProvider(tutorId));
     final availabilityAsync = ref.watch(
       tutorAvailabilityByTutorProvider(tutorId),
@@ -109,7 +121,7 @@ class TutorDetailPage extends ConsumerWidget {
                           children: [
                             // Header Info
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Expanded(
                                   child: Column(
@@ -152,7 +164,7 @@ class TutorDetailPage extends ConsumerWidget {
                                   ),
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.all(12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(16),
@@ -165,6 +177,8 @@ class TutorDetailPage extends ConsumerWidget {
                                     ],
                                   ),
                                   child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
                                       const Icon(
                                         FluentIcons.star_24_filled,
@@ -1367,6 +1381,14 @@ class _BookingScheduleSelectionSheet extends ConsumerStatefulWidget {
 class _BookingScheduleSelectionSheetState
     extends ConsumerState<_BookingScheduleSelectionSheet> {
   final _selectedSlots = <TutorAvailabilitySlot>[];
+  String _meetingType = 'online';
+  final _locationController = TextEditingController();
+
+  @override
+  void dispose() {
+    _locationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1552,6 +1574,108 @@ class _BookingScheduleSelectionSheetState
               error: (e, _) => Center(child: Text('Gagal memuat jadwal')),
             ),
           ),
+          const Divider(height: 32),
+          const Text(
+            'Metode Pertemuan',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF191622),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: ChoiceChip(
+                  label: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.videocam, size: 16),
+                      SizedBox(width: 6),
+                      Text('Online'),
+                    ],
+                  ),
+                  selected: _meetingType == 'online',
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() {
+                        _meetingType = 'online';
+                      });
+                    }
+                  },
+                  selectedColor: const Color(0xFF4B176E).withValues(alpha: 0.15),
+                  side: BorderSide(
+                    color: _meetingType == 'online'
+                        ? const Color(0xFF4B176E)
+                        : const Color(0xFFE2E8F0),
+                    width: 1.5,
+                  ),
+                  labelStyle: TextStyle(
+                    color: _meetingType == 'online'
+                        ? const Color(0xFF4B176E)
+                        : const Color(0xFF4A5568),
+                    fontWeight: _meetingType == 'online' ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ChoiceChip(
+                  label: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.location_on, size: 16),
+                      SizedBox(width: 6),
+                      Text('Offline'),
+                    ],
+                  ),
+                  selected: _meetingType == 'offline',
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() {
+                        _meetingType = 'offline';
+                      });
+                    }
+                  },
+                  selectedColor: const Color(0xFF4B176E).withValues(alpha: 0.15),
+                  side: BorderSide(
+                    color: _meetingType == 'offline'
+                        ? const Color(0xFF4B176E)
+                        : const Color(0xFFE2E8F0),
+                    width: 1.5,
+                  ),
+                  labelStyle: TextStyle(
+                    color: _meetingType == 'offline'
+                        ? const Color(0xFF4B176E)
+                        : const Color(0xFF4A5568),
+                    fontWeight: _meetingType == 'offline' ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_meetingType == 'offline') ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _locationController,
+              decoration: InputDecoration(
+                labelText: 'Alamat / Lokasi Pertemuan',
+                hintText: 'Contoh: Rumah/Cafe, Jl. Mawar No. 12',
+                prefixIcon: const Icon(Icons.pin_drop, color: Color(0xFF4B176E)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF4B176E), width: 2),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              style: const TextStyle(fontSize: 14),
+            ),
+          ],
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -1586,6 +1710,10 @@ class _BookingScheduleSelectionSheetState
         throw Exception('Kamu harus login terlebih dahulu.');
       }
 
+      if (_meetingType == 'offline' && _locationController.text.trim().isEmpty) {
+        throw Exception('Alamat lokasi pertemuan offline wajib diisi.');
+      }
+
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -1613,6 +1741,10 @@ class _BookingScheduleSelectionSheetState
         weeklySlots: realSlots,
         durationMinutes: 60,
         message: 'Saya siap untuk belajar',
+        meetingType: _meetingType,
+        meetingLocation: _meetingType == 'online'
+            ? 'Online Classroom'
+            : _locationController.text.trim(),
       );
 
       if (!mounted) return;

@@ -924,6 +924,8 @@ class _StudentDashboardSnapshot {
                   packageStartDate: nextSession.sessionStart,
                   packageEndDate: nextSession.sessionEnd,
                   weeklySchedule: const [],
+                  meetingType: 'online',
+                  meetingLocation: 'Online Classroom',
                 ),
             session: nextSession,
           );
@@ -1906,7 +1908,7 @@ class _RecommendedTutorCard extends StatelessWidget {
         child: InkWell(
           onTap: () => context.pushNamed(
             TutorDetailPage.routeName,
-            pathParameters: {'tutorUid': tutor.uid},
+            pathParameters: {'tutorId': tutor.uid},
           ),
           borderRadius: BorderRadius.circular(20),
           child: Padding(

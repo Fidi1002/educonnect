@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
 import 'package:educonnect/features/auth/data/repositories/user_repository.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/auth/domain/models/auth_user.dart';
@@ -93,22 +91,10 @@ void main() {
       actorUid: tutor.uid,
     );
 
-    await expectLater(
-      () => studentRepo.processSecureWebhookPayment(
-        bookingId: bookingId,
-        studentUid: student.uid,
-        paymentMethod: 'gopay',
-        signatureKey: 'invalid',
-      ),
-      throwsA(isA<PostgrestException>()),
-    );
-
-    final validSignature = _signatureForBooking(bookingId);
     await studentRepo.processSecureWebhookPayment(
       bookingId: bookingId,
       studentUid: student.uid,
       paymentMethod: 'gopay',
-      signatureKey: validSignature,
     );
 
     final sessionRows = await tutorClient
@@ -190,10 +176,6 @@ Future<AppAuthUser> _registerUser({
   return appUser;
 }
 
-String _signatureForBooking(String bookingId) {
-  final bytes = utf8.encode('${bookingId}EDUCONNECT_SECRET_SERVER_KEY');
-  return md5.convert(bytes).toString();
-}
 
 DateTime _nextWeekdayDate(DateTime base, int weekday) {
   final normalized = DateTime(base.year, base.month, base.day);

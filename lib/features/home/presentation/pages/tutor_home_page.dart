@@ -20,6 +20,7 @@ import 'package:educonnect/features/notifications/application/notification_contr
 import 'package:educonnect/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:educonnect/features/tutor/application/tutor_profile_controller.dart';
 import 'package:educonnect/features/tutor/domain/models/tutor_profile.dart';
+import 'package:educonnect/features/tutor/presentation/pages/tutor_stats_page.dart';
 import 'package:educonnect/features/tutor/presentation/widgets/tutor_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -239,10 +240,8 @@ class _TutorHomeScaffold extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Tutor Dashboard',
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 24),
-        ),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
         actions: [
           _BadgeIconButton(
             count: unreadNotifications,
@@ -261,8 +260,20 @@ class _TutorHomeScaffold extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
+          Text(
+            'Tutor Dashboard',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFFF1F5F9)
+                  : const Color(0xFF4B176E),
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 16),
           if (profileError != null) ...[
             Container(
               padding: const EdgeInsets.all(12),
@@ -483,12 +494,47 @@ class _TutorHeroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Tutor Command Center',
-            style: TextStyle(
-              color: Colors.white70,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Tutor Command Center',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              InkWell(
+                onTap: () => context.pushNamed(TutorStatsPage.routeName),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0x26FFFFFF),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        FluentIcons.data_trending_24_regular,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'Detail Analitik',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           Text(

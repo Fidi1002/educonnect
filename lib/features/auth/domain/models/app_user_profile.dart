@@ -9,6 +9,7 @@ class AppUserProfile {
     required this.role,
     this.preferredSubjects = const <String>[],
     this.maxPricePreference = 0.0,
+    this.schoolLevel,
   });
 
   final String uid;
@@ -18,6 +19,7 @@ class AppUserProfile {
   final AppUserRole role;
   final List<String> preferredSubjects;
   final double maxPricePreference;
+  final String? schoolLevel;
 
   factory AppUserProfile.fromMap(String uid, Map<String, dynamic> map) {
     final preferred = (map['preferred_subjects'] as List<dynamic>? ??
@@ -43,6 +45,7 @@ class AppUserProfile {
       role: AppUserRoleX.fromValue(map['role'] as String?),
       preferredSubjects: preferred,
       maxPricePreference: maxPrice,
+      schoolLevel: (map['school_level'] as String?) ?? (map['schoolLevel'] as String?),
     );
   }
 
@@ -55,6 +58,7 @@ class AppUserProfile {
       'role': role.value,
       'preferred_subjects': preferredSubjects,
       'max_price_preference': maxPricePreference,
+      'school_level': schoolLevel,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
   }

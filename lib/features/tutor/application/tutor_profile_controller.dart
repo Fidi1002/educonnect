@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/tutor/data/repositories/tutor_profile_repository.dart';
 import 'package:educonnect/features/tutor/domain/models/tutor_profile.dart';
+import 'package:educonnect/features/tutor/domain/models/tutor_stats.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final tutorProfileLoadingProvider = StateProvider<bool>((ref) => false);
@@ -16,6 +17,15 @@ final myTutorProfileProvider = StreamProvider<TutorProfile?>((ref) {
       .watch(tutorProfileRepositoryProvider)
       .watchTutorProfile(authUser.uid);
 });
+
+final tutorStatsProvider = FutureProvider.autoDispose<TutorStats>((ref) {
+  final authUser = ref.watch(authStateProvider).value;
+  if (authUser == null) {
+    return Future.value(TutorStats.empty());
+  }
+  return ref.watch(tutorProfileRepositoryProvider).fetchTutorStats(authUser.uid);
+});
+
 
 final tutorProfileByIdProvider = FutureProvider.family<TutorProfile?, String>((
   ref,

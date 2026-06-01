@@ -19,12 +19,24 @@ class StudentEbookPage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FF),
       appBar: AppBar(
-        title: const Text('E-Book Perpustakaan'),
-        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         children: [
+          Text(
+            'Perpustakaan Ebook',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFFF1F5F9)
+                  : const Color(0xFF4B176E),
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -206,6 +218,8 @@ class _EbookCard extends ConsumerWidget {
                               color: Color(0xFF9BA5B7),
                             ),
                           ),
+                          const SizedBox(height: 4),
+                          _buildScanStatusBadge(ebook.scanStatus),
                         ],
                       ),
                       const Spacer(),
@@ -221,12 +235,91 @@ class _EbookCard extends ConsumerWidget {
     );
   }
 
+  Widget _buildScanStatusBadge(String status) {
+    Color color;
+    IconData icon;
+    String text;
+    
+    switch (status) {
+      case 'infected':
+        color = Colors.red.shade700;
+        icon = Icons.gpp_bad;
+        text = 'Karantina: Terinfeksi Virus';
+        break;
+      case 'pending':
+        color = Colors.blue.shade700;
+        icon = Icons.shield_outlined;
+        text = 'Memindai Keamanan...';
+        break;
+      case 'clean':
+      default:
+        color = Colors.green.shade700;
+        icon = Icons.verified;
+        text = 'Terverifikasi Aman (ClamAV)';
+        break;
+    }
+    
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 12),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(
+            color: color,
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildActionButton(
     BuildContext context,
     WidgetRef ref,
     PdfCacheState cacheState,
     Color accentColor,
   ) {
+    if (ebook.scanStatus == 'infected') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Text(
+          'Diblokir',
+          style: TextStyle(
+            color: Colors.red.shade800,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      );
+    }
+
+    if (ebook.scanStatus == 'pending') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.blue.shade200),
+        ),
+        child: Text(
+          'Memindai',
+          style: TextStyle(
+            color: Colors.blue.shade800,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      );
+    }
+
     if (cacheState.isDownloading) {
       return SizedBox(
         width: 36,

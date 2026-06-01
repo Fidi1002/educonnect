@@ -48,8 +48,13 @@ class EbookRepository {
     required String description,
     required File pdfFile,
     required String accentColorHex,
-    String? bookingId,
+    required String targetLevel,
+    required String bookingId,
   }) async {
+    if (bookingId.trim().isEmpty) {
+      throw Exception('E-Book privat wajib dikaitkan dengan kelas/booking tertentu.');
+    }
+
     // 1. Baca byte berkas untuk validasi keamanan sebelum unggah
     final fileBytes = await pdfFile.readAsBytes();
     
@@ -70,7 +75,7 @@ class EbookRepository {
 
     // 2. Upload file ke Supabase Storage (bucket: ebooks)
     final fileName = '${tutorUid}_${DateTime.now().millisecondsSinceEpoch}.pdf';
-    final filePath = 'uploads/$fileName';
+    final filePath = '$tutorUid/$fileName';
     
     await _client.storage.from('ebooks').upload(
       filePath, 
@@ -91,6 +96,24 @@ class EbookRepository {
       'format': 'PDF',
       'accent_color_hex': accentColorHex,
       'booking_id': bookingId,
+      'target_level': targetLevel,
     });
+  }
+
+  Future<String> getSignedUrl(String fileUrl) async {
+    try {
+      final uri = Uri.parse(fileUrl);
+      final segments = uri.pathSegments;
+      final ebooksIndex = segments.indexOf('ebooks');
+      if (ebooksIndex == -1 || ebooksIndex == segments.length - 1) {
+        return fileUrl;
+      }
+      final path = segments.sublist(ebooksIndex + 1).join('/');
+      // Generate signed URL valid for 2 hours (7200 seconds)
+      final signedUrl = await _client.storage.from('ebooks').createSignedUrl(path, 7200);
+      return signedUrl;
+    } catch (_) {
+      return fileUrl;
+    }
   }
 }

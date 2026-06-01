@@ -32,7 +32,13 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
   final _locationController = TextEditingController();
   final _maxStudentCapacityController = TextEditingController();
 
+  final _ktpNameController = TextEditingController();
+  final _nikController = TextEditingController();
+  final _birthPlaceController = TextEditingController();
+  final _birthDateController = TextEditingController();
+
   final List<String> _subjects = <String>[];
+  final List<String> _teachingLevels = <String>[];
   bool _isInitialized = false;
   String _photoUrl = '';
   File? _selectedImage;
@@ -47,6 +53,9 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
   File? _selectedKtpFile;
   File? _selectedCertificateFile;
 
+  DateTime? _birthDate;
+  List<Map<String, dynamic>> _experienceCv = [];
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -57,24 +66,60 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
     _experienceDescriptionController.dispose();
     _locationController.dispose();
     _maxStudentCapacityController.dispose();
+    _ktpNameController.dispose();
+    _nikController.dispose();
+    _birthPlaceController.dispose();
+    _birthDateController.dispose();
     super.dispose();
   }
 
-  int _calculateCompletenessScore() {
-    int score = 0;
-    if (_selectedCertificateFile != null || (_certificateUrl != null && _certificateUrl!.isNotEmpty)) {
-      score += 40;
+  double _calculateCompletenessScore() {
+    double score = 100.0;
+    
+    // Validasi 1: Dokumen Dasar
+    if (_selectedKtpFile == null && (_identityCardUrl == null || _identityCardUrl!.isEmpty)) {
+      score -= 40.0;
     }
-    if (_selectedKtpFile != null || (_identityCardUrl != null && _identityCardUrl!.isNotEmpty)) {
-      score += 30;
+    if (_selectedCertificateFile == null && (_certificateUrl == null || _certificateUrl!.isEmpty)) {
+      score -= 30.0;
     }
-    if (_bioController.text.trim().length >= 20 && _experienceDescriptionController.text.trim().isNotEmpty) {
-      score += 20;
+
+    // Validasi 2: NIK
+    final nikVal = _nikController.text.trim();
+    if (nikVal.isEmpty) {
+      score -= 30.0;
+    } else if (nikVal.length != 16) {
+      score -= 20.0;
     }
-    if ((_selectedImage != null || _photoUrl.isNotEmpty) && _latitude != null && _longitude != null) {
-      score += 10;
+
+    // Validasi 3: Nama KTP
+    final ktpNameVal = _ktpNameController.text.trim();
+    final nameVal = _nameController.text.trim();
+    if (ktpNameVal.isEmpty) {
+      score -= 15.0;
+    } else if (ktpNameVal.toLowerCase() != nameVal.toLowerCase()) {
+      score -= 5.0;
     }
-    return score;
+
+    // Validasi 4: Tempat & Tanggal Lahir
+    if (_birthPlaceController.text.trim().isEmpty) {
+      score -= 10.0;
+    }
+    if (_birthDate == null) {
+      score -= 15.0;
+    } else {
+      final age = DateTime.now().year - _birthDate!.year;
+      if (age < 18) {
+        score -= 30.0;
+      }
+    }
+
+    // Validasi 5: CV
+    if (_experienceCv.isEmpty) {
+      score -= 15.0;
+    }
+
+    return score < 0 ? 0 : score;
   }
 
   Widget _buildVerificationStatusBanner() {
@@ -156,9 +201,9 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
   Widget _buildCompletenessScoreCard() {
     final score = _calculateCompletenessScore();
     Color scoreColor = const Color(0xFFDC2626);
-    if (score >= 80) {
+    if (score >= 85) {
       scoreColor = const Color(0xFF16A34A);
-    } else if (score >= 50) {
+    } else if (score >= 60) {
       scoreColor = const Color(0xFFD97706);
     }
 
@@ -183,11 +228,11 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Skor Kelayakan Kurasi',
+                'Estimasi AI Trust Score',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF4B176E)),
               ),
               Text(
-                '$score/100',
+                '${score.toStringAsFixed(0)}%',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: scoreColor),
               ),
             ],
@@ -204,9 +249,9 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
           ),
           const SizedBox(height: 6),
           Text(
-            score < 70
-                ? '⚠️ Tambah sertifikat atau perbaiki biodata Anda untuk mencapai batas layak (min. 70%).'
-                : ' Layak diajukan! Admin akan segera melakukan verifikasi keaslian dokumen Anda.',
+            score < 85
+                ? '⚠️ Skor Anda ${score.toStringAsFixed(0)}%. Lengkapi data diri & unggah KTP/Sertifikat agar mencapai minimal 85% untuk auto-aktif.'
+                : '🎉 Lolos Kurasi AI! Akun Anda akan langsung aktif secara publik setelah profil disimpan.',
             style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
           ),
         ],
@@ -429,35 +474,84 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
                   },
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _subjectInputController,
-                        decoration: const InputDecoration(
-                          labelText: 'Tambah mapel',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: _addSubject,
-                      child: const Text('Tambah'),
-                    ),
-                  ],
+                const Text(
+                  'Mata Pelajaran yang Diajar (Master Data)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF4B176E),
+                  ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Wrap(
                   spacing: 8,
-                  children: _subjects.map((item) {
-                    return Chip(
-                      label: Text(item),
-                      onDeleted: () {
+                  runSpacing: 4,
+                  children: const [
+                    'Matematika',
+                    'Fisika',
+                    'Kimia',
+                    'Biologi',
+                    'Bahasa Inggris',
+                    'Bahasa Indonesia',
+                    'IPA',
+                    'IPS',
+                    'Informatika',
+                  ].map((subject) {
+                    final isSelected = _subjects.contains(subject);
+                    return FilterChip(
+                      label: Text(subject),
+                      selected: isSelected,
+                      onSelected: (selected) {
                         setState(() {
-                          _subjects.remove(item);
+                          if (selected) {
+                            _subjects.add(subject);
+                          } else {
+                            _subjects.remove(subject);
+                          }
                         });
                       },
+                      selectedColor: const Color(0xFF4B176E).withValues(alpha: 0.15),
+                      checkmarkColor: const Color(0xFF4B176E),
+                      labelStyle: TextStyle(
+                        color: isSelected ? const Color(0xFF4B176E) : Colors.black87,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Tingkat Sekolah yang Diajar',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF4B176E),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: const ['SD', 'SMP', 'SMA'].map((level) {
+                    final isSelected = _teachingLevels.contains(level);
+                    return FilterChip(
+                      label: Text(level),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _teachingLevels.add(level);
+                          } else {
+                            _teachingLevels.remove(level);
+                          }
+                        });
+                      },
+                      selectedColor: const Color(0xFF4B176E).withValues(alpha: 0.15),
+                      checkmarkColor: const Color(0xFF4B176E),
+                      labelStyle: TextStyle(
+                        color: isSelected ? const Color(0xFF4B176E) : Colors.black87,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
                     );
                   }).toList(),
                 ),
@@ -498,12 +592,12 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
                   controller: _experienceDescriptionController,
                   maxLines: 3,
                   decoration: const InputDecoration(
-                    labelText: 'Deskripsi pengalaman',
+                    labelText: 'Deskripsi pengalaman singkat',
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Deskripsi pengalaman wajib diisi.';
+                    if ((value == null || value.trim().isEmpty) && _experienceCv.isEmpty) {
+                      return 'Deskripsi pengalaman atau riwayat CV wajib diisi.';
                     }
                     return null;
                   },
@@ -542,6 +636,237 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Data Identitas KTP & Tanggal Lahir (Kurasi AI)',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF4B176E),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _ktpNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Nama Lengkap sesuai KTP',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (_) => setState(() {}),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Nama sesuai KTP wajib diisi.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _nikController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Nomor NIK KTP (16 Digit)',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (_) => setState(() {}),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'NIK KTP wajib diisi.';
+                          }
+                          if (value.trim().length != 16) {
+                            return 'NIK harus terdiri dari 16 digit.';
+                          }
+                          if (int.tryParse(value.trim()) == null) {
+                            return 'NIK harus berupa angka.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _birthPlaceController,
+                              decoration: const InputDecoration(
+                                labelText: 'Tempat Lahir',
+                                border: OutlineInputBorder(),
+                              ),
+                              onChanged: (_) => setState(() {}),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Tempat lahir wajib diisi.';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _birthDateController,
+                              readOnly: true,
+                              decoration: const InputDecoration(
+                                labelText: 'Tanggal Lahir',
+                                border: OutlineInputBorder(),
+                                suffixIcon: Icon(FluentIcons.calendar_24_regular),
+                              ),
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: _birthDate ?? DateTime(2000, 1, 1),
+                                  firstDate: DateTime(1950),
+                                  lastDate: DateTime.now(),
+                                );
+                                if (picked != null) {
+                                  setState(() {
+                                    _birthDate = picked;
+                                    _birthDateController.text =
+                                        "${picked.day.toString().padLeft(2, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.year}";
+                                  });
+                                }
+                              },
+                              validator: (value) {
+                                if (_birthDate == null) {
+                                  return 'Wajib diisi.';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Riwayat CV Pengajaran',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF4B176E),
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: _showAddExperienceDialog,
+                            icon: const Icon(FluentIcons.add_16_regular),
+                            label: const Text('Tambah'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (_experienceCv.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Center(
+                            child: Text(
+                              'Belum ada riwayat pengajaran. Tambahkan minimal 1 riwayat.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF94A3B8),
+                                fontStyle: FontStyle.italic,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _experienceCv.length,
+                          separatorBuilder: (context, index) => const Divider(height: 16),
+                          itemBuilder: (context, index) {
+                            final item = _experienceCv[index];
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 2),
+                                  child: Icon(
+                                    FluentIcons.briefcase_24_regular,
+                                    color: Color(0xFF4B176E),
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item['role'] ?? '',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF191622),
+                                        ),
+                                      ),
+                                      Text(
+                                        "${item['institution']} (${item['period']})",
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF4B176E),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      if (item['description'] != null && item['description'].toString().isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          item['description'],
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF64748B),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () {
+                                    setState(() {
+                                      _experienceCv.removeAt(index);
+                                    });
+                                  },
+                                  icon: const Icon(
+                                    FluentIcons.delete_24_regular,
+                                    color: Color(0xFFDC2626),
+                                    size: 20,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                    ],
+                  ),
                 ),
                 
                 _buildVerificationUploadSection(),
@@ -605,6 +930,23 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
     _certificateUrl = existing.certificateUrl;
     _rejectionReason = existing.rejectionReason;
 
+    _ktpNameController.text = existing.ktpName ?? '';
+    _nikController.text = existing.nik ?? '';
+    _birthPlaceController.text = existing.birthPlace ?? '';
+    _birthDate = existing.birthDate;
+    if (_birthDate != null) {
+      _birthDateController.text =
+          "${_birthDate!.day.toString().padLeft(2, '0')}-${_birthDate!.month.toString().padLeft(2, '0')}-${_birthDate!.year}";
+    } else {
+      _birthDateController.text = '';
+    }
+    _experienceCv = existing.experienceCv != null
+        ? List<Map<String, dynamic>>.from(existing.experienceCv!)
+        : [];
+    _teachingLevels
+      ..clear()
+      ..addAll(existing.teachingLevels);
+
     _isInitialized = true;
   }
 
@@ -647,19 +989,89 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
     });
   }
 
-  void _addSubject() {
-    final text = _subjectInputController.text.trim();
-    if (text.isEmpty) {
-      return;
-    }
-    if (_subjects.contains(text)) {
-      _subjectInputController.clear();
-      return;
-    }
-    setState(() {
-      _subjects.add(text);
-      _subjectInputController.clear();
-    });
+  void _showAddExperienceDialog() {
+    final instansiCtrl = TextEditingController();
+    final peranCtrl = TextEditingController();
+    final periodeCtrl = TextEditingController();
+    final deskripsiCtrl = TextEditingController();
+    final dialogFormKey = GlobalKey<FormState>();
+
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Tambah Pengalaman CV'),
+          content: Form(
+            key: dialogFormKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: instansiCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Institusi / Instansi',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: peranCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Peran / Posisi',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: periodeCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Periode (misal: 2022 - 2024)',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: deskripsiCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Deskripsi Singkat',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (dialogFormKey.currentState?.validate() ?? false) {
+                  setState(() {
+                    _experienceCv.add({
+                      'institution': instansiCtrl.text.trim(),
+                      'role': peranCtrl.text.trim(),
+                      'period': periodeCtrl.text.trim(),
+                      'description': deskripsiCtrl.text.trim(),
+                    });
+                  });
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Tambah'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _onSavePressed() async {
@@ -728,6 +1140,12 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
         certificateUrl: certificateUrl,
         rejectionReason: verificationStatus == 'rejected' ? _rejectionReason : null,
         maxStudentCapacity: int.tryParse(_maxStudentCapacityController.text.trim()) ?? 2,
+        ktpName: _ktpNameController.text.trim().isEmpty ? null : _ktpNameController.text.trim(),
+        nik: _nikController.text.trim().isEmpty ? null : _nikController.text.trim(),
+        birthPlace: _birthPlaceController.text.trim().isEmpty ? null : _birthPlaceController.text.trim(),
+        birthDate: _birthDate,
+        experienceCv: _experienceCv,
+        teachingLevels: _teachingLevels,
       );
 
       await controller.saveProfile(profile);

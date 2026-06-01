@@ -38,7 +38,10 @@ class _StudentLearningJournalPageState
     final recordsAsync = ref.watch(myStudentLearningRecordsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Jurnal Belajar'), centerTitle: true),
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
       body: bookingsAsync.when(
         data: (bookings) => sessionsAsync.when(
           data: (sessions) => recordsAsync.when(
@@ -59,8 +62,20 @@ class _StudentLearningJournalPageState
               );
 
               return ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 children: [
+                  Text(
+                    'Jurnal Belajar',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFFF1F5F9)
+                          : const Color(0xFF4B176E),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   _JournalHero(data: data),
                   const SizedBox(height: 14),
                   _JournalHomeworkStats(data: data),

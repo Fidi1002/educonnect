@@ -21,8 +21,8 @@ class TutorEbookPage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FF),
       appBar: AppBar(
-        title: const Text('Koleksi E-Book Saya'),
-        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
@@ -43,118 +43,182 @@ class TutorEbookPage extends ConsumerWidget {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
-      body: ebooksAsync.when(
-        data: (ebooks) {
-          if (ebooks.isEmpty) {
-            return const Center(
-              child: Text(
-                'Anda belum mengunggah E-Book.\nYuk, bagikan ilmumu!',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF718096), fontSize: 16),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+            child: Text(
+              'Koleksi E-Book Saya',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFF1F5F9)
+                    : const Color(0xFF4B176E),
+                letterSpacing: -0.5,
               ),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(24),
-            itemCount: ebooks.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 16),
-            itemBuilder: (context, index) {
-              final ebook = ebooks[index];
-              return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x0A000000),
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
+            ),
+          ),
+          Expanded(
+            child: ebooksAsync.when(
+              data: (ebooks) {
+                if (ebooks.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'Anda belum mengunggah E-Book.\nYuk, bagikan ilmumu!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Color(0xFF718096), fontSize: 16),
                     ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 60,
-                      height: 80,
+                  );
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                  itemCount: ebooks.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    final ebook = ebooks[index];
+                    return Container(
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Color(
-                          int.parse(
-                            ebook.accentColorHex.replaceAll('#', '0xFF'),
-                          ),
-                        ).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          FluentIcons.book_24_regular,
-                          color: Color(
-                            int.parse(
-                              ebook.accentColorHex.replaceAll('#', '0xFF'),
-                            ),
-                          ),
-                          size: 32,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            ebook.title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            ebook.description,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF718096),
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF3F0F7),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  '${ebook.fileSizeMb.toStringAsFixed(1)} MB',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF4B176E),
-                                  ),
-                                ),
-                              ),
-                            ],
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x0A000000),
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Gagal memuat e-book: $e')),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: Color(
+                                int.parse(
+                                  ebook.accentColorHex.replaceAll('#', '0xFF'),
+                                ),
+                              ).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Icon(
+                                FluentIcons.book_24_regular,
+                                color: Color(
+                                  int.parse(
+                                    ebook.accentColorHex.replaceAll('#', '0xFF'),
+                                  ),
+                                ),
+                                size: 32,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  ebook.title,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  ebook.description,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFF718096),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF3F0F7),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '${ebook.fileSizeMb.toStringAsFixed(1)} MB',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF4B176E),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _buildScanStatusBadge(ebook.scanStatus),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Gagal memuat e-book: $e')),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildScanStatusBadge(String status) {
+    Color color;
+    IconData icon;
+    String text;
+    
+    switch (status) {
+      case 'infected':
+        color = Colors.red.shade700;
+        icon = Icons.gpp_bad;
+        text = 'Bahaya: Berkas Karantina';
+        break;
+      case 'pending':
+        color = Colors.blue.shade700;
+        icon = Icons.shield_outlined;
+        text = 'Memindai Keamanan...';
+        break;
+      case 'clean':
+      default:
+        color = Colors.green.shade700;
+        icon = Icons.verified;
+        text = 'Terverifikasi Aman (ClamAV)';
+        break;
+    }
+    
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 12),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(
+            color: color,
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -171,6 +235,7 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
   final _descController = TextEditingController();
   File? _selectedFile;
   String? _selectedBookingId;
+  String _selectedTargetLevel = 'SD';
   bool _isLoading = false;
 
   Future<void> _pickFile() async {
@@ -190,9 +255,9 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
     final title = _titleController.text.trim();
     final desc = _descController.text.trim();
 
-    if (title.isEmpty || desc.isEmpty || _selectedFile == null) {
+    if (title.isEmpty || desc.isEmpty || _selectedFile == null || _selectedBookingId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lengkapi form dan pilih file PDF.')),
+        const SnackBar(content: Text('Lengkapi form, pilih file PDF, dan pilih kelas.')),
       );
       return;
     }
@@ -212,7 +277,8 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
             description: desc,
             pdfFile: _selectedFile!,
             accentColorHex: '#4B176E', // Default premium color
-            bookingId: _selectedBookingId,
+            targetLevel: _selectedTargetLevel,
+            bookingId: _selectedBookingId!,
           );
 
       navigator.pop();
@@ -289,10 +355,10 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
                       b.status == BookingStatus.completed)
                   .toList();
 
-              return DropdownButtonFormField<String?>(
+              return DropdownButtonFormField<String>(
                 initialValue: _selectedBookingId,
                 decoration: InputDecoration(
-                  labelText: 'Bagikan Ke (Opsional)',
+                  labelText: 'Bagikan Ke Kelas (Wajib)',
                   filled: true,
                   fillColor: const Color(0xFFF7F9FF),
                   border: OutlineInputBorder(
@@ -300,24 +366,19 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
                     borderSide: BorderSide.none,
                   ),
                 ),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('Semua Murid (Umum / Publik)'),
-                  ),
-                  ...activeBookings.map((b) => DropdownMenuItem<String?>(
-                        value: b.id,
-                        child: Text(
-                          'Privat: ${b.studentName} - ${b.subject}',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      )),
-                ],
+                items: activeBookings.map((b) => DropdownMenuItem<String>(
+                      value: b.id,
+                      child: Text(
+                        'Privat: ${b.studentName} - ${b.subject}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    )).toList(),
                 onChanged: (val) {
                   setState(() {
                     _selectedBookingId = val;
                   });
                 },
+                validator: (val) => val == null || val.isEmpty ? 'Kelas wajib dipilih.' : null,
               );
             },
             loading: () => const SizedBox(
@@ -325,6 +386,40 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
               child: Center(child: CircularProgressIndicator()),
             ),
             error: (e, _) => const SizedBox.shrink(),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedTargetLevel,
+            decoration: InputDecoration(
+              labelText: 'Target Tingkat Sekolah E-Book',
+              filled: true,
+              fillColor: const Color(0xFFF7F9FF),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: 'SD',
+                child: Text('SD (Sekolah Dasar)'),
+              ),
+              DropdownMenuItem(
+                value: 'SMP',
+                child: Text('SMP (Sekolah Menengah Pertama)'),
+              ),
+              DropdownMenuItem(
+                value: 'SMA',
+                child: Text('SMA (Sekolah Menengah Atas)'),
+              ),
+            ],
+            onChanged: (val) {
+              if (val != null) {
+                setState(() {
+                  _selectedTargetLevel = val;
+                });
+              }
+            },
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(

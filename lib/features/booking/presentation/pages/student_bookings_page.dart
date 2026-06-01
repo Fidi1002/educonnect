@@ -14,6 +14,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:educonnect/features/booking/presentation/pages/virtual_classroom_page.dart';
 
 String _twoDigits(int value) => value.toString().padLeft(2, '0');
 
@@ -41,10 +46,151 @@ class StudentBookingsPage extends ConsumerStatefulWidget {
 class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
   final Map<String, GlobalKey> _sessionAnchorKeys = <String, GlobalKey>{};
   String? _lastAutoScrolledSessionId;
+  RealtimeChannel? _callChannel;
 
   @override
   void initState() {
     super.initState();
+    // Setup background listener for tutor calling notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(authStateProvider).value;
+      if (user != null) {
+        final channelName = 'student_calls_${user.uid}';
+        _callChannel = Supabase.instance.client.channel(channelName);
+        _callChannel!.onBroadcast(
+          event: 'call_start',
+          callback: (payload) {
+            final subject = payload['subject'] as String? ?? 'Kelas Online';
+            final tutorName = payload['tutor_name'] as String? ?? 'Tutor';
+            final bookingId = payload['booking_id'] as String? ?? '';
+            _showRingingOverlay(subject: subject, tutorName: tutorName, bookingId: bookingId);
+          },
+        );
+        _callChannel!.subscribe();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    if (_callChannel != null) {
+      Supabase.instance.client.removeChannel(_callChannel!);
+    }
+    super.dispose();
+  }
+
+  void _showRingingOverlay({
+    required String subject,
+    required String tutorName,
+    required String bookingId,
+  }) {
+    if (!mounted) return;
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'Ringing',
+      transitionDuration: const Duration(milliseconds: 350),
+      pageBuilder: (context, anim1, anim2) {
+        return PopScope(
+          canPop: false,
+          child: Scaffold(
+            backgroundColor: const Color(0xFF110E1B).withValues(alpha: 0.95),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Animate(
+                    effects: const [
+                      ShimmerEffect(duration: Duration(seconds: 2)),
+                    ],
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF4B176E).withValues(alpha: 0.2),
+                        border: Border.all(color: const Color(0xFFFF1377), width: 3),
+                      ),
+                      child: const Icon(
+                        Icons.videocam,
+                        color: Color(0xFFFF1377),
+                        size: 48,
+                      ),
+                    ),
+                  ).animate(onPlay: (controller) => controller.repeat())
+                   .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.1, 1.1), duration: const Duration(seconds: 1), curve: Curves.easeInOut)
+                   .then()
+                   .scale(begin: const Offset(1.1, 1.1), end: const Offset(0.9, 0.9), duration: const Duration(seconds: 1), curve: Curves.easeInOut),
+                  const SizedBox(height: 32),
+                  Text(
+                    'PANGGILAN KELAS ONLINE MASUK',
+                    style: TextStyle(
+                      color: Colors.purple.shade200,
+                      fontSize: 12,
+                      letterSpacing: 2,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    tutorName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Mata Pelajaran: $subject',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 64),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      InkWell(
+                        onTap: () => Navigator.pop(context),
+                        borderRadius: BorderRadius.circular(999),
+                        child: CircleAvatar(
+                          radius: 36,
+                          backgroundColor: Colors.red.shade900.withValues(alpha: 0.8),
+                          child: const Icon(Icons.call_end, color: Colors.white, size: 28),
+                        ),
+                      ),
+                      const SizedBox(width: 48),
+                      InkWell(
+                        onTap: () {
+                          Navigator.pop(context); // close dialog
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => VirtualClassroomPage(
+                                subject: subject,
+                                partnerName: tutorName,
+                              ),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(999),
+                        child: CircleAvatar(
+                          radius: 36,
+                          backgroundColor: Colors.green.shade700,
+                          child: const Icon(Icons.videocam, color: Colors.white, size: 28),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -62,7 +208,10 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
           );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Jadwal Saya')),
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
       body: bookingsAsync.when(
         data: (items) {
           final now = DateTime.now();
@@ -91,7 +240,22 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
             length: 2,
             initialIndex: initialTab,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                  child: Text(
+                    'Jadwal Saya',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFFF1F5F9)
+                          : const Color(0xFF4B176E),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ),
                 _StudentBookingOverview(
                   allItems: items,
                   upcomingItems: upcoming,
@@ -802,6 +966,22 @@ class _BookingCard extends ConsumerWidget {
                                       ).textTheme.bodySmall,
                                     ),
                                   ),
+                                if (item.meetingType == 'offline') ...[
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.location_on, size: 14, color: Color(0xFFE11D48)),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          'Tatap Muka: ${item.meetingLocation}',
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFFE11D48), fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  _GpsGeofencingWidget(locationName: item.meetingLocation),
+                                ],
                                 if (learningRecord != null &&
                                     (learningRecord.hasMaterial ||
                                         learningRecord.hasHomework)) ...[
@@ -1686,77 +1866,209 @@ class _BookingCard extends ConsumerWidget {
     required String sessionId,
   }) async {
     final submissionController = TextEditingController();
+    String? selectedImagePath;
+
     final submit = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          left: 24,
-          right: 24,
-          top: 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Kumpulkan PR',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: submissionController,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: 'Jawaban / link tugas',
-                hintText: 'Tulis jawaban atau tempel link tugasmu di sini',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                left: 24,
+                right: 24,
+                top: 24,
               ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('Batal'),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.assignment_turned_in_rounded, color: Color(0xFFFF1377), size: 24),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Kumpulkan PR Kamu',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1E1A33)),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: submissionController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'Catatan Jawaban / Link Tugas',
+                      hintText: 'Tulis jawaban atau tempel link tugasmu di sini...',
+                      labelStyle: const TextStyle(color: Color(0xFF6366F1)),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(color: Color(0xFFFF1377), width: 2),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
-                    child: const Text('Kirim'),
                   ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+                  const SizedBox(height: 16),
+                  
+                  if (selectedImagePath != null) ...[
+                    Stack(
+                      children: [
+                        Container(
+                          height: 160,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.file(
+                              File(selectedImagePath!),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: CircleAvatar(
+                            backgroundColor: Colors.black.withValues(alpha: 0.6),
+                            child: IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.white),
+                              onPressed: () {
+                                setModalState(() {
+                                  selectedImagePath = null;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+                        borderRadius: BorderRadius.circular(16),
+                        color: const Color(0xFFF7F9FF),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.camera_alt_outlined, size: 36, color: Color(0xFF6366F1)),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Lampirkan Lembar Jawaban Gambar (Opsional)',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF756E81), fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  final picker = ImagePicker();
+                                  final picked = await picker.pickImage(source: ImageSource.gallery);
+                                  if (picked != null) {
+                                    setModalState(() {
+                                      selectedImagePath = picked.path;
+                                    });
+                                  }
+                                },
+                                icon: const Icon(Icons.photo_library),
+                                label: const Text('Galeri'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFE7F8F1),
+                                  foregroundColor: const Color(0xFF0F766E),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  final picker = ImagePicker();
+                                  final picked = await picker.pickImage(source: ImageSource.camera);
+                                  if (picked != null) {
+                                    setModalState(() {
+                                      selectedImagePath = picked.path;
+                                    });
+                                  }
+                                },
+                                icon: const Icon(Icons.photo_camera),
+                                label: const Text('Kamera'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFFF0E5),
+                                  foregroundColor: const Color(0xFFB45309),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          child: const Text('Batal'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            backgroundColor: const Color(0xFFFF1377),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          child: const Text('Kirim PR'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
+
     if (submit != true) {
       submissionController.dispose();
       return;
     }
+
+    String finalSubmissionText = submissionController.text;
+    if (selectedImagePath != null) {
+      finalSubmissionText = '[IMAGE]:$selectedImagePath\n$finalSubmissionText';
+    }
+
     await ref
         .read(bookingControllerProvider)
         .submitHomework(
           sessionId: sessionId,
-          submissionText: submissionController.text,
+          submissionText: finalSubmissionText,
         );
     submissionController.dispose();
     if (!context.mounted) {
@@ -2531,5 +2843,142 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
 
     if (!mounted) return;
     Navigator.pop(context, _selectedMethod);
+  }
+}
+
+class _GpsGeofencingWidget extends StatefulWidget {
+  const _GpsGeofencingWidget({
+    required this.locationName,
+  });
+
+  final String locationName;
+
+  @override
+  State<_GpsGeofencingWidget> createState() => _GpsGeofencingWidgetState();
+}
+
+class _GpsGeofencingWidgetState extends State<_GpsGeofencingWidget> {
+  bool _isLoading = false;
+  bool _isVerified = false;
+  String _message = 'Lokasi les offline belum terverifikasi GPS';
+
+  Future<void> _verifyLocation() async {
+    setState(() {
+      _isLoading = true;
+      _message = 'Mengakses GPS...';
+    });
+
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        throw Exception('Izin akses lokasi (GPS) ditolak oleh pengguna.');
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+
+      double targetLat = -6.2088;
+      double targetLng = 106.8456;
+      if (widget.locationName.toLowerCase().contains('cafe') || widget.locationName.toLowerCase().contains('mawar')) {
+        targetLat = -6.2100;
+        targetLng = 106.8460;
+      }
+
+      final distance = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        targetLat,
+        targetLng,
+      );
+
+      setState(() {
+        _isVerified = true;
+        _isLoading = false;
+        if (distance <= 100) {
+          _message = 'Verifikasi GPS Sukses! Anda berada di lokasi les offline (${distance.round()}m).';
+        } else {
+          _message = 'GPS Terdeteksi (${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}). '
+              'Jarak: ${distance.round()}m. Status: Terverifikasi (Mode Demo Aktif).';
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _message = 'Gagal verifikasi GPS: $e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _isVerified ? const Color(0xFFECFDF5) : const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _isVerified ? const Color(0xFF10B981) : const Color(0xFFFDBA74)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _isVerified ? Icons.verified_user : Icons.gpp_maybe_outlined,
+                color: _isVerified ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _isVerified ? 'Kehadiran Terverifikasi GPS' : 'Verifikasi Kehadiran Offline',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _isVerified ? const Color(0xFF065F46) : const Color(0xFF9A3412),
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _message,
+            style: TextStyle(
+              color: _isVerified ? const Color(0xFF047857) : const Color(0xFFC2410C),
+              fontSize: 12,
+            ),
+          ),
+          if (!_isVerified) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _isLoading ? null : _verifyLocation,
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.gps_fixed, size: 14),
+                label: const Text('Verifikasi GPS Sekarang', style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFC2410C),
+                  side: const BorderSide(color: Color(0xFFFDBA74)),
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }

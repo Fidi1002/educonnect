@@ -50,7 +50,10 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
     final tutorsAsync = location == null ? fallbackTutorsAsync : nearbyTutorsAsync;
     
     return Scaffold(
-      appBar: AppBar(title: const Text('Semua Tutor')),
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           setState(() {
@@ -84,8 +87,20 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
           }
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             children: [
+              Text(
+                'Semua Tutor',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFFF1F5F9)
+                      : const Color(0xFF4B176E),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 16),
               TextField(
                 controller: _searchController,
                 onChanged: (_) {
@@ -593,31 +608,95 @@ class _SortSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SegmentedButton<TutorSortOption>(
-      segments: const [
-        ButtonSegment(
-          value: TutorSortOption.ratingDesc,
-          label: Text('Rating'),
-          icon: Icon(FluentIcons.star_24_filled),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    const primaryColor = Color(0xFF4B176E);
+    final selectedColor = isDark ? const Color(0xFFC084FC) : primaryColor;
+    final selectedBgColor = isDark ? const Color(0xFF3B0764) : const Color(0xFFF3E8FF);
+    final unselectedBgColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
+    final textColorSelected = isDark ? const Color(0xFFF3E8FF) : primaryColor;
+    final textColorUnselected = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+    Widget buildChip(TutorSortOption option, String label, IconData icon) {
+      final isSelected = selected == option;
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: ChoiceChip(
+          label: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? textColorSelected : textColorUnselected,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  color: isSelected ? textColorSelected : textColorUnselected,
+                ),
+              ),
+            ],
+          ),
+          selected: isSelected,
+          onSelected: (val) {
+            if (val) onSelected(option);
+          },
+          backgroundColor: unselectedBgColor,
+          selectedColor: selectedBgColor,
+          checkmarkColor: Colors.transparent,
+          showCheckmark: false,
+          elevation: 0,
+          pressElevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: isSelected 
+                  ? selectedColor.withValues(alpha: 0.4)
+                  : Colors.transparent,
+              width: 1,
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
-        ButtonSegment(
-          value: TutorSortOption.distanceAsc,
-          label: Text('Terdekat'),
-          icon: Icon(FluentIcons.location_24_regular),
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            buildChip(
+              TutorSortOption.ratingDesc,
+              'Rating',
+              FluentIcons.star_16_filled,
+            ),
+            buildChip(
+              TutorSortOption.distanceAsc,
+              'Terdekat',
+              FluentIcons.location_16_filled,
+            ),
+            buildChip(
+              TutorSortOption.priceAsc,
+              'Murah',
+              FluentIcons.arrow_down_16_regular,
+            ),
+            buildChip(
+              TutorSortOption.priceDesc,
+              'Mahal',
+              FluentIcons.arrow_up_16_regular,
+            ),
+          ],
         ),
-        ButtonSegment(
-          value: TutorSortOption.priceAsc,
-          label: Text('Murah'),
-          icon: Icon(FluentIcons.arrow_down_24_regular),
-        ),
-        ButtonSegment(
-          value: TutorSortOption.priceDesc,
-          label: Text('Mahal'),
-          icon: Icon(FluentIcons.arrow_up_24_regular),
-        ),
-      ],
-      selected: {selected},
-      onSelectionChanged: (selection) => onSelected(selection.first),
+      ),
     );
   }
 }
@@ -643,13 +722,13 @@ class _TutorTile extends StatelessWidget {
             const SizedBox(height: 2),
             Row(
               children: [
-                const Icon(FluentIcons.star_24_filled, size: 16, color: Colors.amber),
+                const Icon(FluentIcons.star_16_filled, size: 16, color: Colors.amber),
                 const SizedBox(width: 4),
                 Text(tutor.rating.toStringAsFixed(1)),
                 const SizedBox(width: 8),
                 Text('(${tutor.totalReviews})'),
                 const SizedBox(width: 12),
-                const Icon(FluentIcons.book_24_regular, size: 16),
+                const Icon(FluentIcons.book_16_regular, size: 16),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(

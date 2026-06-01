@@ -1,5 +1,4 @@
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
+
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/booking/data/repositories/booking_repository.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
@@ -8,6 +7,7 @@ import 'package:educonnect/features/booking/domain/models/booking_status.dart';
 import 'package:educonnect/features/booking/domain/models/booking_weekly_slot.dart';
 import 'package:educonnect/features/booking/domain/models/session_change_request.dart';
 import 'package:educonnect/features/booking/domain/models/session_learning_record.dart';
+import 'package:educonnect/features/booking/domain/models/student_transaction.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final bookingLoadingProvider = StateProvider<bool>((ref) => false);
@@ -18,6 +18,14 @@ final myStudentBookingsProvider = StreamProvider<List<BookingItem>>((ref) {
     return const Stream<List<BookingItem>>.empty();
   }
   return ref.watch(bookingRepositoryProvider).watchStudentBookings(user.uid);
+});
+
+final studentTransactionsProvider = FutureProvider.autoDispose<List<StudentTransaction>>((ref) {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) {
+    return Future.value(<StudentTransaction>[]);
+  }
+  return ref.watch(bookingRepositoryProvider).fetchStudentTransactions(user.uid);
 });
 
 final myTutorBookingsProvider = StreamProvider<List<BookingItem>>((ref) {
@@ -216,6 +224,8 @@ class BookingController {
     required List<BookingWeeklySlot> weeklySlots,
     required int durationMinutes,
     required String message,
+    String meetingType = 'online',
+    String meetingLocation = 'Online Classroom',
   }) async {
     final studentUid = _requireUid();
     await _runLoadingTask(
@@ -228,6 +238,8 @@ class BookingController {
         weeklySlots: weeklySlots,
         durationMinutes: durationMinutes,
         message: message,
+        meetingType: meetingType,
+        meetingLocation: meetingLocation,
       ),
     );
   }
@@ -262,15 +274,12 @@ class BookingController {
     required String paymentMethod,
   }) async {
     final studentUid = _requireUid();
-    final bytes = utf8.encode('${bookingId}EDUCONNECT_SECRET_SERVER_KEY');
-    final signatureKey = md5.convert(bytes).toString();
 
     await _runLoadingTask(
       () => _repository.processSecureWebhookPayment(
         bookingId: bookingId,
         studentUid: studentUid,
         paymentMethod: paymentMethod,
-        signatureKey: signatureKey,
       ),
     );
   }
@@ -509,3 +518,7 @@ bool canTransitionBookingStatus({
       return false;
   }
 }
+
+final rescheduleCountProvider = FutureProvider.autoDispose.family<int, String>((ref, bookingId) {
+  return ref.watch(bookingRepositoryProvider).getRescheduleCountInLast30Days(bookingId);
+});

@@ -4,9 +4,11 @@ import 'package:educonnect/features/auth/data/repositories/user_repository.dart'
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/auth/presentation/pages/auth_page.dart';
 import 'package:educonnect/features/auth/presentation/pages/edit_profile_page.dart';
+import 'package:educonnect/features/home/presentation/pages/settings_page.dart';
 import 'package:educonnect/features/auth/presentation/pages/role_onboarding_page.dart';
 import 'package:educonnect/features/availability/presentation/pages/tutor_availability_page.dart';
 import 'package:educonnect/features/booking/presentation/pages/student_bookings_page.dart';
+import 'package:educonnect/features/booking/presentation/pages/student_transaction_history_page.dart';
 import 'package:educonnect/features/booking/presentation/pages/tutor_bookings_page.dart';
 import 'package:educonnect/features/chat/presentation/pages/chat_page.dart';
 import 'package:educonnect/features/chat/presentation/pages/inbox_page.dart';
@@ -26,6 +28,7 @@ import 'package:educonnect/features/notifications/presentation/pages/notificatio
 import 'package:educonnect/features/tutor/presentation/pages/tutor_detail_page.dart';
 import 'package:educonnect/features/tutor/presentation/pages/tutor_profile_form_page.dart';
 import 'package:educonnect/features/tutor/presentation/pages/tutor_profile_page.dart';
+import 'package:educonnect/features/tutor/presentation/pages/tutor_stats_page.dart';
 import 'package:educonnect/features/wallet/presentation/pages/tutor_wallet_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -101,6 +104,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: EditProfilePage.routeName,
         builder: (context, state) => const EditProfilePage(),
       ),
+      GoRoute(
+        path: '/settings',
+        name: 'settings',
+        builder: (context, state) => const SettingsPage(),
+      ),
       ShellRoute(
         builder: (context, state, child) {
           return StudentShellPage(
@@ -146,6 +154,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: StudentProfilePage.routePath,
             name: StudentProfilePage.routeName,
             builder: (context, state) => const StudentProfilePage(),
+          ),
+          GoRoute(
+            path: StudentTransactionHistoryPage.routePath,
+            name: StudentTransactionHistoryPage.routeName,
+            builder: (context, state) => const StudentTransactionHistoryPage(),
           ),
           GoRoute(
             path: StudentStudyCalendarPage.routePath,
@@ -201,6 +214,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: TutorWalletPage.routePath,
             name: TutorWalletPage.routeName,
             builder: (context, state) => const TutorWalletPage(),
+          ),
+          GoRoute(
+            path: TutorStatsPage.routePath,
+            name: TutorStatsPage.routeName,
+            builder: (context, state) => const TutorStatsPage(),
           ),
           GoRoute(
             path: '/tutor-ebooks',

@@ -26,8 +26,29 @@ class TutorStudentsPage extends ConsumerWidget {
     final pendingHomeworkAsync = ref.watch(myTutorPendingHomeworkProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Murid Aktif')),
-      body: bookingsAsync.when(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              'Murid Aktif',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFF1F5F9)
+                    : const Color(0xFF4B176E),
+                letterSpacing: -0.5,
+              ),
+            ),
+          ),
+          Expanded(
+            child: bookingsAsync.when(
         loading: () => const AppLoadingState(
           message: 'Memuat murid aktif...',
           fullScreen: false,
@@ -193,6 +214,9 @@ class TutorStudentsPage extends ConsumerWidget {
             },
           );
         },
+      ),
+          ),
+        ],
       ),
     );
   }

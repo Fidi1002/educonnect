@@ -28,7 +28,8 @@ class EbookController {
     required String description,
     required File pdfFile,
     required String accentColorHex,
-    String? bookingId,
+    required String targetLevel,
+    required String bookingId,
   }) async {
     final repo = _ref.read(ebookRepositoryProvider);
     await repo.uploadEbook(
@@ -37,6 +38,7 @@ class EbookController {
       description: description,
       pdfFile: pdfFile,
       accentColorHex: accentColorHex,
+      targetLevel: targetLevel,
       bookingId: bookingId,
     );
 

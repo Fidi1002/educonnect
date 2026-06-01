@@ -21,6 +21,8 @@ class BookingItem {
     required this.packageStartDate,
     required this.packageEndDate,
     required this.weeklySchedule,
+    required this.meetingType,
+    required this.meetingLocation,
   });
 
   final String id;
@@ -41,6 +43,8 @@ class BookingItem {
   final DateTime packageStartDate;
   final DateTime packageEndDate;
   final List<BookingWeeklySlot> weeklySchedule;
+  final String meetingType;
+  final String meetingLocation;
 
   DateTime get sessionEnd =>
       sessionStart.add(Duration(minutes: durationMinutes));
@@ -65,8 +69,12 @@ class BookingItem {
           DateTime.now(),
       totalAmount: (map['total_amount'] as num?) ?? 0,
       paidAt: DateTime.tryParse(map['paid_at'] as String? ?? '')?.toLocal(),
-      studentName: (student?['display_name'] as String?) ?? 'Murid',
-      tutorName: (tutor?['display_name'] as String?) ?? 'Tutor',
+      studentName: (student?['display_name'] as String?) ??
+          (map['student_name'] as String?) ??
+          'Murid',
+      tutorName: (tutor?['display_name'] as String?) ??
+          (map['tutor_name'] as String?) ??
+          'Tutor',
       packageMonths: (map['package_months'] as int?) ?? 1,
       sessionsPerWeek: (map['sessions_per_week'] as int?) ?? 2,
       packageStartDate:
@@ -83,6 +91,8 @@ class BookingItem {
           .whereType<Map<String, dynamic>>()
           .map(BookingWeeklySlot.fromMap)
           .toList(growable: false),
+      meetingType: (map['meeting_type'] as String?) ?? 'online',
+      meetingLocation: (map['meeting_location'] as String?) ?? 'Online Classroom',
     );
   }
 }

@@ -92,6 +92,7 @@ class AuthController {
     required String displayName,
     required String currentPhotoUrl,
     File? newPhoto,
+    String? schoolLevel,
   }) async {
     return runAuthTask(() async {
       final user = _authRepository.currentUser;
@@ -111,6 +112,7 @@ class AuthController {
         uid: user.uid,
         displayName: displayName,
         photoUrl: photoUrl,
+        schoolLevel: schoolLevel,
       );
     });
   }

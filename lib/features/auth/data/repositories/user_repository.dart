@@ -23,7 +23,7 @@ class UserRepository {
     try {
       final map = await _client
           .from('users')
-          .select('uid,email,display_name,photo_url,role')
+          .select('uid,email,display_name,photo_url,role,school_level')
           .eq('uid', uid)
           .maybeSingle();
       if (map == null) {
@@ -159,10 +159,12 @@ class UserRepository {
     required String uid,
     required String displayName,
     required String photoUrl,
+    String? schoolLevel,
   }) async {
     await _client.from('users').update({
       'display_name': displayName.trim(),
       'photo_url': photoUrl.trim(),
+      'school_level': schoolLevel,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }).eq('uid', uid);
 

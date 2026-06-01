@@ -1,3 +1,4 @@
+import 'package:educonnect/features/home/data/repositories/ebook_repository.dart';
 import 'package:educonnect/features/home/domain/models/library_ebook.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,15 +45,17 @@ class PdfCacheState {
 }
 
 final pdfCacheStateProvider = StateNotifierProvider.family<PdfCacheNotifier, PdfCacheState, LibraryEbook>((ref, ebook) {
-  final notifier = PdfCacheNotifier(ebook);
+  final repo = ref.watch(ebookRepositoryProvider);
+  final notifier = PdfCacheNotifier(ebook, repo);
   notifier.checkCache();
   return notifier;
 });
 
 class PdfCacheNotifier extends StateNotifier<PdfCacheState> {
-  PdfCacheNotifier(this._ebook) : super(PdfCacheState.notDownloaded());
+  PdfCacheNotifier(this._ebook, this._repository) : super(PdfCacheState.notDownloaded());
 
   final LibraryEbook _ebook;
+  final EbookRepository _repository;
 
   Future<void> checkCache() async {
     if (_ebook.fileUrl.isEmpty) {
@@ -77,8 +80,11 @@ class PdfCacheNotifier extends StateNotifier<PdfCacheState> {
     }
     state = PdfCacheState.downloading(0.0);
     try {
+      final downloadUrl = await _repository.getSignedUrl(_ebook.fileUrl);
+
       final fileStream = DefaultCacheManager().getFileStream(
-        _ebook.fileUrl,
+        downloadUrl,
+        key: _ebook.fileUrl,
         withProgress: true,
       );
 

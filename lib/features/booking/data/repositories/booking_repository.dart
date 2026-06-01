@@ -8,6 +8,7 @@ import 'package:educonnect/features/booking/domain/models/booking_session_status
 import 'package:educonnect/features/booking/domain/models/session_change_request.dart';
 import 'package:educonnect/features/booking/domain/models/session_learning_record.dart';
 import 'package:educonnect/features/booking/domain/models/booking_status.dart';
+import 'package:educonnect/features/booking/domain/models/student_transaction.dart';
 import 'package:educonnect/features/booking/domain/models/booking_weekly_slot.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -58,7 +59,7 @@ class BookingRepository {
         .select(
           'id,student_uid,tutor_uid,subject,session_start,duration_minutes,session_end,status,'
           'message,created_at,total_amount,paid_at,package_months,sessions_per_week,'
-          'package_start_date,package_end_date,weekly_schedule',
+          'package_start_date,package_end_date,weekly_schedule,student_name,tutor_name',
         )
         .eq('id', bookingId)
         .maybeSingle();
@@ -100,6 +101,8 @@ class BookingRepository {
     required List<BookingWeeklySlot> weeklySlots,
     required int durationMinutes,
     required String message,
+    String meetingType = 'online',
+    String meetingLocation = 'Online Classroom',
   }) async {
     if (weeklySlots.length != 2) {
       throw const PostgrestException(
@@ -168,7 +171,7 @@ class BookingRepository {
       });
     }
 
-    await _client.rpc(
+    final String bookingId = await _client.rpc(
       'create_booking_with_cycles_and_sessions',
       params: {
         'p_student_uid': studentUid,
@@ -187,7 +190,12 @@ class BookingRepository {
         'p_transactions': transactionPayload,
         'p_sessions': const <Map<String, dynamic>>[],
       },
-    );
+    ) as String;
+
+    await _client.from('bookings').update({
+      'meeting_type': meetingType,
+      'meeting_location': meetingLocation,
+    }).eq('id', bookingId);
   }
 
   Future<void> updateBookingStatus({
@@ -272,15 +280,13 @@ class BookingRepository {
     required String bookingId,
     required String studentUid,
     required String paymentMethod,
-    required String signatureKey,
   }) async {
     await _expireStaleBookings(bookingId: bookingId);
     final paymentResult = await _client.rpc(
-      'handle_secure_webhook_payment',
+      'simulate_secure_payment',
       params: {
         'p_booking_id': bookingId,
         'p_payment_method': paymentMethod,
-        'p_signature_key': signatureKey,
       },
     );
     final paymentMap = switch (paymentResult) {
@@ -1515,6 +1521,42 @@ class BookingRepository {
       generatedSessions,
       onConflict: 'booking_id,session_start',
     );
+  }
+
+  Future<int> getRescheduleCountInLast30Days(String bookingId) async {
+    try {
+      final response = await _client
+          .from('session_change_requests')
+          .select('id')
+          .eq('booking_id', bookingId)
+          .eq('request_type', 'reschedule')
+          .inFilter('status', ['approved', 'pending'])
+          .gte('created_at', DateTime.now().subtract(const Duration(days: 30)).toUtc().toIso8601String());
+      
+      return response.length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<List<StudentTransaction>> fetchStudentTransactions(String studentUid) async {
+    final data = await _client
+        .from('transactions')
+        .select('''
+          *,
+          tutor:tutor_uid (
+            display_name
+          ),
+          booking:booking_id (
+            subject
+          )
+        ''')
+        .eq('student_uid', studentUid)
+        .order('created_at', ascending: false);
+
+    return (data as List)
+        .map((row) => StudentTransaction.fromMap(Map<String, dynamic>.from(row as Map)))
+        .toList();
   }
 
   Future<void> _expireStaleBookings({String? bookingId}) async {

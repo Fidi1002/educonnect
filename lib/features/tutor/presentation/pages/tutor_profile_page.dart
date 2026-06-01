@@ -6,7 +6,9 @@ import 'package:educonnect/features/availability/presentation/pages/tutor_availa
 import 'package:educonnect/features/tutor/application/tutor_profile_controller.dart';
 import 'package:educonnect/features/tutor/presentation/pages/tutor_profile_form_page.dart';
 import 'package:educonnect/features/home/presentation/pages/tutor_ebook_page.dart';
+import 'package:educonnect/features/tutor/presentation/pages/tutor_stats_page.dart';
 import 'package:educonnect/features/wallet/presentation/pages/tutor_wallet_page.dart';
+import 'package:educonnect/core/presentation/localization/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,9 +22,11 @@ class TutorProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(myTutorProfileProvider);
+    final translations = ref.watch(translationsProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: profileAsync.when(
         data: (profile) {
           final currentUser = ref.watch(authStateProvider).value;
@@ -44,9 +48,9 @@ class TutorProfilePage extends ConsumerWidget {
                 elevation: 0,
                 flexibleSpace: FlexibleSpaceBar(
                   titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
-                  title: const Text(
-                    'Profile',
-                    style: TextStyle(
+                  title: Text(
+                    translations.profile,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
                     ),
@@ -178,20 +182,21 @@ class TutorProfilePage extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Pengaturan Akun',
+                      Text(
+                        translations.generalSettings,
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF191622),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 16),
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: isDark ? const Color(0xFF1B2336) : Colors.white,
                           borderRadius: BorderRadius.circular(24),
-                          boxShadow: const [
+                          border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+                          boxShadow: isDark ? null : const [
                             BoxShadow(
                               color: Color(0x0A000000),
                               blurRadius: 20,
@@ -205,14 +210,13 @@ class TutorProfilePage extends ConsumerWidget {
                               icon: FluentIcons.person_24_regular,
                               iconBgColor: const Color(0xFFE0F2FE),
                               iconColor: const Color(0xFF0369A1),
-                              title: 'Akun Umum',
-                              subtitle: 'Ubah nama dan foto profil utama',
+                              title: translations.editProfile,
+                              subtitle: translations.editProfileSub,
                               onTap: () => context.pushNamed(EditProfilePage.routeName),
                             ),
                             const Divider(
                               height: 1,
                               indent: 64,
-                              color: Color(0xFFF1F5F9),
                             ),
                             _ProfileMenuTile(
                               icon: FluentIcons.briefcase_24_regular,
@@ -227,7 +231,6 @@ class TutorProfilePage extends ConsumerWidget {
                             const Divider(
                               height: 1,
                               indent: 64,
-                              color: Color(0xFFF1F5F9),
                             ),
                             _ProfileMenuTile(
                               icon: FluentIcons.calendar_clock_24_regular,
@@ -242,7 +245,6 @@ class TutorProfilePage extends ConsumerWidget {
                             const Divider(
                               height: 1,
                               indent: 64,
-                              color: Color(0xFFF1F5F9),
                             ),
                             _ProfileMenuTile(
                               icon: FluentIcons.money_24_regular,
@@ -257,7 +259,20 @@ class TutorProfilePage extends ConsumerWidget {
                             const Divider(
                               height: 1,
                               indent: 64,
-                              color: Color(0xFFF1F5F9),
+                            ),
+                            _ProfileMenuTile(
+                              icon: FluentIcons.data_trending_24_regular,
+                              iconBgColor: const Color(0xFFFEF3C7),
+                              iconColor: const Color(0xFFD97706),
+                              title: 'Statistik & Analitik',
+                              subtitle: 'Pantau performa dan pendapatan mengajar',
+                              onTap: () => context.pushNamed(
+                                TutorStatsPage.routeName,
+                              ),
+                            ),
+                            const Divider(
+                              height: 1,
+                              indent: 64,
                             ),
                             _ProfileMenuTile(
                               icon: FluentIcons.library_24_regular,
@@ -272,16 +287,14 @@ class TutorProfilePage extends ConsumerWidget {
                             const Divider(
                               height: 1,
                               indent: 64,
-                              color: Color(0xFFF1F5F9),
                             ),
                             _ProfileMenuTile(
                               icon: FluentIcons.sign_out_24_regular,
                               iconBgColor: const Color(0xFFFEF2F2),
                               iconColor: const Color(0xFFB91C1C),
-                              title: 'Keluar',
-                              subtitle: 'Akhiri sesi akun dengan aman',
-                              onTap: () =>
-                                  ref.read(authControllerProvider).signOut(),
+                              title: translations.logout,
+                              subtitle: translations.logoutSubtext,
+                              onTap: () => _showLogoutConfirmDialog(context, ref, translations),
                             ),
                           ],
                         ),
@@ -289,20 +302,21 @@ class TutorProfilePage extends ConsumerWidget {
 
                       const SizedBox(height: 32),
 
-                      const Text(
-                        'Lainnya',
+                      Text(
+                        translations.otherSettings,
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF191622),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 16),
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: isDark ? const Color(0xFF1B2336) : Colors.white,
                           borderRadius: BorderRadius.circular(24),
-                          boxShadow: const [
+                          border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+                          boxShadow: isDark ? null : const [
                             BoxShadow(
                               color: Color(0x0A000000),
                               blurRadius: 20,
@@ -310,26 +324,15 @@ class TutorProfilePage extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        child: const Column(
+                        child: Column(
                           children: [
                             _ProfileMenuTile(
-                              icon: FluentIcons.headset_24_regular,
-                              iconBgColor: Color(0xFFEAF2FF),
-                              iconColor: Color(0xFF4B176E),
-                              title: 'Bantuan & Support',
-                              subtitle: 'Hubungi tim bantuan kami',
-                            ),
-                            Divider(
-                              height: 1,
-                              indent: 64,
-                              color: Color(0xFFF1F5F9),
-                            ),
-                            _ProfileMenuTile(
-                              icon: FluentIcons.info_24_regular,
-                              iconBgColor: Color(0xFFEAF2FF),
-                              iconColor: Color(0xFF4B176E),
-                              title: 'Tentang Aplikasi',
-                              subtitle: 'Versi aplikasi v1.0.0',
+                              icon: FluentIcons.settings_24_regular,
+                              iconBgColor: const Color(0xFFEAF2FF),
+                              iconColor: const Color(0xFF4B176E),
+                              title: translations.settings,
+                              subtitle: translations.themeSettingSub,
+                              onTap: () => context.push('/settings'),
                             ),
                           ],
                         ),
@@ -350,6 +353,31 @@ class TutorProfilePage extends ConsumerWidget {
           fullScreen: true,
         ),
       ),
+    );
+  }
+
+  void _showLogoutConfirmDialog(BuildContext context, WidgetRef ref, AppTranslations translations) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(translations.logout),
+          content: Text(translations.logoutConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(translations.cancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ref.read(authControllerProvider).signOut();
+              },
+              child: Text(translations.logout),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -395,27 +423,27 @@ class _ProfileMenuTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF191622),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF6D6380),
+                      color: Theme.of(context).textTheme.bodySmall?.color ?? const Color(0xFF6D6380),
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               FluentIcons.chevron_right_20_regular,
-              color: Color(0xFFC3BCCF),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
               size: 20,
             ),
           ],
