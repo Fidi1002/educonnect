@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/home/application/nearby_tutor_controller.dart';
 import 'package:educonnect/features/home/application/tutor_controller.dart';
@@ -33,6 +35,11 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
   bool _isMapView = false;
   TutorSummary? _selectedTutorForMap;
   GoogleMapController? _mapController;
+
+  List<TutorSummary>? _previousTutors;
+  UserLocationState? _previousLocation;
+  Set<Marker> _mapMarkers = {};
+  bool _isGeneratingMarkers = false;
 
   @override
   void dispose() {
@@ -76,6 +83,11 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
           );
           _sortTutors(filtered, _sortOption);
           final visible = filtered.take(_visibleCount).toList();
+
+          // Schedule marker generation after frame build to avoid setState during build
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _checkAndGenerateMarkers(filtered, location);
+          });
 
           if (_isMapView) {
             return _buildMapView(
@@ -218,6 +230,7 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
     required double radiusKm,
     required List<String> categories,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     LatLng center = const LatLng(-6.2088, 106.8456); // Jakarta default
     if (userLocation != null) {
       center = LatLng(userLocation.latitude, userLocation.longitude);
@@ -225,31 +238,17 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
       center = LatLng(tutors.first.latitude, tutors.first.longitude);
     }
 
-    final Set<Marker> markers = {};
-    if (userLocation != null) {
-      markers.add(
-        Marker(
-          markerId: const MarkerId('user_location'),
-          position: LatLng(userLocation.latitude, userLocation.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-          infoWindow: const InfoWindow(title: 'Lokasi Anda'),
-        ),
-      );
-    }
-
-    for (final tutor in tutors) {
-      markers.add(
-        Marker(
-          markerId: MarkerId(tutor.uid),
-          position: LatLng(tutor.latitude, tutor.longitude),
-          onTap: () {
-            setState(() {
-              _selectedTutorForMap = tutor;
-            });
-          },
-        ),
-      );
-    }
+    final Set<Marker> markers = _mapMarkers.isNotEmpty
+        ? _mapMarkers
+        : {
+            if (userLocation != null)
+              Marker(
+                markerId: const MarkerId('user_location'),
+                position: LatLng(userLocation.latitude, userLocation.longitude),
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                infoWindow: const InfoWindow(title: 'Lokasi Anda'),
+              ),
+          };
 
     return Stack(
       children: [
@@ -273,8 +272,9 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.95),
+                  color: isDark ? const Color(0xFF1B2336).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
                   borderRadius: BorderRadius.circular(24),
+                  border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x1A000000),
@@ -290,6 +290,7 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                       _visibleCount = 25;
                     });
                   },
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black),
                   decoration: const InputDecoration(
                     hintText: 'Cari tutor atau mapel...',
                     prefixIcon: Icon(FluentIcons.search_24_regular),
@@ -304,8 +305,9 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.95),
+                        color: isDark ? const Color(0xFF1B2336).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
                         borderRadius: BorderRadius.circular(20),
+                        border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x10000000),
@@ -324,9 +326,10 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                               value: _sortOption,
                               isExpanded: true,
                               underline: const SizedBox(),
-                              style: const TextStyle(
+                              dropdownColor: isDark ? const Color(0xFF1B2336) : Colors.white,
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF191622),
+                                color: isDark ? Colors.white : const Color(0xFF191622),
                                 fontWeight: FontWeight.bold,
                               ),
                               items: const [
@@ -369,13 +372,13 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4B176E),
+                        color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
+                        boxShadow: [
                           BoxShadow(
-                            color: Color(0x204B176E),
+                            color: isDark ? const Color(0x20FF1377) : const Color(0x204B176E),
                             blurRadius: 10,
-                            offset: Offset(0, 4),
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
@@ -410,8 +413,9 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.95),
+                color: isDark ? const Color(0xFF1B2336).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
                 borderRadius: BorderRadius.circular(24),
+                border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x1F000000),
@@ -427,12 +431,12 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                     children: [
                       CircleAvatar(
                         radius: 28,
-                        backgroundColor: const Color(0xFFF3F0F7),
+                        backgroundColor: isDark ? const Color(0xFF090D16) : const Color(0xFFF3F0F7),
                         backgroundImage: _selectedTutorForMap!.photoUrl.isNotEmpty
                             ? NetworkImage(_selectedTutorForMap!.photoUrl)
                             : null,
                         child: _selectedTutorForMap!.photoUrl.isEmpty
-                            ? const Icon(FluentIcons.person_24_regular, size: 28, color: Color(0xFF4B176E))
+                            ? Icon(FluentIcons.person_24_regular, size: 28, color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E))
                             : null,
                       ),
                       const SizedBox(width: 14),
@@ -443,10 +447,10 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                           children: [
                             Text(
                               _selectedTutorForMap!.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFF191622),
+                                color: isDark ? Colors.white : const Color(0xFF191622),
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -461,7 +465,7 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                                 const SizedBox(width: 6),
                                 Text(
                                   '(${_selectedTutorForMap!.totalReviews} Ulasan)',
-                                  style: const TextStyle(fontSize: 12, color: Color(0xFF718096)),
+                                  style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : const Color(0xFF718096)),
                                 ),
                               ],
                             ),
@@ -470,10 +474,10 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                               _selectedTutorForMap!.subjects.isEmpty
                                   ? 'Mapel Umum'
                                   : _selectedTutorForMap!.subjects.join(', '),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF4B176E),
+                                color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -484,19 +488,19 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                               children: [
                                 Text(
                                   'Rp ${_selectedTutorForMap!.pricePerHour}/jam',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFF191622),
+                                    color: isDark ? Colors.white : const Color(0xFF191622),
                                   ),
                                 ),
                                 if (_selectedTutorForMap!.distanceFromUserKm != null)
                                   Text(
                                     '${_selectedTutorForMap!.distanceFromUserKm!.toStringAsFixed(1)} km',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
-                                      color: Color(0xFF718096),
+                                      color: isDark ? Colors.white70 : const Color(0xFF718096),
                                     ),
                                   ),
                               ],
@@ -512,7 +516,7 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                                   );
                                 },
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFF4B176E),
+                                  backgroundColor: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
                                   padding: const EdgeInsets.symmetric(vertical: 10),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
@@ -597,6 +601,351 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
     return tutors
         .map((tutor) => tutor.pricePerHour)
         .reduce((value, element) => value > element ? value : element);
+  }
+
+  // ----------------------------------------------------------------------
+  // Map Clustering & Dynamic Marker Generation (Pilihan C)
+  // ----------------------------------------------------------------------
+
+  void _checkAndGenerateMarkers(List<TutorSummary> tutors, UserLocationState? userLocation) {
+    bool changed = _previousTutors == null || _previousTutors!.length != tutors.length;
+    if (!changed && _previousTutors != null) {
+      for (int i = 0; i < tutors.length; i++) {
+        if (_previousTutors![i].uid != tutors[i].uid ||
+            _previousTutors![i].latitude != tutors[i].latitude ||
+            _previousTutors![i].longitude != tutors[i].longitude) {
+          changed = true;
+          break;
+        }
+      }
+    }
+    if (userLocation != _previousLocation) {
+      changed = true;
+    }
+
+    if (changed) {
+      _previousTutors = tutors;
+      _previousLocation = userLocation;
+      _generateMarkers(tutors, userLocation);
+    }
+  }
+
+  Future<void> _generateMarkers(List<TutorSummary> tutors, UserLocationState? userLocation) async {
+    if (_isGeneratingMarkers) return;
+    _isGeneratingMarkers = true;
+
+    final Set<Marker> newMarkers = {};
+
+    // 1. User Location Marker
+    if (userLocation != null) {
+      newMarkers.add(
+        Marker(
+          markerId: const MarkerId('user_location'),
+          position: LatLng(userLocation.latitude, userLocation.longitude),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          infoWindow: const InfoWindow(title: 'Lokasi Anda'),
+        ),
+      );
+    }
+
+    // 2. Proximity Clustering Algorithm
+    final List<List<TutorSummary>> clusters = [];
+    const double clusterThreshold = 0.005; // ~500m Lat/Lng delta
+
+    for (final tutor in tutors) {
+      bool addedToCluster = false;
+      for (final cluster in clusters) {
+        final first = cluster.first;
+        final double latDiff = (first.latitude - tutor.latitude).abs();
+        final double lngDiff = (first.longitude - tutor.longitude).abs();
+        if (latDiff < clusterThreshold && lngDiff < clusterThreshold) {
+          cluster.add(tutor);
+          addedToCluster = true;
+          break;
+        }
+      }
+      if (!addedToCluster) {
+        clusters.add([tutor]);
+      }
+    }
+
+    // 3. Generate Map Markers (Single or Custom Cluster Mark)
+    for (final cluster in clusters) {
+      if (cluster.length == 1) {
+        final tutor = cluster.first;
+        newMarkers.add(
+          Marker(
+            markerId: MarkerId(tutor.uid),
+            position: LatLng(tutor.latitude, tutor.longitude),
+            onTap: () {
+              setState(() {
+                _selectedTutorForMap = tutor;
+              });
+            },
+          ),
+        );
+      } else {
+        // Cluster Marker
+        final firstTutor = cluster.first;
+        double totalLat = 0;
+        double totalLng = 0;
+        for (final t in cluster) {
+          totalLat += t.latitude;
+          totalLng += t.longitude;
+        }
+        final double avgLat = totalLat / cluster.length;
+        final double avgLng = totalLng / cluster.length;
+
+        final BitmapDescriptor clusterIcon = await _getClusterMarkerIcon(
+          80,
+          '${cluster.length}',
+          const Color(0xFF4B176E),
+        );
+
+        newMarkers.add(
+          Marker(
+            markerId: MarkerId('cluster_${firstTutor.uid}'),
+            position: LatLng(avgLat, avgLng),
+            icon: clusterIcon,
+            onTap: () {
+              _showClusterTutorListSheet(context, cluster);
+            },
+          ),
+        );
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _mapMarkers = newMarkers;
+        _isGeneratingMarkers = false;
+      });
+    }
+  }
+
+  Future<BitmapDescriptor> _getClusterMarkerIcon(int size, String text, Color color) async {
+    final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(pictureRecorder);
+    
+    final Paint paintPrimary = Paint()..color = color;
+    final Paint paintWhite = Paint()..color = Colors.white;
+    final Paint paintAccent = Paint()..color = const Color(0xFFFF1377);
+
+    canvas.drawCircle(ui.Offset(size / 2, size / 2), size / 2.0, paintAccent);
+    canvas.drawCircle(ui.Offset(size / 2, size / 2), size / 2.2, paintWhite);
+    canvas.drawCircle(ui.Offset(size / 2, size / 2), size / 2.5, paintPrimary);
+
+    final TextPainter painter = TextPainter(textDirection: ui.TextDirection.ltr);
+    painter.text = TextSpan(
+      text: text,
+      style: TextStyle(
+        fontSize: size / 3,
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+    painter.layout();
+    painter.paint(
+      canvas,
+      ui.Offset(size / 2 - painter.width / 2, size / 2 - painter.height / 2),
+    );
+
+    final ui.Image img = await pictureRecorder.endRecording().toImage(size, size);
+    final ByteData? data = await img.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.bytes(data!.buffer.asUint8List());
+  }
+
+  void _showClusterTutorListSheet(BuildContext context, List<TutorSummary> clusterTutors) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1B2336) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1F000000),
+                blurRadius: 24,
+                offset: Offset(0, -10),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.6,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 48,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3E8FF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      FluentIcons.people_24_regular,
+                      color: Color(0xFF4B176E),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tutor di Area Ini',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : const Color(0xFF191622),
+                          ),
+                        ),
+                        Text(
+                          'Ditemukan ${clusterTutors.length} tutor di sekitar lokasi ini',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white70 : const Color(0xFF718096),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: clusterTutors.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final tutor = clusterTutors[index];
+                    return InkWell(
+                      onTap: () {
+                        Navigator.pop(context);
+                        setState(() {
+                          _selectedTutorForMap = tutor;
+                        });
+                        _mapController?.animateCamera(
+                          CameraUpdate.newLatLng(
+                            LatLng(tutor.latitude, tutor.longitude),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF090D16) : const Color(0xFFF8F9FA),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 24,
+                              backgroundImage: tutor.photoUrl.isNotEmpty
+                                  ? NetworkImage(tutor.photoUrl)
+                                  : null,
+                              child: tutor.photoUrl.isEmpty
+                                  ? const Icon(FluentIcons.person_24_regular)
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    tutor.name,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : const Color(0xFF191622),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(FluentIcons.star_16_filled, size: 14, color: Color(0xFFFFB224)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        tutor.rating.toStringAsFixed(1),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.white : Colors.black,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          tutor.subjects.join(', '),
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFFFF1377),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  'Rp ${tutor.pricePerHour}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark ? Colors.white : const Color(0xFF191622),
+                                  ),
+                                ),
+                                const Text(
+                                  '/jam',
+                                  style: TextStyle(fontSize: 10, color: Color(0xFF718096)),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(FluentIcons.chevron_right_16_regular, size: 16, color: Color(0xFF718096)),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 

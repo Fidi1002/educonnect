@@ -1,6 +1,7 @@
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/wallet/application/wallet_controller.dart';
 import 'package:educonnect/features/wallet/domain/models/wallet_transaction.dart';
+import 'package:educonnect/features/wallet/domain/models/wallet_balance.dart';
 import 'package:educonnect/features/wallet/domain/models/payout_request.dart';
 import 'package:educonnect/features/wallet/presentation/widgets/request_payout_sheet.dart';
 import 'package:educonnect/features/tutor/presentation/widgets/tutor_ui.dart';
@@ -23,14 +24,64 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final balanceAsync = ref.watch(walletBalanceProvider);
     final transactionsAsync = ref.watch(walletTransactionsProvider);
     final payoutRequestsAsync = ref.watch(payoutRequestsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dompet & Penghasilan')),
+      appBar: AppBar(
+        title: const Text('Dompet & Penghasilan'),
+        actions: [
+          balanceAsync.when(
+            data: (balance) {
+              final bool isWalletEmpty = balance.availableBalance == 0 &&
+                  balance.pendingBalance == 0 &&
+                  balance.totalEarned == 0;
+              if (isWalletEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4B176E).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF4B176E).withValues(alpha: 0.3)),
+                      ),
+                      child: const Text(
+                        'SIMULASI',
+                        style: TextStyle(
+                          color: Color(0xFF4B176E),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (err, stack) => const SizedBox.shrink(),
+          ),
+        ],
+      ),
       body: balanceAsync.when(
         data: (balance) {
+          final bool isWalletEmpty = balance.availableBalance == 0 &&
+              balance.pendingBalance == 0 &&
+              balance.totalEarned == 0;
+
+          final displayBalance = isWalletEmpty
+              ? WalletBalance(
+                  availableBalance: 750000.0,
+                  pendingBalance: 150000.0,
+                  totalEarned: 900000.0,
+                )
+              : balance;
+
           return CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
@@ -56,7 +107,7 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Rp ${balance.availableBalance.toStringAsFixed(0)}',
+                          'Rp ${displayBalance.availableBalance.toStringAsFixed(0)}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
@@ -79,7 +130,7 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Rp ${balance.pendingBalance.toStringAsFixed(0)}',
+                                    'Rp ${displayBalance.pendingBalance.toStringAsFixed(0)}',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w600,
@@ -90,9 +141,9 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                               ),
                             ),
                             ElevatedButton.icon(
-                              onPressed: balance.availableBalance > 0
+                              onPressed: displayBalance.availableBalance > 0
                                   ? () => RequestPayoutSheet.show(
-                                      context, balance.availableBalance)
+                                      context, displayBalance.availableBalance)
                                   : null,
                               icon: const Icon(FluentIcons.money_24_regular,
                                   size: 18),
@@ -125,7 +176,7 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
+                      color: isDark ? const Color(0xFF131926) : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     padding: const EdgeInsets.all(4),
@@ -138,7 +189,9 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                               alignment: Alignment.center,
                               padding: const EdgeInsets.symmetric(vertical: 10),
                               decoration: BoxDecoration(
-                                color: _selectedTabIndex == 0 ? Colors.white : Colors.transparent,
+                                color: _selectedTabIndex == 0
+                                    ? (isDark ? const Color(0xFF1B2336) : Colors.white)
+                                    : Colors.transparent,
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: _selectedTabIndex == 0
                                     ? [
@@ -155,7 +208,9 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
-                                  color: _selectedTabIndex == 0 ? const Color(0xFF4B176E) : const Color(0xFF64748B),
+                                  color: _selectedTabIndex == 0
+                                      ? (isDark ? Colors.white : const Color(0xFF4B176E))
+                                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                                 ),
                               ),
                             ),
@@ -168,7 +223,9 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                               alignment: Alignment.center,
                               padding: const EdgeInsets.symmetric(vertical: 10),
                               decoration: BoxDecoration(
-                                color: _selectedTabIndex == 1 ? Colors.white : Colors.transparent,
+                                color: _selectedTabIndex == 1
+                                    ? (isDark ? const Color(0xFF1B2336) : Colors.white)
+                                    : Colors.transparent,
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: _selectedTabIndex == 1
                                     ? [
@@ -185,7 +242,9 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
-                                  color: _selectedTabIndex == 1 ? const Color(0xFF4B176E) : const Color(0xFF64748B),
+                                  color: _selectedTabIndex == 1
+                                      ? (isDark ? Colors.white : const Color(0xFF4B176E))
+                                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                                 ),
                               ),
                             ),
@@ -201,7 +260,42 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                 // TRANSACTION HISTORY
                 transactionsAsync.when(
                   data: (transactions) {
-                    if (transactions.isEmpty) {
+                    final displayTxs = (isWalletEmpty && transactions.isEmpty)
+                        ? [
+                            WalletTransaction(
+                              id: 'dummy-tx-1',
+                              tutorUid: '',
+                              amount: 450000.0,
+                              type: TransactionType.credit,
+                              description: 'Selesai Sesi Belajar #EDC-8712 (Budi Santoso)',
+                              referenceType: 'booking',
+                              referenceId: 'ref-1',
+                              createdAt: DateTime.now().subtract(const Duration(days: 2)),
+                            ),
+                            WalletTransaction(
+                              id: 'dummy-tx-2',
+                              tutorUid: '',
+                              amount: 300000.0,
+                              type: TransactionType.credit,
+                              description: 'Selesai Sesi Belajar #EDC-8541 (Siti Rahma)',
+                              referenceType: 'booking',
+                              referenceId: 'ref-2',
+                              createdAt: DateTime.now().subtract(const Duration(days: 5)),
+                            ),
+                            WalletTransaction(
+                              id: 'dummy-tx-3',
+                              tutorUid: '',
+                              amount: 150000.0,
+                              type: TransactionType.debit,
+                              description: 'Penarikan Dana ke Bank BCA (Sukses)',
+                              referenceType: 'payout',
+                              referenceId: 'ref-3',
+                              createdAt: DateTime.now().subtract(const Duration(days: 10)),
+                            ),
+                          ]
+                        : transactions;
+
+                    if (displayTxs.isEmpty) {
                       return const SliverToBoxAdapter(
                         child: Padding(
                           padding: EdgeInsets.only(top: 40),
@@ -216,7 +310,7 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                     return SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                          final tx = transactions[index];
+                          final tx = displayTxs[index];
                           final isCredit = tx.type == TransactionType.credit;
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(horizontal: 20),
@@ -257,7 +351,7 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                             ),
                           );
                         },
-                        childCount: transactions.length,
+                        childCount: displayTxs.length,
                       ),
                     );
                   },
@@ -277,7 +371,22 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                 // PAYOUT REQUESTS LIST
                 payoutRequestsAsync.when(
                   data: (requests) {
-                    if (requests.isEmpty) {
+                    final displayRequests = (isWalletEmpty && requests.isEmpty)
+                        ? [
+                            PayoutRequest(
+                              id: 'dummy-payout-1',
+                              tutorUid: '',
+                              amount: 150000.0,
+                              bankName: 'BCA',
+                              accountNumber: '8701234567',
+                              accountHolder: 'Tutor EduConnect',
+                              status: PayoutStatus.pending,
+                              createdAt: DateTime.now().subtract(const Duration(hours: 12)),
+                            ),
+                          ]
+                        : requests;
+
+                    if (displayRequests.isEmpty) {
                       return const SliverToBoxAdapter(
                         child: Padding(
                           padding: EdgeInsets.only(top: 40),
@@ -289,10 +398,10 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                         ),
                       );
                     }
-                    return SliverList(
+                                    return SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                          final req = requests[index];
+                          final req = displayRequests[index];
                           
                           Color statusBg;
                           Color statusBorder;
@@ -431,7 +540,7 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                             ),
                           );
                         },
-                        childCount: requests.length,
+                        childCount: displayRequests.length,
                       ),
                     );
                   },

@@ -91,12 +91,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                           .read(chatControllerProvider)
                           .markAsRead(widget.bookingId);
                     });
+                    final sorted = messages.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
                     return ListView.builder(
                       reverse: true,
                       padding: const EdgeInsets.all(12),
-                      itemCount: messages.length,
+                      itemCount: sorted.length,
                       itemBuilder: (context, index) {
-                        final item = messages[messages.length - 1 - index];
+                        final item = sorted[index];
                         final mine = item.senderUid == currentUid;
                         return _MessageBubble(message: item, mine: mine);
                       },
@@ -209,25 +210,86 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     final align = mine ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final bg = mine
-        ? Theme.of(context).colorScheme.primaryContainer
-        : Theme.of(context).colorScheme.surfaceContainerHighest;
+    
+    final bubbleDecoration = mine
+        ? BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF7B2CBF), Color(0xFF9D4EDD)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(4),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7B2CBF).withValues(alpha: 0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              )
+            ],
+          )
+        : BoxDecoration(
+            color: isDark ? colorScheme.surfaceContainerHighest : const Color(0xFFF1F5F9),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+              bottomLeft: Radius.circular(4),
+              bottomRight: Radius.circular(20),
+            ),
+            border: Border.all(
+              color: isDark ? colorScheme.outline.withValues(alpha: 0.1) : const Color(0xFFE2E8F0),
+            ),
+          );
 
-    return Column(
-      crossAxisAlignment: align,
-      children: [
-        Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(10),
-          constraints: const BoxConstraints(maxWidth: 340),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(12),
+    final textColor = mine ? Colors.white : colorScheme.onSurface;
+    final timeText = '${message.createdAt.hour.toString().padLeft(2, '0')}:${message.createdAt.minute.toString().padLeft(2, '0')}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: align,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75,
+            ),
+            decoration: bubbleDecoration,
+            child: Text(
+              message.body,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 14.5,
+                height: 1.35,
+              ),
+            ),
           ),
-          child: Text(message.body),
-        ),
-      ],
+          Padding(
+            padding: EdgeInsets.only(
+              top: 3,
+              bottom: 5,
+              left: mine ? 0 : 8,
+              right: mine ? 8 : 0,
+            ),
+            child: Text(
+              timeText,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

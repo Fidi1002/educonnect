@@ -101,6 +101,7 @@ class TutorStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final style = switch ((_label, _bookingStatus, _sessionStatus)) {
       (final String label, _, _) => (label, _background!, _foreground!),
       (_, final BookingStatus bookingStatus, _) => _bookingStyle(bookingStatus),
@@ -110,22 +111,56 @@ class TutorStatusBadge extends StatelessWidget {
       _ => throw StateError('TutorStatusBadge style belum lengkap.'),
     };
 
+    var bg = style.$2;
+    var fg = style.$3;
+
+    if (isDark) {
+      final brightColor = _getBrightColorForDarkMode(fg);
+      bg = brightColor.withValues(alpha: 0.15);
+      fg = brightColor;
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: style.$2,
+        color: bg,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         style.$1,
         style: TextStyle(
-          color: style.$3,
+          color: fg,
           fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
       ),
     );
   }
+
+  Color _getBrightColorForDarkMode(Color color) {
+    if (color == const Color(0xFF206A42)) {
+      return const Color(0xFF4ADE80); // Green
+    } else if (color == const Color(0xFF9A4D00) || color == const Color(0xFFA05A00)) {
+      return const Color(0xFFFB923C); // Orange
+    } else if (color == const Color(0xFFA6334A) || 
+               color == const Color(0xFF8A3A45) || 
+               color == const Color(0xFFB3261E)) {
+      return const Color(0xFFF87171); // Red
+    } else if (color == const Color(0xFF0277BD) || 
+               color == const Color(0xFF3257A8) || 
+               color == const Color(0xFF1D4E89)) {
+      return const Color(0xFF60A5FA); // Blue
+    } else if (color == const Color(0xFF5B2B85)) {
+      return const Color(0xFFC084FC); // Purple
+    } else if (color == const Color(0xFF4B176E)) {
+      return const Color(0xFFD8B4FE); // Lavender/Light Purple
+    } else if (color == const Color(0xFF4B5563)) {
+      return const Color(0xFF94A3B8); // Slate/Grey
+    }
+    final hsl = HSLColor.fromColor(color);
+    return hsl.withLightness((hsl.lightness + 0.35).clamp(0.0, 0.95)).toColor();
+  }
+
 
   static (String, Color, Color) _bookingStyle(BookingStatus status) {
     return switch (status) {
@@ -245,10 +280,36 @@ class TutorMetricPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    var bg = background;
+    var fg = foreground;
+    if (isDark) {
+      if (foreground == const Color(0xFF206A42)) {
+        fg = const Color(0xFF4ADE80);
+        bg = fg.withValues(alpha: 0.15);
+      } else if (foreground == const Color(0xFF9A4D00) || foreground == const Color(0xFFA05A00)) {
+        fg = const Color(0xFFFB923C);
+        bg = fg.withValues(alpha: 0.15);
+      } else if (foreground == const Color(0xFFA6334A) || foreground == const Color(0xFF8A3A45)) {
+        fg = const Color(0xFFF87171);
+        bg = fg.withValues(alpha: 0.15);
+      } else if (foreground == const Color(0xFF21425B)) {
+        fg = const Color(0xFF60A5FA);
+        bg = fg.withValues(alpha: 0.15);
+      } else if (foreground == TutorUi.ink || foreground == const Color(0xFF4B176E)) {
+        fg = const Color(0xFFD8B4FE);
+        bg = fg.withValues(alpha: 0.15);
+      } else {
+        final hsl = HSLColor.fromColor(foreground);
+        fg = hsl.withLightness((hsl.lightness + 0.35).clamp(0.0, 0.95)).toColor();
+        bg = fg.withValues(alpha: 0.15);
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: background,
+        color: bg,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -256,12 +317,12 @@ class TutorMetricPill extends StatelessWidget {
         children: [
           Text(
             value,
-            style: TextStyle(color: foreground, fontWeight: FontWeight.w900),
+            style: TextStyle(color: fg, fontWeight: FontWeight.w900),
           ),
           const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(color: foreground, fontWeight: FontWeight.w700),
+            style: TextStyle(color: fg, fontWeight: FontWeight.w700),
           ),
         ],
       ),

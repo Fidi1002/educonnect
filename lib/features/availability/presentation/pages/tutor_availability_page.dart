@@ -18,121 +18,143 @@ class TutorAvailabilityPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Jadwal Ketersediaan Tutor')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: isLoading
-            ? null
-            : () => _showAddSlotDialog(context: context, ref: ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Tambah Slot'),
+      floatingActionButton: Semantics(
+        label: 'Tambah slot ketersediaan baru',
+        button: true,
+        child: FloatingActionButton.extended(
+          onPressed: isLoading
+              ? null
+              : () => _showAddSlotDialog(context: context, ref: ref),
+          icon: const Icon(Icons.add),
+          label: const Text('Tambah Slot'),
+        ),
       ),
-      body: slotsAsync.when(
-        data: (slots) {
-          final grouped = _groupByWeekday(slots);
-          final weeklyMinutes = slots.fold<int>(
-            0,
-            (sum, slot) => sum + _durationMinutes(slot),
-          );
-          final weeklyHours = (weeklyMinutes / 60).toStringAsFixed(
-            weeklyMinutes % 60 == 0 ? 0 : 1,
-          );
-          final activeDays = grouped.length;
-
-          if (slots.isEmpty) {
-            return ListView(
-              padding: const EdgeInsets.all(20),
-              children: const [
-                _AvailabilitySummaryCard(
-                  totalSlots: 0,
-                  weeklyHoursLabel: '0',
-                  activeDays: 0,
-                ),
-                SizedBox(height: 16),
-                _EmptyAvailabilityState(),
-              ],
-            );
-          }
-
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-            children: [
-              _AvailabilitySummaryCard(
-                totalSlots: slots.length,
-                weeklyHoursLabel: weeklyHours,
-                activeDays: activeDays,
-              ),
-              const SizedBox(height: 16),
-              const _AvailabilityHintCard(),
-              const SizedBox(height: 16),
-              ...grouped.entries.map((entry) {
-                final daySlots = entry.value;
-                final dayMinutes = daySlots.fold<int>(
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isTablet = constraints.maxWidth > 600;
+            
+            final content = slotsAsync.when(
+              data: (slots) {
+                final grouped = _groupByWeekday(slots);
+                final weeklyMinutes = slots.fold<int>(
                   0,
                   (sum, slot) => sum + _durationMinutes(slot),
                 );
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: _AvailabilityDayCard(
-                    weekdayLabel: daySlots.first.weekdayLabel,
-                    slotCount: daySlots.length,
-                    totalHoursLabel: (dayMinutes / 60).toStringAsFixed(
-                      dayMinutes % 60 == 0 ? 0 : 1,
+                final weeklyHours = (weeklyMinutes / 60).toStringAsFixed(
+                  weeklyMinutes % 60 == 0 ? 0 : 1,
+                );
+                final activeDays = grouped.length;
+
+                if (slots.isEmpty) {
+                  return ListView(
+                    padding: const EdgeInsets.all(20),
+                    children: const [
+                      _AvailabilitySummaryCard(
+                        totalSlots: 0,
+                        weeklyHoursLabel: '0',
+                        activeDays: 0,
+                      ),
+                      SizedBox(height: 16),
+                      _EmptyAvailabilityState(),
+                    ],
+                  );
+                }
+
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                  children: [
+                    _AvailabilitySummaryCard(
+                      totalSlots: slots.length,
+                      weeklyHoursLabel: weeklyHours,
+                      activeDays: activeDays,
                     ),
-                    slots: daySlots,
-                    isLoading: isLoading,
-                    onDelete: (slot) async {
-                      final ok = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Hapus slot?'),
-                          content: Text(
-                            'Slot ${slot.weekdayLabel} ${slot.startLabel} - ${slot.endLabel} akan dihapus dari jadwal tutor.',
+                    const SizedBox(height: 16),
+                    const _AvailabilityHintCard(),
+                    const SizedBox(height: 16),
+                    ...grouped.entries.map((entry) {
+                      final daySlots = entry.value;
+                      final dayMinutes = daySlots.fold<int>(
+                        0,
+                        (sum, slot) => sum + _durationMinutes(slot),
+                      );
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: _AvailabilityDayCard(
+                          weekdayLabel: daySlots.first.weekdayLabel,
+                          slotCount: daySlots.length,
+                          totalHoursLabel: (dayMinutes / 60).toStringAsFixed(
+                            dayMinutes % 60 == 0 ? 0 : 1,
                           ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Batal'),
-                            ),
-                            FilledButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('Hapus'),
-                            ),
-                          ],
+                          slots: daySlots,
+                          isLoading: isLoading,
+                          onDelete: (slot) async {
+                            final ok = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Hapus slot?'),
+                                content: Text(
+                                  'Slot ${slot.weekdayLabel} ${slot.startLabel} - ${slot.endLabel} akan dihapus dari jadwal tutor.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, false),
+                                    child: const Text('Batal'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: const Text('Hapus'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (ok != true || !context.mounted) {
+                              return;
+                            }
+                            try {
+                              await ref
+                                  .read(tutorAvailabilityControllerProvider)
+                                  .removeSlot(slot.id);
+                            } on Exception catch (error) {
+                              if (!context.mounted) {
+                                return;
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Gagal menghapus slot: ${error.toString()}',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
                         ),
                       );
-                      if (ok != true || !context.mounted) {
-                        return;
-                      }
-                      try {
-                        await ref
-                            .read(tutorAvailabilityControllerProvider)
-                            .removeSlot(slot.id);
-                      } on Exception catch (error) {
-                        if (!context.mounted) {
-                          return;
-                        }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Gagal menghapus slot: ${error.toString()}',
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                  ),
+                    }),
+                  ],
                 );
-              }),
-            ],
-          );
-        },
-        loading: () => const AppLoadingState(
-          message: 'Memuat availability tutor...',
-          fullScreen: false,
-        ),
-        error: (error, _) => AppErrorState(
-          message: 'Gagal memuat jadwal ketersediaan.',
-          detail: error.toString(),
-          onRetry: () => ref.invalidate(myTutorAvailabilityProvider),
+              },
+              loading: () => const AppLoadingState(
+                message: 'Memuat availability tutor...',
+                fullScreen: false,
+              ),
+              error: (error, _) => AppErrorState(
+                message: 'Gagal memuat jadwal ketersediaan.',
+                detail: error.toString(),
+                onRetry: () => ref.invalidate(myTutorAvailabilityProvider),
+              ),
+            );
+            
+            if (isTablet) {
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: content,
+                ),
+              );
+            }
+            return content;
+          },
         ),
       ),
     );
@@ -208,7 +230,7 @@ class TutorAvailabilityPage extends ConsumerWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    tileColor: const Color(0xFFF7F4EE),
+                    tileColor: Theme.of(context).colorScheme.surfaceContainerHigh,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 4,
@@ -232,7 +254,7 @@ class TutorAvailabilityPage extends ConsumerWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    tileColor: const Color(0xFFF7F4EE),
+                    tileColor: Theme.of(context).colorScheme.surfaceContainerHigh,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 4,
@@ -265,10 +287,10 @@ class TutorAvailabilityPage extends ConsumerWidget {
                   ),
                   if (isInvalid) ...[
                     const SizedBox(height: 10),
-                    const Text(
+                    Text(
                       'Jam selesai harus lebih besar dari jam mulai.',
                       style: TextStyle(
-                        color: Color(0xFFB3261E),
+                        color: Theme.of(context).colorScheme.error,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -347,8 +369,8 @@ class _AvailabilitySummaryCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF17324D), Color(0xFF2E5C74)],
+        gradient: LinearGradient(
+          colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.secondary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -411,15 +433,15 @@ class _AvailabilityHintCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6EFE4),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(18),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lightbulb_outline, color: Color(0xFF7B4B1A)),
-          SizedBox(width: 10),
-          Expanded(
+          Icon(Icons.lightbulb_outline, color: Theme.of(context).colorScheme.tertiary),
+          const SizedBox(width: 10),
+          const Expanded(
             child: Text(
               'Tips: kelompokkan jam mengajar yang berdekatan di hari yang sama agar tutor lebih mudah menerima booking paket 2x per minggu.',
             ),
@@ -452,15 +474,17 @@ class _AvailabilityDayCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x11000000),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
+        boxShadow: Theme.of(context).brightness == Brightness.dark
+            ? null
+            : const [
+                BoxShadow(
+                  color: Color(0x11000000),
+                  blurRadius: 18,
+                  offset: Offset(0, 8),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -486,7 +510,7 @@ class _AvailabilityDayCard extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFFF7F7FB),
+                color: Theme.of(context).colorScheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
@@ -545,7 +569,10 @@ class _SummaryPill extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(color: Color(0xFFDDEAF0), fontSize: 12),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.8),
+              fontSize: 12,
+            ),
           ),
         ],
       ),
@@ -563,13 +590,13 @@ class _MiniHintChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFE8D8),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Color(0xFF6B4D21),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.primary,
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
@@ -586,7 +613,7 @@ class _EmptyAvailabilityState extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(20),
       ),
       child: const Column(

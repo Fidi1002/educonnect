@@ -1,5 +1,6 @@
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/tutor/application/tutor_profile_controller.dart';
+import 'package:educonnect/features/tutor/domain/models/tutor_stats.dart';
 import 'package:educonnect/features/wallet/application/wallet_controller.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
@@ -49,10 +50,37 @@ class TutorStatsPage extends ConsumerWidget {
 
           return statsAsync.when(
             data: (stats) {
+              final isStatsEmpty = stats.totalHoursTaught == 0.0 &&
+                  stats.completedSessionsCount == 0 &&
+                  stats.activeStudentsCount == 0 &&
+                  stats.monthlyEarnings == 0 &&
+                  stats.bookingsCount == 0;
+
+              final displayStats = isStatsEmpty
+                  ? TutorStats(
+                      totalHoursTaught: 18.0,
+                      completedSessionsCount: 12,
+                      activeStudentsCount: 3,
+                      monthlyEarnings: 1800000,
+                      weekdaySessionCounts: const [2, 3, 1, 2, 2, 1, 1],
+                      bookingsCount: 5,
+                    )
+                  : stats;
+
               final wallet = walletAsync.valueOrNull;
-              final availableBalance = wallet?.availableBalance ?? 0;
-              final pendingBalance = wallet?.pendingBalance ?? 0;
-              final totalEarned = wallet?.totalEarned ?? 0;
+              final bool isWalletEmpty = wallet == null ||
+                  (wallet.availableBalance == 0 &&
+                      wallet.pendingBalance == 0 &&
+                      wallet.totalEarned == 0);
+
+              final displayAvailableBalance = isWalletEmpty ? 750000 : wallet.availableBalance;
+              final displayPendingBalance = isWalletEmpty ? 150000 : wallet.pendingBalance;
+              final displayTotalEarned = isWalletEmpty ? 900000 : wallet.totalEarned;
+              final displayMonthlyEarnings = isStatsEmpty ? 1800000 : stats.monthlyEarnings;
+
+              final displayRatingValue = profile.rating > 0
+                  ? '${profile.rating.toStringAsFixed(1)} / 5.0'
+                  : (isStatsEmpty ? '4.8 / 5.0 (Simulasi)' : 'Baru');
 
               return RefreshIndicator(
                 onRefresh: () async {
@@ -77,14 +105,35 @@ class TutorStatsPage extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'PENDAPATAN TUTOR',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12,
-                              letterSpacing: 1.2,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'PENDAPATAN TUTOR',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              if (isStatsEmpty || isWalletEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text(
+                                    'SIMULASI',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 12),
                           Row(
@@ -102,7 +151,7 @@ class TutorStatsPage extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    currencyFormat.format(availableBalance),
+                                    currencyFormat.format(displayAvailableBalance),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 22,
@@ -128,7 +177,7 @@ class TutorStatsPage extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    currencyFormat.format(stats.monthlyEarnings),
+                                    currencyFormat.format(displayMonthlyEarnings),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 22,
@@ -146,7 +195,7 @@ class TutorStatsPage extends ConsumerWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'Total Akumulasi: ${currencyFormat.format(totalEarned)}',
+                                'Total Akumulasi: ${currencyFormat.format(displayTotalEarned)}',
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 13,
@@ -154,7 +203,7 @@ class TutorStatsPage extends ConsumerWidget {
                                 ),
                               ),
                               Text(
-                                'Pending: ${currencyFormat.format(pendingBalance)}',
+                                'Pending: ${currencyFormat.format(displayPendingBalance)}',
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 13,
@@ -179,31 +228,36 @@ class TutorStatsPage extends ConsumerWidget {
                       children: [
                         _StatMetricCard(
                           title: 'Jam Mengajar',
-                          value: '${stats.totalHoursTaught.toStringAsFixed(1)} Jam',
+                          value: '${displayStats.totalHoursTaught.toStringAsFixed(1)} Jam',
                           icon: FluentIcons.timer_24_regular,
                           color: const Color(0xFF0284C7),
                         ),
                         _StatMetricCard(
                           title: 'Sesi Selesai',
-                          value: '${stats.completedSessionsCount} Sesi',
+                          value: '${displayStats.completedSessionsCount} Sesi',
                           icon: FluentIcons.checkmark_circle_24_regular,
                           color: const Color(0xFF10B981),
                         ),
                         _StatMetricCard(
                           title: 'Murid Aktif',
-                          value: '${stats.activeStudentsCount} Murid',
+                          value: '${displayStats.activeStudentsCount} Murid',
                           icon: FluentIcons.people_24_regular,
                           color: const Color(0xFF8B5CF6),
                         ),
                         _StatMetricCard(
                           title: 'Rating Tutor',
-                          value: profile.rating > 0
-                              ? '${profile.rating.toStringAsFixed(1)} / 5.0'
-                              : 'Baru',
+                          value: displayRatingValue,
                           icon: FluentIcons.star_24_regular,
                           color: const Color(0xFFF59E0B),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Booking Diterima full-width card
+                    _BookingReceivedCard(
+                      value: '${displayStats.bookingsCount} Booking',
+                      color: const Color(0xFFE11D48),
                     ),
                     const SizedBox(height: 20),
 
@@ -305,7 +359,7 @@ class TutorStatsPage extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          _WeeklyBarChart(counts: stats.weekdaySessionCounts),
+                          _WeeklyBarChart(counts: displayStats.weekdaySessionCounts),
                         ],
                       ),
                     ),
@@ -472,6 +526,72 @@ class _WeeklyBarChart extends StatelessWidget {
           ],
         );
       }),
+    );
+  }
+}
+
+class _BookingReceivedCard extends StatelessWidget {
+  const _BookingReceivedCard({
+    required this.value,
+    required this.color,
+  });
+
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(FluentIcons.book_letter_24_regular, color: color, size: 28),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Booking Diterima',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

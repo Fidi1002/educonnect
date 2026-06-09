@@ -54,6 +54,36 @@ class LocalNotificationService {
     _initialized = true;
   }
 
+  static Future<void> showNotification({
+    required int id,
+    required String title,
+    required String body,
+  }) async {
+    if (!_isSupportedPlatform) {
+      return;
+    }
+    const androidDetails = AndroidNotificationDetails(
+      'incoming_calls_or_general',
+      'Pemberitahuan & Panggilan',
+      channelDescription: 'Notifikasi untuk panggilan masuk atau aktivitas kelas',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+    );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+    await _notificationsPlugin.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: details,
+    );
+  }
+
   static Future<void> scheduleSessionReminder({
     required int id,
     required String title,

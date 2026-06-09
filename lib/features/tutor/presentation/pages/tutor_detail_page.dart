@@ -1,16 +1,19 @@
+import 'dart:ui';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/availability/application/tutor_availability_controller.dart';
 import 'package:educonnect/features/availability/domain/models/tutor_availability_slot.dart';
-import 'package:educonnect/features/booking/application/booking_controller.dart';
-import 'package:educonnect/features/booking/domain/models/booking_weekly_slot.dart';
 import 'package:educonnect/features/tutor/application/tutor_profile_controller.dart';
 import 'package:educonnect/features/tutor/domain/models/tutor_profile.dart';
 import 'package:educonnect/features/tutor/application/tutor_review_controller.dart';
+import 'package:educonnect/features/tutor/presentation/widgets/tutor_booking_sheet.dart';
+import 'package:educonnect/features/tutor/presentation/widgets/tutor_review_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 class TutorDetailPage extends ConsumerWidget {
   const TutorDetailPage({required this.tutorId, super.key});
@@ -22,6 +25,7 @@ class TutorDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (tutorId.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Detail Tutor')),
@@ -40,7 +44,7 @@ class TutorDetailPage extends ConsumerWidget {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: tutorAsync.when(
         data: (profile) {
           if (profile == null || !profile.isActive) {
@@ -109,9 +113,9 @@ class TutorDetailPage extends ConsumerWidget {
                           horizontal: 20,
                           vertical: 24,
                         ),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF8F9FA),
-                          borderRadius: BorderRadius.only(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(32),
                             topRight: Radius.circular(32),
                           ),
@@ -128,13 +132,26 @@ class TutorDetailPage extends ConsumerWidget {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        profile.displayName,
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w800,
-                                          color: Color(0xFF191622),
-                                        ),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            profile.displayName,
+                                            style: TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.w800,
+                                              color: Theme.of(context).colorScheme.onSurface,
+                                            ),
+                                          ),
+                                          if (profile.verificationStatus == 'approved') ...[
+                                            const SizedBox(width: 6),
+                                            const Icon(
+                                              FluentIcons.checkmark_circle_20_filled,
+                                              color: Color(0xFF0284C7),
+                                              size: 20,
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                       const SizedBox(height: 6),
                                       Row(
@@ -166,9 +183,10 @@ class TutorDetailPage extends ConsumerWidget {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: isDark ? const Color(0xFF1B2336) : Colors.white,
                                     borderRadius: BorderRadius.circular(16),
-                                    boxShadow: const [
+                                    border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+                                    boxShadow: isDark ? null : const [
                                       BoxShadow(
                                         color: Color(0x0A000000),
                                         blurRadius: 10,
@@ -188,10 +206,10 @@ class TutorDetailPage extends ConsumerWidget {
                                       const SizedBox(height: 4),
                                       Text(
                                         profile.rating.toStringAsFixed(1),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontWeight: FontWeight.w800,
                                           fontSize: 16,
-                                          color: Color(0xFF191622),
+                                          color: Theme.of(context).colorScheme.onSurface,
                                         ),
                                       ),
                                     ],
@@ -287,12 +305,12 @@ class TutorDetailPage extends ConsumerWidget {
                             ),
 
                             const SizedBox(height: 32),
-                            const Text(
+                            Text(
                               'Mata Pelajaran',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFF191622),
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -304,37 +322,113 @@ class TutorDetailPage extends ConsumerWidget {
                                   .toList(),
                             ),
 
+                            if (profile.teachingLevels.isNotEmpty) ...[
+                              const SizedBox(height: 24),
+                              Text(
+                                'Tingkat Sekolah Sasaran',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: profile.teachingLevels
+                                    .map((item) => _ModernTag(
+                                          label: item,
+                                          color: const Color(0xFF0F766E),
+                                          bgColor: const Color(0xFFE4F7EF),
+                                        ))
+                                    .toList(),
+                              ),
+                            ],
+
+                            if (profile.languages.isNotEmpty) ...[
+                              const SizedBox(height: 24),
+                              Text(
+                                'Bahasa Pengantar',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: profile.languages
+                                    .map((item) => _ModernTag(
+                                          label: item,
+                                          color: const Color(0xFF4B176E),
+                                          bgColor: const Color(0xFFF3F0F7),
+                                        ))
+                                    .toList(),
+                              ),
+                            ],
+
+                            if (profile.introductionVideoUrl != null &&
+                                profile.introductionVideoUrl!.isNotEmpty) ...[
+                              const SizedBox(height: 28),
+                              Text(
+                                'Video Perkenalan',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _InAppYoutubePlayer(videoUrl: profile.introductionVideoUrl!),
+                            ],
+
                             const SizedBox(height: 32),
-                            const Text(
+                            Text(
                               'Tentang Tutor',
                               style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF191622),
-                              ),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Theme.of(context).colorScheme.onSurface),
                             ),
                             const SizedBox(height: 12),
                             Text(
                               profile.bio.isEmpty
                                   ? 'Tutor belum menulis deskripsi diri.'
                                   : profile.bio,
-                              style: const TextStyle(
-                                color: Color(0xFF4A5568),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 height: 1.6,
                                 fontSize: 15,
                               ),
                             ),
 
+                            if (profile.experienceCv != null && profile.experienceCv!.isNotEmpty) ...[
+                              const SizedBox(height: 32),
+                              Text(
+                                'Portofolio & CV Mengajar',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildCvTimeline(profile.experienceCv, isDark),
+                            ],
+
                             const SizedBox(height: 32),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
+                                Text(
                                   'Ketersediaan Waktu',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFF191622),
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                                 IconButton(
@@ -342,12 +436,12 @@ class TutorDetailPage extends ConsumerWidget {
                                     context,
                                     availabilityAsync,
                                   ),
-                                  icon: const Icon(
+                                  icon: Icon(
                                     FluentIcons.calendar_ltr_24_regular,
-                                    color: Color(0xFF4B176E),
+                                    color: isDark ? Colors.white : const Color(0xFF4B176E),
                                   ),
                                   style: IconButton.styleFrom(
-                                    backgroundColor: const Color(0xFFF3F0F7),
+                                    backgroundColor: isDark ? const Color(0xFF28354E) : const Color(0xFFF3F0F7),
                                   ),
                                 ),
                               ],
@@ -358,12 +452,12 @@ class TutorDetailPage extends ConsumerWidget {
                             ),
 
                             const SizedBox(height: 32),
-                            const Text(
+                            Text(
                               'Ulasan Siswa',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFF191622),
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -384,76 +478,87 @@ class TutorDetailPage extends ConsumerWidget {
                 bottom: 24,
                 left: 24,
                 right: 24,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(32),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x1A000000),
-                        blurRadius: 24,
-                        offset: Offset(0, 10),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(32),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'Harga mulai',
-                            style: TextStyle(
-                              color: Color(0xFF718096),
-                              fontSize: 12,
-                            ),
+                      decoration: BoxDecoration(
+                        color: isDark 
+                            ? const Color(0xFF1B2336).withValues(alpha: 0.75)
+                            : Colors.white.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(32),
+                        border: Border.all(
+                          color: isDark 
+                              ? const Color(0xFF28354E).withValues(alpha: 0.5) 
+                              : const Color(0xFFE2E8F0).withValues(alpha: 0.5),
+                        ),
+                        boxShadow: isDark ? null : const [
+                          BoxShadow(
+                            color: Color(0x1A000000),
+                            blurRadius: 24,
+                            offset: Offset(0, 10),
                           ),
-                          Text(
-                            'Rp ${profile.pricePerHour}/jam',
-                            style: const TextStyle(
-                              color: Color(0xFF1A202C),
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Harga mulai',
+                                style: TextStyle(
+                                  color: Color(0xFF718096),
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                'Rp ${profile.pricePerHour}/jam',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () => _startBooking(context, profile),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFF4B176E),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                              ),
+                              child: const Text(
+                                'Booking Sekarang',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: () => _startBooking(context, profile),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF4B176E),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                          ),
-                          child: const Text(
-                            'Booking Sekarang',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ],
           );
         },
-        loading: () => const Scaffold(
-          body: AppLoadingState(message: 'Memuat profil tutor...'),
-        ),
+        loading: () => const _TutorDetailSkeleton(),
         error: (error, _) => Scaffold(
           appBar: AppBar(),
           body: AppErrorState(
@@ -473,7 +578,7 @@ class TutorDetailPage extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return _BookingPackageSheet(tutor: tutor);
+        return TutorBookingPackageSheet(tutor: tutor);
       },
     );
   }
@@ -482,15 +587,17 @@ class TutorDetailPage extends ConsumerWidget {
     BuildContext context,
     AsyncValue<List<TutorAvailabilitySlot>> availabilityAsync,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1B2336) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
           ),
           padding: const EdgeInsets.all(24),
           constraints: BoxConstraints(
@@ -568,6 +675,82 @@ class TutorDetailPage extends ConsumerWidget {
       },
     );
   }
+
+  Widget _buildCvTimeline(List<Map<String, dynamic>>? cvList, bool isDark) {
+    if (cvList == null || cvList.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: List.generate(cvList.length, (index) {
+        final item = cvList[index];
+        final isLast = index == cvList.length - 1;
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                children: [
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF4B176E),
+                      border: Border.all(color: isDark ? const Color(0xFF1B2336) : Colors.white, width: 2.5),
+                    ),
+                  ),
+                  if (!isLast)
+                    Expanded(
+                      child: Container(
+                        width: 2,
+                        color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 14),
+               Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['role'] ?? '',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF191622),
+                        ),
+                      ),
+                      Text(
+                        "${item['institution'] ?? '-'} (${item['period'] ?? '-'})",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF4B176E),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (item['description'] != null && item['description'].toString().isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          item['description'],
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
 }
 
 class _StatCard extends StatelessWidget {
@@ -587,12 +770,14 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1B2336) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
+        border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+        boxShadow: isDark ? null : const [
           BoxShadow(
             color: Color(0x0A000000),
             blurRadius: 10,
@@ -619,8 +804,8 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
-              color: Color(0xFF1A202C),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.w800,
               fontSize: 16,
             ),
@@ -632,21 +817,32 @@ class _StatCard extends StatelessWidget {
 }
 
 class _ModernTag extends StatelessWidget {
-  const _ModernTag({required this.label});
+  const _ModernTag({
+    required this.label,
+    this.color,
+    this.bgColor,
+  });
+
   final String label;
+  final Color? color;
+  final Color? bgColor;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fallbackBgColor = isDark ? const Color(0xFF28354E) : const Color(0xFFF7F9FF);
+    final fallbackTextColor = isDark ? Colors.white : const Color(0xFF4B176E);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F9FF),
+        color: bgColor ?? fallbackBgColor,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Color(0xFF4B176E),
+        style: TextStyle(
+          color: color ?? fallbackTextColor,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -674,6 +870,7 @@ class _AvailabilityPreview extends StatelessWidget {
 
         final grouped = _groupAvailability(slots);
         final topDays = grouped.keys.take(3).toList();
+        final isDark = Theme.of(context).brightness == Brightness.dark;
 
         return Wrap(
           spacing: 8,
@@ -682,8 +879,10 @@ class _AvailabilityPreview extends StatelessWidget {
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                color: isDark ? const Color(0xFF1B2336) : Colors.white,
+                border: Border.all(
+                  color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0),
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -697,8 +896,8 @@ class _AvailabilityPreview extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     day,
-                    style: const TextStyle(
-                      color: Color(0xFF4A5568),
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : const Color(0xFF4A5568),
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
                     ),
@@ -723,23 +922,26 @@ class _AvailabilityDayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: isDark ? const Color(0xFF1B2336) : const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE9E2F2)),
+        border: Border.all(
+          color: isDark ? const Color(0xFF28354E) : const Color(0xFFE9E2F2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             weekdayLabel,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 16,
-              color: Color(0xFF191622),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 12),
@@ -754,13 +956,13 @@ class _AvailabilityDayCard extends StatelessWidget {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: isDark ? const Color(0xFF28354E) : const Color(0xFFEAF2FF),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       '${slot.startLabel} - ${slot.endLabel}',
-                      style: const TextStyle(
-                        color: Color(0xFF4B176E),
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF4B176E),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -837,6 +1039,7 @@ class _ReviewsList extends ConsumerWidget {
         }
         final averageRating = totalCount > 0 ? totalSum / totalCount : 0.0;
         
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -845,9 +1048,10 @@ class _ReviewsList extends ConsumerWidget {
               margin: const EdgeInsets.only(bottom: 24),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0xFF1B2336) : Colors.white,
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: const [
+                border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+                boxShadow: isDark ? null : const [
                   BoxShadow(
                     color: Color(0x08000000),
                     blurRadius: 20,
@@ -863,10 +1067,10 @@ class _ReviewsList extends ConsumerWidget {
                     children: [
                       Text(
                         averageRating.toStringAsFixed(1),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 48,
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF191622),
+                          color: Theme.of(context).colorScheme.onSurface,
                           height: 1,
                         ),
                       ),
@@ -898,7 +1102,7 @@ class _ReviewsList extends ConsumerWidget {
                   Container(
                     width: 1,
                     height: 80,
-                    color: const Color(0xFFF1F5F9),
+                    color: isDark ? const Color(0xFF28354E) : const Color(0xFFF1F5F9),
                   ),
                   const SizedBox(width: 24),
                   // Right side: Bar distribution
@@ -932,7 +1136,7 @@ class _ReviewsList extends ConsumerWidget {
                                   borderRadius: BorderRadius.circular(4),
                                   child: LinearProgressIndicator(
                                     value: percentage,
-                                    backgroundColor: const Color(0xFFF1F5F9),
+                                    backgroundColor: isDark ? const Color(0xFF28354E) : const Color(0xFFF1F5F9),
                                     color: const Color(0xFF4B176E),
                                     minHeight: 6,
                                   ),
@@ -964,7 +1168,7 @@ class _ReviewsList extends ConsumerWidget {
             // List of Reviews
             ...reviews.map((r) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: _ReviewCard(
+              child: TutorReviewCard(
                 studentName: r.studentName ?? 'Siswa Tanpa Nama',
                 rating: r.rating,
                 comment: r.reviewText,
@@ -975,792 +1179,535 @@ class _ReviewsList extends ConsumerWidget {
           ],
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Gagal memuat ulasan')),
+      loading: () => const _ReviewsSkeleton(),
+      error: (e, _) => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text('Gagal memuat ulasan'),
+        ),
+      ),
     );
   }
 }
 
-class _ReviewCard extends StatelessWidget {
-  const _ReviewCard({
-    required this.studentName,
-    required this.rating,
-    required this.comment,
-    required this.date,
-    this.photoUrl,
+// ----------------------------------------------------------------------
+// Premium Skeleton Shimmer Components
+// ----------------------------------------------------------------------
+
+class _SkeletonBox extends StatelessWidget {
+  final double? width;
+  final double height;
+  final double borderRadius;
+  final EdgeInsetsGeometry? margin;
+
+  const _SkeletonBox({
+    this.width,
+    required this.height,
+    this.borderRadius = 8,
+    this.margin,
   });
-
-  final String studentName;
-  final double rating;
-  final String comment;
-  final String date;
-  final String? photoUrl;
-
-  String _maskName(String name) {
-    if (name.isEmpty) return 'Siswa Tersembunyi';
-    final parts = name.trim().split(' ');
-    final maskedParts = parts.map((part) {
-      if (part.length <= 2) {
-        return '${part[0]}*';
-      }
-      return part.substring(0, 2) + '*' * (part.length - 2);
-    });
-    return maskedParts.join(' ');
-  }
 
   @override
   Widget build(BuildContext context) {
-    final maskedStudentName = _maskName(studentName);
-    
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = isDark 
+        ? const Color(0xFF1B2336) 
+        : const Color(0xFFE2E8F0);
+    final highlightColor = isDark 
+        ? const Color(0xFF28354E) 
+        : const Color(0xFFF1F5F9);
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: width,
+      height: height,
+      margin: margin,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 10,
-            offset: Offset(0, 4),
+        color: baseColor,
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
+    )
+    .animate(onPlay: (controller) => controller.repeat())
+    .shimmer(
+      duration: 1500.ms,
+      color: highlightColor,
+    );
+  }
+}
+
+class _TutorDetailSkeleton extends StatelessWidget {
+  const _TutorDetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _SkeletonBox(
+                  width: double.infinity,
+                  height: 300,
+                  borderRadius: 0,
+                ),
+                Transform.translate(
+                  offset: const Offset(0, -32),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 24,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(32),
+                        topRight: Radius.circular(32),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _SkeletonBox(width: 180, height: 28, borderRadius: 8),
+                                  SizedBox(height: 8),
+                                  _SkeletonBox(width: 120, height: 16, borderRadius: 6),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            _SkeletonBox(
+                              width: 60,
+                              height: 60,
+                              borderRadius: 16,
+                              margin: EdgeInsets.zero,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                height: 96,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1B2336) : Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+                                  boxShadow: isDark ? null : const [
+                                    BoxShadow(
+                                      color: Color(0x0A000000),
+                                      blurRadius: 10,
+                                      offset: Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _SkeletonBox(width: 32, height: 32, borderRadius: 12),
+                                    Spacer(),
+                                    _SkeletonBox(width: 80, height: 16, borderRadius: 6),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Container(
+                                height: 96,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1B2336) : Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+                                  boxShadow: isDark ? null : const [
+                                    BoxShadow(
+                                      color: Color(0x0A000000),
+                                      blurRadius: 10,
+                                      offset: Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _SkeletonBox(width: 32, height: 32, borderRadius: 12),
+                                    Spacer(),
+                                    _SkeletonBox(width: 80, height: 16, borderRadius: 6),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1B2336) : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+                          ),
+                          child: const Row(
+                            children: [
+                              _SkeletonBox(width: 40, height: 40, borderRadius: 12),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _SkeletonBox(width: 140, height: 16, borderRadius: 6),
+                                    SizedBox(height: 6),
+                                    _SkeletonBox(width: 200, height: 12, borderRadius: 4),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        const _SkeletonBox(width: 140, height: 20, borderRadius: 8),
+                        const SizedBox(height: 12),
+                        const Row(
+                          children: [
+                            _SkeletonBox(width: 70, height: 32, borderRadius: 16),
+                            SizedBox(width: 8),
+                            _SkeletonBox(width: 85, height: 32, borderRadius: 16),
+                            SizedBox(width: 8),
+                            _SkeletonBox(width: 60, height: 32, borderRadius: 16),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+                        const _SkeletonBox(width: 120, height: 20, borderRadius: 8),
+                        const SizedBox(height: 12),
+                        const _SkeletonBox(width: double.infinity, height: 14, borderRadius: 4),
+                        const SizedBox(height: 8),
+                        const _SkeletonBox(width: double.infinity, height: 14, borderRadius: 4),
+                        const SizedBox(height: 8),
+                        const _SkeletonBox(width: 240, height: 14, borderRadius: 4),
+                        const SizedBox(height: 32),
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _SkeletonBox(width: 160, height: 20, borderRadius: 8),
+                            _SkeletonBox(width: 40, height: 40, borderRadius: 20),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        const Row(
+                          children: [
+                            _SkeletonBox(width: 80, height: 30, borderRadius: 12),
+                            SizedBox(width: 8),
+                            _SkeletonBox(width: 90, height: 30, borderRadius: 12),
+                            SizedBox(width: 8),
+                            _SkeletonBox(width: 75, height: 30, borderRadius: 12),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+                        const _SkeletonBox(width: 120, height: 20, borderRadius: 8),
+                        const SizedBox(height: 16),
+                        const _ReviewsSkeleton(),
+                        const SizedBox(height: 120),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            bottom: 24,
+            left: 24,
+            right: 24,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
+              decoration: BoxDecoration(
+                color: isDark 
+                    ? const Color(0xFF1B2336).withValues(alpha: 0.95)
+                    : Colors.white.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(32),
+                border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+                boxShadow: isDark ? null : const [
+                  BoxShadow(
+                    color: Color(0x1A000000),
+                    blurRadius: 24,
+                    offset: Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: const Row(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _SkeletonBox(width: 60, height: 12, borderRadius: 4),
+                      SizedBox(height: 6),
+                      _SkeletonBox(width: 100, height: 18, borderRadius: 6),
+                    ],
+                  ),
+                  SizedBox(width: 24),
+                  Expanded(
+                    child: _SkeletonBox(height: 48, borderRadius: 24),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: const Color(0xFFF3F0F7),
-                backgroundImage: photoUrl != null && photoUrl!.isNotEmpty
-                    ? NetworkImage(photoUrl!)
-                    : null,
-                child: photoUrl == null || photoUrl!.isEmpty
-                    ? Text(
-                        maskedStudentName.isNotEmpty ? maskedStudentName[0].toUpperCase() : '?',
-                        style: const TextStyle(
-                          color: Color(0xFF4B176E),
-                          fontWeight: FontWeight.w800,
-                        ),
-                      )
-                    : null,
+    );
+  }
+}
+
+class _ReviewsSkeleton extends StatelessWidget {
+  const _ReviewsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1B2336) : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+            boxShadow: isDark ? null : const [
+              BoxShadow(
+                color: Color(0x08000000),
+                blurRadius: 20,
+                offset: Offset(0, 8),
               ),
-              const SizedBox(width: 12),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Column(
+                children: [
+                  _SkeletonBox(width: 50, height: 48, borderRadius: 8),
+                  SizedBox(height: 8),
+                  _SkeletonBox(width: 70, height: 12, borderRadius: 4),
+                ],
+              ),
+              const SizedBox(width: 24),
+              Container(
+                width: 1,
+                height: 80,
+                color: isDark ? const Color(0xFF28354E) : const Color(0xFFF1F5F9),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  children: List.generate(5, (_) => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: [
+                        _SkeletonBox(width: 12, height: 12, borderRadius: 2),
+                        SizedBox(width: 8),
+                        Expanded(child: _SkeletonBox(height: 6, borderRadius: 3)),
+                        SizedBox(width: 8),
+                        _SkeletonBox(width: 16, height: 12, borderRadius: 2),
+                      ],
+                    ),
+                  )),
+                ),
+              ),
+            ],
+          ),
+        ),
+        ...List.generate(2, (_) => Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1B2336) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+          ),
+          child: const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SkeletonBox(width: 40, height: 40, borderRadius: 20),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      maskedStudentName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF191622),
-                      ),
-                    ),
-                    Text(
-                      date,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF718096),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF1C7),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      FluentIcons.star_16_filled,
-                      size: 12,
-                      color: Color(0xFFA16207),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      rating.toStringAsFixed(1),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFA16207),
-                      ),
-                    ),
+                    _SkeletonBox(width: 120, height: 16, borderRadius: 6),
+                    SizedBox(height: 6),
+                    _SkeletonBox(width: 80, height: 12, borderRadius: 4),
+                    SizedBox(height: 12),
+                    _SkeletonBox(width: double.infinity, height: 14, borderRadius: 4),
+                    SizedBox(height: 6),
+                    _SkeletonBox(width: 180, height: 14, borderRadius: 4),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            comment,
-            style: const TextStyle(color: Color(0xFF4A5568), height: 1.5),
-          ),
-        ],
-      ),
+        )),
+      ],
     );
   }
 }
 
-// ----------------------------------------------------------------------
-// Booking Sheet
-// ----------------------------------------------------------------------
+class _InAppYoutubePlayer extends StatefulWidget {
+  const _InAppYoutubePlayer({required this.videoUrl});
 
-class _BookingPackageSheet extends StatefulWidget {
-  const _BookingPackageSheet({required this.tutor});
-  final TutorProfile tutor;
+  final String videoUrl;
 
   @override
-  State<_BookingPackageSheet> createState() => _BookingPackageSheetState();
+  State<_InAppYoutubePlayer> createState() => _InAppYoutubePlayerState();
 }
 
-class _BookingPackageSheetState extends State<_BookingPackageSheet> {
-  int _selectedMonths = 1;
-  int _selectedSessionsPerWeek = 1;
-
-  int get _totalSessions => _selectedMonths * 4 * _selectedSessionsPerWeek;
-  num get _totalPrice => _totalSessions * widget.tutor.pricePerHour;
+class _InAppYoutubePlayerState extends State<_InAppYoutubePlayer> {
+  YoutubePlayerController? _controller;
+  String? _videoId;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      padding: const EdgeInsets.all(24),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 48,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Pilih Paket Belajar',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF191622),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            const Text(
-              'Durasi Paket (Bulan)',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF4A5568),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [1, 2, 3, 6].map((months) {
-                final isSelected = _selectedMonths == months;
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: InkWell(
-                      onTap: () => setState(() => _selectedMonths = months),
-                      borderRadius: BorderRadius.circular(16),
-                      child: Ink(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFF4B176E)
-                              : Colors.white,
-                          border: Border.all(
-                            color: isSelected
-                                ? const Color(0xFF4B176E)
-                                : const Color(0xFFE2E8F0),
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$months Bln',
-                            style: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
-                                  : const Color(0xFF4A5568),
-                              fontWeight: isSelected
-                                  ? FontWeight.w800
-                                  : FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-
-            const SizedBox(height: 24),
-
-            const Text(
-              'Sesi per Minggu',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF4A5568),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [1, 2].map((sessions) {
-                final isSelected = _selectedSessionsPerWeek == sessions;
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: InkWell(
-                      onTap: () =>
-                          setState(() => _selectedSessionsPerWeek = sessions),
-                      borderRadius: BorderRadius.circular(16),
-                      child: Ink(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFF4B176E)
-                              : Colors.white,
-                          border: Border.all(
-                            color: isSelected
-                                ? const Color(0xFF4B176E)
-                                : const Color(0xFFE2E8F0),
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$sessions Sesi',
-                            style: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
-                                  : const Color(0xFF4A5568),
-                              fontWeight: isSelected
-                                  ? FontWeight.w800
-                                  : FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-
-            const SizedBox(height: 32),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F9FA),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total Sesi',
-                        style: TextStyle(color: Color(0xFF718096)),
-                      ),
-                      Text(
-                        '$_totalSessions sesi',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1A202C),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 24, color: Color(0xFFE2E8F0)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total Harga',
-                        style: TextStyle(
-                          color: Color(0xFF1A202C),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        'Rp $_totalPrice',
-                        style: const TextStyle(
-                          color: Color(0xFF4B176E),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 20,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-            Consumer(
-              builder: (context, ref, _) {
-                return SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _goToScheduleSelection,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF4B176E),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
-                    child: const Text(
-                      'Lanjutkan ke Jadwal',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
+  void initState() {
+    super.initState();
+    _videoId = YoutubePlayer.convertUrlToId(widget.videoUrl);
+    if (_videoId != null) {
+      _controller = YoutubePlayerController(
+        initialVideoId: _videoId!,
+        flags: const YoutubePlayerFlags(
+          autoPlay: false,
+          mute: false,
+          enableCaption: true,
         ),
-      ),
-    );
+      );
+    }
   }
-
-  void _goToScheduleSelection() {
-    Navigator.of(context).pop(); // close package sheet
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return _BookingScheduleSelectionSheet(
-          tutor: widget.tutor,
-          packageMonths: _selectedMonths,
-          sessionsPerWeek: _selectedSessionsPerWeek,
-        );
-      },
-    );
-  }
-}
-
-class _BookingScheduleSelectionSheet extends ConsumerStatefulWidget {
-  const _BookingScheduleSelectionSheet({
-    required this.tutor,
-    required this.packageMonths,
-    required this.sessionsPerWeek,
-  });
-
-  final TutorProfile tutor;
-  final int packageMonths;
-  final int sessionsPerWeek;
 
   @override
-  ConsumerState<_BookingScheduleSelectionSheet> createState() =>
-      _BookingScheduleSelectionSheetState();
-}
-
-class _BookingScheduleSelectionSheetState
-    extends ConsumerState<_BookingScheduleSelectionSheet> {
-  final _selectedSlots = <TutorAvailabilitySlot>[];
-  String _meetingType = 'online';
-  final _locationController = TextEditingController();
+  void deactivate() {
+    _controller?.pause();
+    super.deactivate();
+  }
 
   @override
   void dispose() {
-    _locationController.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final availabilityAsync =
-        ref.watch(tutorAvailabilityByTutorProvider(widget.tutor.uid));
-    final bookedSlotsAsync =
-        ref.watch(tutorBookedWeeklySlotsProvider(widget.tutor.uid));
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      padding: const EdgeInsets.all(24),
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 48,
-              height: 6,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE2E8F0),
-                borderRadius: BorderRadius.circular(3),
-              ),
+    if (_videoId == null || _controller == null) {
+      return InkWell(
+        onTap: () => _launchVideoUrl(context, widget.videoUrl),
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          height: 160,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF4B176E), Color(0xFFFF1377)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Pilih ${widget.sessionsPerWeek} Jadwal Mingguan',
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF191622),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Jadwal ini akan terkunci untuk seluruh periode paket belajarmu.',
-            style: TextStyle(color: Color(0xFF718096)),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: availabilityAsync.when(
-              data: (slots) {
-                if (slots.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Tutor belum mengatur ketersediaan waktu mengajar.',
-                      textAlign: TextAlign.center,
-                    ),
-                  );
-                }
-
-                final bookedSlots = bookedSlotsAsync.valueOrNull ?? const [];
-                final grouped = _groupAvailability(slots);
-                final sortedKeys = grouped.keys.toList()
-                  ..sort(
-                    (a, b) => _weekdaySortKey(a).compareTo(_weekdaySortKey(b)),
-                  );
-
-                return ListView.builder(
-                  itemCount: sortedKeys.length,
-                  itemBuilder: (context, index) {
-                    final day = sortedKeys[index];
-                    final daySlots = grouped[day]!;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            day,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF4B176E),
-                            ),
-                          ),
-                        ),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: daySlots.map((slot) {
-                            final isSelected = _selectedSlots.contains(slot);
-                            
-                            // Check if this specific slot is already booked by another student
-                            final isBooked = bookedSlots.any((b) =>
-                                b.weekday == slot.weekday &&
-                                b.startTime == slot.startTime &&
-                                b.endTime == slot.endTime);
-
-                            return InkWell(
-                              onTap: isBooked
-                                  ? null
-                                  : () {
-                                      setState(() {
-                                        if (isSelected) {
-                                          _selectedSlots.remove(slot);
-                                        } else {
-                                          if (_selectedSlots.length <
-                                              widget.sessionsPerWeek) {
-                                            _selectedSlots.add(slot);
-                                          } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  'Kamu hanya bisa memilih ${widget.sessionsPerWeek} jadwal.',
-                                                ),
-                                                duration: const Duration(seconds: 2),
-                                              ),
-                                            );
-                                          }
-                                        }
-                                      });
-                                    },
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isBooked
-                                      ? const Color(0xFFF1F5F9)
-                                      : isSelected
-                                          ? const Color(0xFF4B176E)
-                                          : Colors.white,
-                                  border: Border.all(
-                                    color: isBooked
-                                        ? const Color(0xFFE2E8F0)
-                                        : isSelected
-                                            ? const Color(0xFF4B176E)
-                                            : const Color(0xFFE2E8F0),
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: isBooked
-                                    ? Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            FluentIcons.lock_closed_24_regular,
-                                            size: 14,
-                                            color: Color(0xFF94A3B8),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            '${slot.startLabel} - ${slot.endLabel}',
-                                            style: const TextStyle(
-                                              color: Color(0xFF94A3B8),
-                                              decoration: TextDecoration.lineThrough,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : Text(
-                                        '${slot.startLabel} - ${slot.endLabel}',
-                                        style: TextStyle(
-                                          color: isSelected
-                                              ? Colors.white
-                                              : const Color(0xFF4A5568),
-                                          fontWeight: isSelected
-                                              ? FontWeight.w700
-                                              : FontWeight.normal,
-                                        ),
-                                      ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Gagal memuat jadwal')),
-            ),
-          ),
-          const Divider(height: 32),
-          const Text(
-            'Metode Pertemuan',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF191622),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: ChoiceChip(
-                  label: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.videocam, size: 16),
-                      SizedBox(width: 6),
-                      Text('Online'),
-                    ],
-                  ),
-                  selected: _meetingType == 'online',
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() {
-                        _meetingType = 'online';
-                      });
-                    }
-                  },
-                  selectedColor: const Color(0xFF4B176E).withValues(alpha: 0.15),
-                  side: BorderSide(
-                    color: _meetingType == 'online'
-                        ? const Color(0xFF4B176E)
-                        : const Color(0xFFE2E8F0),
-                    width: 1.5,
-                  ),
-                  labelStyle: TextStyle(
-                    color: _meetingType == 'online'
-                        ? const Color(0xFF4B176E)
-                        : const Color(0xFF4A5568),
-                    fontWeight: _meetingType == 'online' ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ChoiceChip(
-                  label: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.location_on, size: 16),
-                      SizedBox(width: 6),
-                      Text('Offline'),
-                    ],
-                  ),
-                  selected: _meetingType == 'offline',
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() {
-                        _meetingType = 'offline';
-                      });
-                    }
-                  },
-                  selectedColor: const Color(0xFF4B176E).withValues(alpha: 0.15),
-                  side: BorderSide(
-                    color: _meetingType == 'offline'
-                        ? const Color(0xFF4B176E)
-                        : const Color(0xFFE2E8F0),
-                    width: 1.5,
-                  ),
-                  labelStyle: TextStyle(
-                    color: _meetingType == 'offline'
-                        ? const Color(0xFF4B176E)
-                        : const Color(0xFF4A5568),
-                    fontWeight: _meetingType == 'offline' ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF1377).withValues(alpha: 0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-          if (_meetingType == 'offline') ...[
-            const SizedBox(height: 12),
-            TextField(
-              controller: _locationController,
-              decoration: InputDecoration(
-                labelText: 'Alamat / Lokasi Pertemuan',
-                hintText: 'Contoh: Rumah/Cafe, Jl. Mawar No. 12',
-                prefixIcon: const Icon(Icons.pin_drop, color: Color(0xFF4B176E)),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF4B176E), width: 2),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              style: const TextStyle(fontSize: 14),
-            ),
-          ],
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed:
-                  _selectedSlots.length == widget.sessionsPerWeek
-                      ? () => _submitBooking(ref)
-                      : null,
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF4B176E),
-                disabledBackgroundColor: const Color(0xFFE2E8F0),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Opacity(
+                opacity: 0.15,
+                child: Icon(
+                  FluentIcons.video_clip_24_regular,
+                  size: 120,
+                  color: Colors.white,
                 ),
               ),
-              child: const Text(
-                'Konfirmasi & Booking',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.play_arrow_rounded,
+                      color: Color(0xFFFF1377),
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Buka Video Perkenalan Tutor (Eksternal)',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-            ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4B176E).withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 6),
           ),
         ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: YoutubePlayer(
+        controller: _controller!,
+        showVideoProgressIndicator: true,
+        progressIndicatorColor: const Color(0xFFFF1377),
+        progressColors: const ProgressBarColors(
+          playedColor: Color(0xFFFF1377),
+          handleColor: Color(0xFFFF1377),
+        ),
       ),
     );
   }
 
-  void _submitBooking(WidgetRef ref) async {
-    try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) {
-        throw Exception('Kamu harus login terlebih dahulu.');
-      }
-
-      if (_meetingType == 'offline' && _locationController.text.trim().isEmpty) {
-        throw Exception('Alamat lokasi pertemuan offline wajib diisi.');
-      }
-
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const Center(child: CircularProgressIndicator()),
-      );
-
-      final ctrl = ref.read(bookingControllerProvider);
-
-      final realSlots =
-          _selectedSlots
-              .map(
-                (s) => BookingWeeklySlot(
-                  weekday: s.weekday,
-                  startTime: s.startTime,
-                  endTime: s.endTime,
-                ),
-              )
-              .toList();
-
-      await ctrl.createBooking(
-        tutorUid: widget.tutor.uid,
-        subject: widget.tutor.subjects.firstOrNull ?? 'Mapel Umum',
-        packageStartDate: DateTime.now().add(const Duration(days: 1)),
-        packageMonths: widget.packageMonths,
-        weeklySlots: realSlots,
-        durationMinutes: 60,
-        message: 'Saya siap untuk belajar',
-        meetingType: _meetingType,
-        meetingLocation: _meetingType == 'online'
-            ? 'Online Classroom'
-            : _locationController.text.trim(),
-      );
-
-      if (!mounted) return;
-      Navigator.of(context).pop(); // dialog
-      Navigator.of(context).pop(); // sheet
-
+  Future<void> _launchVideoUrl(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Booking berhasil diajukan!')),
+        const SnackBar(content: Text('Tidak dapat membuka video perkenalan.')),
       );
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 }
-

@@ -53,9 +53,9 @@ class _AuthPageState extends ConsumerState<AuthPage>
           // Vibrant Gradient Background
           Positioned.fill(
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF4B176E), Color(0xFFFF1377)],
+                  colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.tertiary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -147,9 +147,9 @@ class _AuthPageState extends ConsumerState<AuthPage>
                               children: [
                                 TabBar(
                                   controller: _tabController,
-                                  labelColor: const Color(0xFF4B176E),
-                                  unselectedLabelColor: const Color(0xFF667085),
-                                  indicatorColor: const Color(0xFFFF1377),
+                                  labelColor: Theme.of(context).colorScheme.primary,
+                                  unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                  indicatorColor: Theme.of(context).colorScheme.tertiary,
                                   indicatorWeight: 3,
                                   labelStyle: const TextStyle(fontWeight: FontWeight.bold),
                                   tabs: const [
@@ -188,49 +188,69 @@ class _AuthPageState extends ConsumerState<AuthPage>
     return ListView(
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        TextFormField(
-          controller: _loginEmailController,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: 'Email',
-            prefixIcon: Icon(FluentIcons.mail_24_regular),
+        Semantics(
+          label: 'Kolom input email masuk',
+          textField: true,
+          child: TextFormField(
+            controller: _loginEmailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              prefixIcon: Icon(FluentIcons.mail_24_regular),
+            ),
           ),
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _loginPasswordController,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Password',
-            prefixIcon: Icon(FluentIcons.lock_closed_24_regular),
+        Semantics(
+          label: 'Kolom input password masuk',
+          textField: true,
+          child: TextFormField(
+            controller: _loginPasswordController,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Password',
+              prefixIcon: Icon(FluentIcons.lock_closed_24_regular),
+            ),
           ),
         ),
         const SizedBox(height: 24),
-        FilledButton(
-          onPressed: isLoading ? null : _onLoginPressed,
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            backgroundColor: const Color(0xFFFF1377),
+        Semantics(
+          label: 'Tombol masuk akun',
+          button: true,
+          child: FilledButton(
+            onPressed: isLoading ? null : _onLoginPressed,
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              backgroundColor: Theme.of(context).colorScheme.tertiary,
+            ),
+            child: Text(isLoading ? 'Memproses...' : 'Masuk', style: const TextStyle(fontSize: 16)),
           ),
-          child: Text(isLoading ? 'Memproses...' : 'Masuk', style: const TextStyle(fontSize: 16)),
         ),
         if (AppConfig.enableGoogleAuth) ...[
           const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: isLoading ? null : _onGooglePressed,
-            icon: const Icon(FluentIcons.person_24_regular),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+          Semantics(
+            label: 'Tombol masuk menggunakan akun Google',
+            button: true,
+            child: OutlinedButton.icon(
+              onPressed: isLoading ? null : _onGooglePressed,
+              icon: const Icon(FluentIcons.person_24_regular),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              label: const Text('Lanjut dengan Google'),
             ),
-            label: const Text('Lanjut dengan Google'),
           ),
         ],
         const SizedBox(height: 16),
         Align(
           alignment: Alignment.center,
-          child: TextButton(
-            onPressed: isLoading ? null : _onForgotPasswordPressed,
-            child: const Text('Lupa Password?'),
+          child: Semantics(
+            label: 'Tombol lupa password',
+            button: true,
+            child: TextButton(
+              onPressed: isLoading ? null : _onForgotPasswordPressed,
+              child: const Text('Lupa Password?'),
+            ),
           ),
         ),
       ],
@@ -241,40 +261,56 @@ class _AuthPageState extends ConsumerState<AuthPage>
     return ListView(
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        TextFormField(
-          controller: _registerNameController,
-          decoration: const InputDecoration(
-            labelText: 'Nama lengkap',
-            prefixIcon: Icon(FluentIcons.person_24_regular),
+        Semantics(
+          label: 'Kolom input nama lengkap pendaftaran',
+          textField: true,
+          child: TextFormField(
+            controller: _registerNameController,
+            decoration: const InputDecoration(
+              labelText: 'Nama lengkap',
+              prefixIcon: Icon(FluentIcons.person_24_regular),
+            ),
           ),
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _registerEmailController,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: 'Email',
-            prefixIcon: Icon(FluentIcons.mail_24_regular),
+        Semantics(
+          label: 'Kolom input email pendaftaran',
+          textField: true,
+          child: TextFormField(
+            controller: _registerEmailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              prefixIcon: Icon(FluentIcons.mail_24_regular),
+            ),
           ),
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _registerPasswordController,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Password',
-            hintText: 'Minimal 6 karakter',
-            prefixIcon: Icon(FluentIcons.lock_closed_24_regular),
+        Semantics(
+          label: 'Kolom input password pendaftaran',
+          textField: true,
+          child: TextFormField(
+            controller: _registerPasswordController,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Password',
+              hintText: 'Minimal 6 karakter',
+              prefixIcon: Icon(FluentIcons.lock_closed_24_regular),
+            ),
           ),
         ),
         const SizedBox(height: 24),
-        FilledButton(
-          onPressed: isLoading ? null : _onRegisterPressed,
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            backgroundColor: const Color(0xFF4B176E),
+        Semantics(
+          label: 'Tombol buat akun baru',
+          button: true,
+          child: FilledButton(
+            onPressed: isLoading ? null : _onRegisterPressed,
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+            ),
+            child: Text(isLoading ? 'Memproses...' : 'Buat Akun', style: const TextStyle(fontSize: 16)),
           ),
-          child: Text(isLoading ? 'Memproses...' : 'Buat Akun', style: const TextStyle(fontSize: 16)),
         ),
       ],
     );

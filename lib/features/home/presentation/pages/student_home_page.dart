@@ -161,7 +161,8 @@ class _HomeBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    const primary = Color(0xFF4B176E);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = isDark ? Colors.white : const Color(0xFF4B176E);
     final greetingName = profile?.displayName.isNotEmpty == true
         ? profile!.displayName
         : 'Sahabat Belajar';
@@ -193,7 +194,7 @@ class _HomeBody extends ConsumerWidget {
             children: [
               IconButton(
                 onPressed: () => context.pushNamed(NotificationsPage.routeName),
-                icon: const Icon(FluentIcons.alert_24_regular, color: primary),
+                icon: Icon(FluentIcons.alert_24_regular, color: primary),
               ),
               if (unreadNotifications > 0)
                 Positioned(
@@ -225,7 +226,7 @@ class _HomeBody extends ConsumerWidget {
             children: [
               IconButton(
                 onPressed: () => context.pushNamed(InboxPage.routeName),
-                icon: const Icon(FluentIcons.chat_24_regular, color: primary),
+                icon: Icon(FluentIcons.chat_24_regular, color: primary),
               ),
               if (unreadChatCount > 0)
                 Container(
@@ -261,9 +262,7 @@ class _HomeBody extends ConsumerWidget {
                 context.pushNamed(StudentBookingsPage.routeName),
             onOpenTutorSearch: () => context.pushNamed(TutorListPage.routeName),
           ),
-          const SizedBox(height: 24),
-          const _StudentMetricCards(),
-          const SizedBox(height: 32),
+           const SizedBox(height: 16),
 
           // Section: Rekomendasi Pintar (Fase 3)
           recommendedTutorsAsync.when(
@@ -279,7 +278,7 @@ class _HomeBody extends ConsumerWidget {
                         'Rekomendasi Tutor Terbaik',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w900,
-                          color: const Color(0xFF4B176E),
+                          color: isDark ? Colors.white : const Color(0xFF4B176E),
                           letterSpacing: -0.5,
                         ),
                       ),
@@ -321,7 +320,7 @@ class _HomeBody extends ConsumerWidget {
                 'PR & Progress Belajar',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w900,
-                  color: const Color(0xFF4B176E),
+                  color: isDark ? Colors.white : const Color(0xFF4B176E),
                   letterSpacing: -0.5,
                 ),
               ),
@@ -345,9 +344,9 @@ class _HomeBody extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FF),
+              color: isDark ? const Color(0xFF131926) : const Color(0xFFF8F9FF),
               borderRadius: BorderRadius.circular(32),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,14 +355,14 @@ class _HomeBody extends ConsumerWidget {
                   'Temukan Tutor Terbaik',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w900,
-                    color: const Color(0xFF4B176E),
+                    color: isDark ? Colors.white : const Color(0xFF4B176E),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Cari berdasarkan mapel, lokasi, atau nama tutor',
                   style: TextStyle(
-                    color: const Color(0xFF718096),
+                    color: isDark ? Colors.white70 : const Color(0xFF718096),
                     fontSize: 13,
                   ),
                 ),
@@ -389,16 +388,16 @@ class _HomeBody extends ConsumerWidget {
                           onChanged: onSearchChanged,
                           decoration: InputDecoration(
                             hintText: 'Cari tutor...',
-                            prefixIcon: const Icon(
+                            prefixIcon: Icon(
                               FluentIcons.search_24_regular,
-                              color: Color(0xFF4B176E),
+                              color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(20),
                               borderSide: BorderSide.none,
                             ),
                             filled: true,
-                            fillColor: Colors.white,
+                            fillColor: isDark ? const Color(0xFF1B2336) : Colors.white,
                             contentPadding: const EdgeInsets.symmetric(
                               vertical: 14,
                             ),
@@ -447,7 +446,7 @@ class _HomeBody extends ConsumerWidget {
                   'Radius Pencarian',
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF4B176E).withValues(alpha: 0.8),
+                    color: isDark ? Colors.white : const Color(0xFF4B176E).withValues(alpha: 0.8),
                     fontSize: 14,
                   ),
                 ),
@@ -513,7 +512,7 @@ class _HomeBody extends ConsumerWidget {
                 'Kategori Mapel',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w900,
-                  color: const Color(0xFF4B176E),
+                  color: isDark ? Colors.white : const Color(0xFF4B176E),
                   letterSpacing: -0.5,
                 ),
               ),
@@ -590,6 +589,7 @@ class _TutorDiscoveryCard extends StatelessWidget {
     final consistencyLabel = tutor.consistencyScore <= 0
         ? 'Tutor Baru'
         : '${tutor.consistencyScore.toStringAsFixed(0)}%';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return InkWell(
       onTap: onTap,
@@ -597,16 +597,18 @@ class _TutorDiscoveryCard extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1B2336) : Colors.white,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE9E3F2)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x12000000),
-              blurRadius: 14,
-              offset: Offset(0, 6),
-            ),
-          ],
+          border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFE9E3F2)),
+          boxShadow: isDark
+              ? null
+              : const [
+                  BoxShadow(
+                    color: Color(0x12000000),
+                    blurRadius: 14,
+                    offset: Offset(0, 6),
+                  ),
+                ],
         ),
         child: Row(
           children: [
@@ -616,9 +618,9 @@ class _TutorDiscoveryCard extends StatelessWidget {
                 children: [
                   Text(
                     tutor.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF191622),
+                      color: isDark ? Colors.white : const Color(0xFF191622),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -629,7 +631,7 @@ class _TutorDiscoveryCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF7A7388),
+                      color: isDark ? Colors.white70 : const Color(0xFF7A7388),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -643,27 +645,27 @@ class _TutorDiscoveryCard extends StatelessWidget {
                             ? '${tutor.rating.toStringAsFixed(1)} (${tutor.totalReviews})'
                             : 'Belum ada ulasan',
                         foreground: hasRating
-                            ? const Color(0xFFA16207)
-                            : const Color(0xFF6D667A),
+                            ? (isDark ? const Color(0xFFFBBF24) : const Color(0xFFA16207))
+                            : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF6D667A)),
                         background: hasRating
-                            ? const Color(0xFFFFF2D2)
-                            : const Color(0xFFF2EFF7),
+                            ? (isDark ? const Color(0xFF78350F).withValues(alpha: 0.3) : const Color(0xFFFFF2D2))
+                            : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF2EFF7)),
                       ),
                       _miniTag(
                         icon: FluentIcons.location_24_regular,
                         text: distanceLabel,
-                        foreground: const Color(0xFF1D4E89),
-                        background: const Color(0xFFE8F1FF),
+                        foreground: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1D4E89),
+                        background: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.3) : const Color(0xFFE8F1FF),
                       ),
                       _miniTag(
                         icon: FluentIcons.certificate_24_regular,
                         text: consistencyLabel,
                         foreground: tutor.consistencyScore <= 0
-                            ? const Color(0xFF6D667A)
-                            : const Color(0xFF4B176E),
+                            ? (isDark ? const Color(0xFF94A3B8) : const Color(0xFF6D667A))
+                            : (isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E)),
                         background: tutor.consistencyScore <= 0
-                            ? const Color(0xFFF2EFF7)
-                            : const Color(0xFFEAF2FF),
+                            ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFF2EFF7))
+                            : (isDark ? const Color(0xFFFF1377).withValues(alpha: 0.15) : const Color(0xFFEAF2FF)),
                       ),
                     ],
                   ),
@@ -679,7 +681,7 @@ class _TutorDiscoveryCard extends StatelessWidget {
                 child: tutor.photoUrl.isNotEmpty
                     ? Image.network(tutor.photoUrl, fit: BoxFit.cover)
                     : Container(
-                        color: const Color(0xFFEFEAF6),
+                        color: isDark ? const Color(0xFF090D16) : const Color(0xFFEFEAF6),
                         child: const Icon(
                           FluentIcons.person_24_regular,
                           size: 26,
@@ -1094,13 +1096,14 @@ class _ActiveTutorSection extends StatelessWidget {
             separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, index) {
               final tutor = dashboard.activeTutors[index];
+              final isDark = Theme.of(context).brightness == Brightness.dark;
               return Container(
                 width: 210,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF7F9FF),
+                  color: isDark ? const Color(0xFF1B2336) : const Color(0xFFF7F9FF),
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: const Color(0xFFC9D8F2)),
+                  border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFC9D8F2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1109,7 +1112,7 @@ class _ActiveTutorSection extends StatelessWidget {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4B176E),
+                        color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: const Icon(
@@ -1122,9 +1125,9 @@ class _ActiveTutorSection extends StatelessWidget {
                       tutor.tutorName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1F1630),
+                        color: isDark ? Colors.white : const Color(0xFF1F1630),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1132,7 +1135,7 @@ class _ActiveTutorSection extends StatelessWidget {
                       tutor.subject,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Color(0xFF6D6380)),
+                      style: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF6D6380)),
                     ),
                   ],
                 ),
@@ -1465,107 +1468,7 @@ class _HeroOrbitIcon extends StatelessWidget {
   }
 }
 
-class _StudentMetricCards extends StatelessWidget {
-  const _StudentMetricCards();
 
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      clipBehavior: Clip.none,
-      child: Row(
-        children: [
-          _MetricCard(
-            icon: Icons.calendar_month_rounded,
-            iconColor: const Color(0xFF6366F1),
-            title: 'Jadwal\nBelajar',
-            subtitle: 'Lihat sesi berikutnya',
-          ),
-          const SizedBox(width: 12),
-          _MetricCard(
-            icon: Icons.search_rounded,
-            iconColor: const Color(0xFF4B176E),
-            title: 'Cari\nTutor',
-            subtitle: 'Tutor terdekat',
-          ),
-          const SizedBox(width: 12),
-          _MetricCard(
-            icon: Icons.menu_book_rounded,
-            iconColor: const Color(0xFFFF1377),
-            title: 'Jurnal\nBelajar',
-            subtitle: 'PR & materi',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 124,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0C4B176E),
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Color(0xFF4B176E),
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: Color(0xFF7B738C),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              height: 1.2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _HomeworkProgressList extends StatelessWidget {
   const _HomeworkProgressList({required this.dashboard});
@@ -1574,6 +1477,7 @@ class _HomeworkProgressList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     // Generate some stable fake percentages for visual demo
     final percentages = [70, 80, 45, 90, 30];
     final items = dashboard.pendingHomework.take(3).toList(growable: false);
@@ -1589,15 +1493,18 @@ class _HomeworkProgressList extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1B2336) : Colors.white,
               borderRadius: BorderRadius.circular(24),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x0A000000),
-                  blurRadius: 12,
-                  offset: Offset(0, 6),
-                ),
-              ],
+              border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+              boxShadow: isDark
+                  ? null
+                  : const [
+                      BoxShadow(
+                        color: Color(0x0A000000),
+                        blurRadius: 12,
+                        offset: Offset(0, 6),
+                      ),
+                    ],
             ),
             child: Row(
               children: [
@@ -1613,7 +1520,7 @@ class _HomeworkProgressList extends StatelessWidget {
                         child: CircularProgressIndicator(
                           value: pct / 100,
                           strokeWidth: 8,
-                          backgroundColor: const Color(0xFFEDF2F7),
+                          backgroundColor: isDark ? const Color(0xFF090D16) : const Color(0xFFEDF2F7),
                           color: index % 2 == 0
                               ? const Color(0xFF4FD1C5)
                               : const Color(0xFF667EEA),
@@ -1621,10 +1528,10 @@ class _HomeworkProgressList extends StatelessWidget {
                       ),
                       Text(
                         '$pct%',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 14,
-                          color: Color(0xFF2D3748),
+                          color: isDark ? Colors.white : const Color(0xFF2D3748),
                         ),
                       ),
                     ],
@@ -1637,10 +1544,10 @@ class _HomeworkProgressList extends StatelessWidget {
                     children: [
                       Text(
                         item.subject,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF191622),
+                          color: isDark ? Colors.white : const Color(0xFF191622),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -1648,7 +1555,7 @@ class _HomeworkProgressList extends StatelessWidget {
                         item.record.homeworkTitle.isEmpty
                             ? 'Task'
                             : item.record.homeworkTitle,
-                        style: const TextStyle(color: Color(0xFF718096)),
+                        style: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF718096)),
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -1656,13 +1563,13 @@ class _HomeworkProgressList extends StatelessWidget {
                           Icon(
                             FluentIcons.clock_12_regular,
                             size: 14,
-                            color: const Color(0xFF718096),
+                            color: isDark ? Colors.white70 : const Color(0xFF718096),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '2 days left',
-                            style: const TextStyle(
-                              color: Color(0xFF718096),
+                            style: TextStyle(
+                              color: isDark ? Colors.white70 : const Color(0xFF718096),
                               fontSize: 12,
                             ),
                           ),
@@ -1670,13 +1577,13 @@ class _HomeworkProgressList extends StatelessWidget {
                           Icon(
                             FluentIcons.person_12_regular,
                             size: 14,
-                            color: const Color(0xFF718096),
+                            color: isDark ? Colors.white70 : const Color(0xFF718096),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             'Individual Task',
-                            style: const TextStyle(
-                              color: Color(0xFF718096),
+                            style: TextStyle(
+                              color: isDark ? Colors.white70 : const Color(0xFF718096),
                               fontSize: 12,
                             ),
                           ),
@@ -1755,7 +1662,11 @@ class _LocationBadge extends StatelessWidget {
             children: [
               Text(
                 description,
-                style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF475569)),
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF475569),
+                ),
               ),
               const SizedBox(height: 12),
               ...steps.map((step) => Padding(
@@ -1767,7 +1678,11 @@ class _LocationBadge extends StatelessWidget {
                         Expanded(
                           child: Text(
                             step,
-                            style: const TextStyle(fontSize: 12, height: 1.3, color: Color(0xFF1E293B)),
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.3,
+                              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF1E293B),
+                            ),
                           ),
                         ),
                       ],
@@ -1789,14 +1704,15 @@ class _LocationBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasError = locationError != null && locationError!.isNotEmpty;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1B2336) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: hasError ? const Color(0xFFFF1377).withValues(alpha: 0.3) : const Color(0xFFE2E8F0),
+          color: hasError ? const Color(0xFFFF1377).withValues(alpha: 0.3) : (isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0)),
           width: hasError ? 1.5 : 1.0,
         ),
       ),
@@ -1805,7 +1721,7 @@ class _LocationBadge extends StatelessWidget {
           Icon(
             hasError ? Icons.warning_amber_rounded : FluentIcons.location_24_regular,
             size: 20,
-            color: hasError ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
+            color: hasError ? const Color(0xFFFF1377) : (isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E)),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1816,7 +1732,7 @@ class _LocationBadge extends StatelessWidget {
                 Text(
                   locationText,
                   style: TextStyle(
-                    color: hasError ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
+                    color: hasError ? const Color(0xFFFF1377) : (isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E)),
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1845,7 +1761,7 @@ class _LocationBadge extends StatelessWidget {
             constraints: const BoxConstraints(),
             padding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,
-            color: hasError ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
+            color: hasError ? const Color(0xFFFF1377) : (isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E)),
           ),
         ],
       ),
@@ -1858,18 +1774,19 @@ class _EmptyHomeworkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1B2336) : Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0)),
       ),
-      child: const Center(
+      child: Center(
         child: Text(
           'Hore! Tidak ada PR untuk dikerjakan saat ini.',
           style: TextStyle(
-            color: Color(0xFF718096),
+            color: isDark ? Colors.white70 : const Color(0xFF718096),
             fontWeight: FontWeight.w600,
           ),
           textAlign: TextAlign.center,
@@ -1887,20 +1804,23 @@ class _RecommendedTutorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: 260,
       margin: const EdgeInsets.only(right: 16, bottom: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1B2336) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF4B176E).withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0)),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: const Color(0xFF4B176E).withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -1969,10 +1889,10 @@ class _RecommendedTutorCard extends StatelessWidget {
                         tutor.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
-                          color: Color(0xFF1A202C),
+                          color: isDark ? Colors.white : const Color(0xFF1A202C),
                         ),
                       ),
                       const SizedBox(height: 2),

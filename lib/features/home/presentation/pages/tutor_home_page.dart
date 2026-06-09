@@ -627,17 +627,24 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final displayColor = isDark ? const Color(0xFF1B2336) : color;
+    final displayBorderColor = isDark ? const Color(0xFF28354E) : const Color(0xFFC9D8F2);
+    final displayAccentColor = isDark
+        ? (accentColor == const Color(0xFF4B176E) ? const Color(0xFFFF1377) : accentColor)
+        : accentColor;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color,
+        color: displayColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFC9D8F2)),
+        border: Border.all(color: displayBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: accentColor),
+          Icon(icon, color: displayAccentColor),
           const Spacer(),
           Text(
             value,
@@ -673,10 +680,18 @@ class _TodayFocusCard extends StatelessWidget {
     final bookingMap = <String, BookingItem>{
       for (final booking in bookings) booking.id: booking,
     };
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBgColor = isDark ? const Color(0xFF1B2336) : Colors.white;
+    final displayBorder = isDark ? Border.all(color: const Color(0xFF28354E)) : null;
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: TutorUi.raisedCardDecoration(),
+      decoration: BoxDecoration(
+        color: cardBgColor,
+        borderRadius: BorderRadius.circular(22),
+        border: displayBorder,
+        boxShadow: isDark ? null : const [TutorUi.mediumShadow],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -715,8 +730,9 @@ class _TodayFocusCard extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF7F4EE),
+                  color: isDark ? const Color(0xFF090D16) : const Color(0xFFF7F4EE),
                   borderRadius: BorderRadius.circular(16),
+                  border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
                 ),
                 child: Row(
                   children: [
@@ -724,7 +740,7 @@ class _TodayFocusCard extends StatelessWidget {
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4B176E),
+                        color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: const Icon(
@@ -1002,18 +1018,26 @@ class _PeriodCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final displayAccent = isDark
+        ? (accent == const Color(0xFF2D6072) ? const Color(0xFF38BDF8) : const Color(0xFFFB923C))
+        : accent;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1B2336) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 16,
-            offset: Offset(0, 8),
-          ),
-        ],
+        border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+        boxShadow: isDark
+            ? null
+            : const [
+                BoxShadow(
+                  color: Color(0x10000000),
+                  blurRadius: 16,
+                  offset: Offset(0, 8),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1021,7 +1045,7 @@ class _PeriodCard extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              color: accent,
+              color: displayAccent,
               fontWeight: FontWeight.w800,
               fontSize: 18,
             ),

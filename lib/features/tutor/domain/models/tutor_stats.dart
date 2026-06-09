@@ -5,6 +5,7 @@ class TutorStats {
     required this.activeStudentsCount,
     required this.monthlyEarnings,
     required this.weekdaySessionCounts,
+    required this.bookingsCount,
   });
 
   final double totalHoursTaught;
@@ -12,6 +13,7 @@ class TutorStats {
   final int activeStudentsCount;
   final num monthlyEarnings;
   final List<int> weekdaySessionCounts; // Monday to Sunday counts (length: 7)
+  final int bookingsCount;
 
   factory TutorStats.empty() {
     return TutorStats(
@@ -20,6 +22,7 @@ class TutorStats {
       activeStudentsCount: 0,
       monthlyEarnings: 0,
       weekdaySessionCounts: List<int>.filled(7, 0),
+      bookingsCount: 0,
     );
   }
 }

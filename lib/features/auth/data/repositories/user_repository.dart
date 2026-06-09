@@ -2,23 +2,26 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:educonnect/core/providers/backend_providers.dart';
+import 'package:educonnect/core/services/local_cache_service.dart';
 import 'package:educonnect/core/utils/resilient_stream.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_profile.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/auth/domain/models/auth_user.dart';
+import 'package:educonnect/features/auth/domain/repositories/i_user_repository.dart';
 import 'package:educonnect/features/home/domain/models/tutor_summary.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-final userRepositoryProvider = Provider<UserRepository>((ref) {
-  return UserRepository(client: ref.watch(supabaseClientProvider));
+final userRepositoryProvider = Provider<IUserRepository>((ref) {
+  return SupabaseUserRepository(client: ref.watch(supabaseClientProvider));
 });
 
-class UserRepository {
-  UserRepository({required SupabaseClient client}) : _client = client;
+class SupabaseUserRepository implements IUserRepository {
+  SupabaseUserRepository({required SupabaseClient client}) : _client = client;
 
   final SupabaseClient _client;
 
+  @override
   Future<AppUserProfile?> fetchUserProfile(String uid) async {
     try {
       final map = await _client
@@ -38,6 +41,7 @@ class UserRepository {
     }
   }
 
+  @override
   Stream<AppUserProfile?> watchUserProfile(String uid) {
     return resilientStream(
       () => _client
@@ -53,20 +57,28 @@ class UserRepository {
     );
   }
 
-  Stream<List<TutorSummary>> watchActiveTutors({int limit = 25}) {
-    return resilientStream(
+  @override
+  Stream<List<TutorSummary>> watchActiveTutors({int limit = 25}) async* {
+    final cached = await LocalCacheService.getActiveTutors();
+    if (cached.isNotEmpty) {
+      final limitedCached = cached.take(limit).toList();
+      yield limitedCached.map(_mapTutorSummary).toList();
+    }
+    yield* resilientStream(
       () => _client
           .from('tutors')
           .stream(primaryKey: ['uid'])
           .eq('is_active', true)
           .order('rating', ascending: false)
           .map((rows) {
+            unawaited(LocalCacheService.cacheActiveTutors(rows));
             final limitedRows = rows.take(limit).toList();
             return limitedRows.map(_mapTutorSummary).toList();
           }),
     );
   }
 
+  @override
   Stream<List<TutorSummary>> watchNearbyTutors({
     required double latitude,
     required double longitude,
@@ -93,6 +105,7 @@ class UserRepository {
     });
   }
 
+  @override
   Future<void> upsertFromAuthUser(AppAuthUser user) async {
     await _client.from('users').upsert({
       'uid': user.uid,
@@ -103,6 +116,7 @@ class UserRepository {
     }, onConflict: 'uid');
   }
 
+  @override
   Future<void> setRole({required String uid, required AppUserRole role}) async {
     await _client.from('users').upsert({
       'uid': uid,
@@ -137,6 +151,7 @@ class UserRepository {
     }, onConflict: 'uid');
   }
 
+  @override
   Future<String> uploadProfilePhoto({
     required String uid,
     required File file,
@@ -155,6 +170,7 @@ class UserRepository {
     return bucket.getPublicUrl(filePath);
   }
 
+  @override
   Future<void> updateProfile({
     required String uid,
     required String displayName,
@@ -250,6 +266,7 @@ class UserRepository {
     );
   }
 
+  @override
   Stream<List<TutorSummary>> watchRecommendedTutors({
     required String studentUid,
     required double latitude,
@@ -317,6 +334,7 @@ class UserRepository {
     }
   }
 
+  @override
   Future<void> updateStudentPreferences({
     required String uid,
     required List<String> preferredSubjects,

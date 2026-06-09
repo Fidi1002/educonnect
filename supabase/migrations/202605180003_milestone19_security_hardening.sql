@@ -9,4 +9,12 @@ create policy users_select_all_auth
 on public.users
 for select
 to authenticated
-using (true);
+using (
+  auth.uid() = uid
+  or role = 'tutor'
+  or exists (
+    select 1 from public.bookings b
+    where (b.student_uid = auth.uid() and b.tutor_uid = uid)
+       or (b.tutor_uid = auth.uid() and b.student_uid = uid)
+  )
+);

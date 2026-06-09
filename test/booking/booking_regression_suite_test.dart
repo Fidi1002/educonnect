@@ -85,8 +85,8 @@ void main() {
           role: AppUserRole.tutor,
         );
 
-        final studentBookingRepo = BookingRepository(client: studentClient);
-        final tutorBookingRepo = BookingRepository(client: tutorClient);
+        final studentBookingRepo = SupabaseBookingRepository(client: studentClient);
+        final tutorBookingRepo = SupabaseBookingRepository(client: tutorClient);
         final tutorAvailabilityRepo = TutorAvailabilityRepository(
           client: tutorClient,
         );
@@ -255,6 +255,161 @@ void main() {
               'source sesi murid hanya boleh memuat booking aktif yang sudah paid',
         );
       });
+
+      test('database time constraints reject invalid reschedule and early cancellations', () async {
+        final url = Platform.environment['SUPABASE_URL'];
+        final anonKey = Platform.environment['SUPABASE_ANON_KEY'];
+        expect(url, isNotNull);
+        expect(anonKey, isNotNull);
+
+        final stamp = DateTime.now().millisecondsSinceEpoch;
+        const password = 'EduconnectTest!123';
+        final studentEmail = 'student.time.$stamp@educonnect.com';
+        final tutorEmail = 'tutor.time.$stamp@educonnect.com';
+
+        final studentClient = _createTestClient(url!, anonKey!);
+        final tutorClient = _createTestClient(url, anonKey);
+
+        final studentUser = await _registerAndPrepareUser(
+          client: studentClient,
+          email: studentEmail,
+          password: password,
+          displayName: 'Student Time $stamp',
+          role: AppUserRole.student,
+        );
+        final tutorUser = await _registerAndPrepareUser(
+          client: tutorClient,
+          email: tutorEmail,
+          password: password,
+          displayName: 'Tutor Time $stamp',
+          role: AppUserRole.tutor,
+        );
+
+        final studentBookingRepo = SupabaseBookingRepository(client: studentClient);
+        final tutorBookingRepo = SupabaseBookingRepository(client: tutorClient);
+        final tutorAvailabilityRepo = TutorAvailabilityRepository(client: tutorClient);
+
+        // Dynamically compute a session starting in 2 hours to test H-6 and H-12 constraints
+        final now = DateTime.now();
+        var testTime = now.add(const Duration(hours: 2));
+        if (testTime.day != testTime.add(const Duration(hours: 1)).day) {
+          testTime = testTime.add(const Duration(hours: 1));
+        }
+        final weekday = testTime.weekday;
+        
+        final hourStr = testTime.hour.toString().padLeft(2, '0');
+        final minuteStr = testTime.minute.toString().padLeft(2, '0');
+        final timeSlotStr = '$hourStr:$minuteStr:00';
+
+        final endTestTime = testTime.add(const Duration(hours: 1));
+        final endHourStr = endTestTime.hour.toString().padLeft(2, '0');
+        final endMinuteStr = endTestTime.minute.toString().padLeft(2, '0');
+        final endTimeSlotStr = '$endHourStr:$endMinuteStr:00';
+
+        // Seed availability for this dynamic slot
+        await tutorAvailabilityRepo.addAvailabilitySlot(
+          tutorUid: tutorUser.uid,
+          weekday: weekday,
+          startTime: timeSlotStr,
+          endTime: endTimeSlotStr,
+        );
+
+        // Seed a second slot 2 days later so the booking has 2 weekly slots required
+        final secondTime = testTime.add(const Duration(days: 2));
+        final secondWeekday = secondTime.weekday;
+        final secondHourStr = secondTime.hour.toString().padLeft(2, '0');
+        final secondMinuteStr = secondTime.minute.toString().padLeft(2, '0');
+        final secondTimeSlotStr = '$secondHourStr:$secondMinuteStr:00';
+        final secondEndHourStr = secondTime.add(const Duration(hours: 1)).hour.toString().padLeft(2, '0');
+        final secondEndMinuteStr = secondTime.add(const Duration(hours: 1)).minute.toString().padLeft(2, '0');
+        final secondEndTimeSlotStr = '$secondEndHourStr:$secondEndMinuteStr:00';
+
+        await tutorAvailabilityRepo.addAvailabilitySlot(
+          tutorUid: tutorUser.uid,
+          weekday: secondWeekday,
+          startTime: secondTimeSlotStr,
+          endTime: secondEndTimeSlotStr,
+        );
+
+        final packageStartDate = testTime;
+        const durationMinutes = 60;
+
+        final bookingId = await _createBookingAndExpectPending(
+          client: studentClient,
+          bookingRepo: studentBookingRepo,
+          studentUid: studentUser.uid,
+          tutorUid: tutorUser.uid,
+          subject: 'IPA',
+          packageStartDate: packageStartDate,
+          durationMinutes: durationMinutes,
+          weeklySlots: [
+            BookingWeeklySlot(
+              weekday: weekday,
+              startTime: timeSlotStr,
+              endTime: endTimeSlotStr,
+            ),
+            BookingWeeklySlot(
+              weekday: secondWeekday,
+              startTime: secondTimeSlotStr,
+              endTime: secondEndTimeSlotStr,
+            ),
+          ],
+        );
+
+        await tutorBookingRepo.updateBookingStatus(
+          bookingId: bookingId,
+          status: BookingStatus.awaitingPayment,
+          actorUid: tutorUser.uid,
+        );
+
+        await studentBookingRepo.processSecureWebhookPayment(
+          bookingId: bookingId,
+          studentUid: studentUser.uid,
+          paymentMethod: 'gopay',
+        );
+
+        final sessionsData = await studentClient
+            .from('booking_sessions')
+            .select()
+            .eq('booking_id', bookingId);
+        expect(sessionsData, isNotEmpty);
+        final sessionId = sessionsData[0]['id'] as String;
+
+        // Direct database insert attempt for reschedule must fail H-6 constraint
+        try {
+          await studentClient.from('session_change_requests').insert({
+            'session_id': sessionId,
+            'booking_id': bookingId,
+            'requester_uid': studentUser.uid,
+            'requester_role': 'student',
+            'target_uid': tutorUser.uid,
+            'request_type': 'reschedule',
+            'reason': 'Direct bypass attempt',
+            'proposed_start': DateTime.now().add(const Duration(days: 2)).toUtc().toIso8601String(),
+            'proposed_end': DateTime.now().add(const Duration(days: 2, hours: 1)).toUtc().toIso8601String(),
+            'status': 'pending',
+          });
+          fail('Harus gagal karena batasan H-6 reschedule.');
+        } catch (e) {
+          expect(e, isA<PostgrestException>());
+          expect((e as PostgrestException).message, contains('Request reschedule harus diajukan minimal H-6'));
+        }
+
+        // Direct status update attempt to cancelled_early must fail H-12 constraint
+        try {
+          await studentClient
+              .from('booking_sessions')
+              .update({
+                'status': 'cancelled_early',
+                'cancelled_by_role': 'student',
+              })
+              .eq('id', sessionId);
+          fail('Harus gagal karena batasan H-12 pembatalan early.');
+        } catch (e) {
+          expect(e, isA<PostgrestException>());
+          expect((e as PostgrestException).message, contains('Pembatalan kurang dari 12 jam harus berupa cancelled_late'));
+        }
+      });
     });
   });
 }
@@ -291,7 +446,7 @@ Future<AppAuthUser> _registerAndPrepareUser({
     throw StateError('Autentikasi gagal untuk $email');
   }
 
-  final userRepo = UserRepository(client: client);
+  final userRepo = SupabaseUserRepository(client: client);
   final appUser = AppAuthUser(
     uid: currentUser.id,
     email: currentUser.email ?? email,
@@ -353,7 +508,7 @@ Future<void> _seedAvailability(
 
 Future<String> _createBookingAndExpectPending({
   required SupabaseClient client,
-  required BookingRepository bookingRepo,
+  required SupabaseBookingRepository bookingRepo,
   required String studentUid,
   required String tutorUid,
   required String subject,
@@ -392,7 +547,7 @@ Future<String> _createBookingAndExpectPending({
 }
 
 Future<void> _expectBookingStatus({
-  required BookingRepository repo,
+  required SupabaseBookingRepository repo,
   required String bookingId,
   required BookingStatus expected,
 }) async {

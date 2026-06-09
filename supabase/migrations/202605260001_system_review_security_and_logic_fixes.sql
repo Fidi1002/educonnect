@@ -73,7 +73,7 @@ declare
   v_signature text;
 begin
   -- Hitung signature secara aman di server, menggunakan kunci rahasia yang sama
-  v_signature := md5(p_booking_id::text || 'EDUCONNECT_SECRET_SERVER_KEY');
+  v_signature := encode(hmac(p_booking_id::text, 'EDUCONNECT_SECRET_SERVER_KEY', 'sha256'), 'hex');
   
   -- Panggil fungsi webhook utama secara aman dengan signature yang valid
   return public.handle_secure_webhook_payment(

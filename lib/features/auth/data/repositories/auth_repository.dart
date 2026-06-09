@@ -1,18 +1,20 @@
 import 'package:educonnect/core/config/app_config.dart';
 import 'package:educonnect/core/providers/backend_providers.dart';
 import 'package:educonnect/features/auth/domain/models/auth_user.dart';
+import 'package:educonnect/features/auth/domain/repositories/i_auth_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository(client: ref.watch(supabaseClientProvider));
+final authRepositoryProvider = Provider<IAuthRepository>((ref) {
+  return SupabaseAuthRepository(client: ref.watch(supabaseClientProvider));
 });
 
-class AuthRepository {
-  AuthRepository({required SupabaseClient client}) : _client = client;
+class SupabaseAuthRepository implements IAuthRepository {
+  SupabaseAuthRepository({required SupabaseClient client}) : _client = client;
 
   final SupabaseClient _client;
 
+  @override
   Stream<AppAuthUser?> authStateChanges() async* {
     yield currentUser;
     yield* _client.auth.onAuthStateChange.map(
@@ -20,9 +22,12 @@ class AuthRepository {
     );
   }
 
+  @override
   AppAuthUser? get currentUser => _toAppAuthUser(_client.auth.currentUser);
+  @override
   bool get hasActiveSession => _client.auth.currentSession != null;
 
+  @override
   Future<AppAuthUser> signInWithEmail({
     required String email,
     required String password,
@@ -38,6 +43,7 @@ class AuthRepository {
     return _toAppAuthUser(user)!;
   }
 
+  @override
   Future<AppAuthUser> registerWithEmail({
     required String fullName,
     required String email,
@@ -55,6 +61,7 @@ class AuthRepository {
     return _toAppAuthUser(user)!;
   }
 
+  @override
   Future<void> signInWithGoogle() {
     if (!AppConfig.enableGoogleAuth) {
       throw const AuthException(
@@ -67,10 +74,12 @@ class AuthRepository {
     );
   }
 
+  @override
   Future<void> signOut() {
     return _client.auth.signOut();
   }
 
+  @override
   Future<void> sendPasswordResetEmail(String email) {
     return _client.auth.resetPasswordForEmail(email.trim());
   }

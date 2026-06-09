@@ -43,8 +43,8 @@ void main() {
         .update({'price_per_hour': 80000})
         .eq('uid', tutor.uid);
 
-    final studentRepo = BookingRepository(client: studentClient);
-    final tutorRepo = BookingRepository(client: tutorClient);
+    final studentRepo = SupabaseBookingRepository(client: studentClient);
+    final tutorRepo = SupabaseBookingRepository(client: tutorClient);
     final availabilityRepo = TutorAvailabilityRepository(client: tutorClient);
 
     await availabilityRepo.addAvailabilitySlot(
@@ -164,7 +164,7 @@ Future<AppAuthUser> _registerUser({
   if (currentUser == null) {
     throw StateError('Autentikasi gagal untuk $email');
   }
-  final userRepo = UserRepository(client: client);
+  final userRepo = SupabaseUserRepository(client: client);
   final appUser = AppAuthUser(
     uid: currentUser.id,
     email: currentUser.email ?? email,

@@ -18,8 +18,9 @@ class TutorEbookPage extends ConsumerWidget {
     final currentUid = ref.watch(authStateProvider).value?.uid ?? '';
     final ebooksAsync = ref.watch(myEbooksProvider(currentUid));
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9FF),
+      backgroundColor: isDark ? const Color(0xFF090D16) : const Color(0xFFF7F9FF),
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -33,7 +34,7 @@ class TutorEbookPage extends ConsumerWidget {
             builder: (_) => const _UploadEbookSheet(),
           );
         },
-        backgroundColor: const Color(0xFF4B176E),
+        backgroundColor: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
         icon: const Icon(
           FluentIcons.arrow_upload_24_regular,
           color: Colors.white,
@@ -81,15 +82,18 @@ class TutorEbookPage extends ConsumerWidget {
                     return Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? const Color(0xFF1B2336) : Colors.white,
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x0A000000),
-                            blurRadius: 10,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
+                        border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+                        boxShadow: isDark
+                            ? null
+                            : const [
+                                BoxShadow(
+                                  color: Color(0x0A000000),
+                                  blurRadius: 10,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
                       ),
                       child: Row(
                         children: [
@@ -147,20 +151,20 @@ class TutorEbookPage extends ConsumerWidget {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFF3F0F7),
+                                        color: isDark ? const Color(0xFF090D16) : const Color(0xFFF3F0F7),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
                                         '${ebook.fileSizeMb.toStringAsFixed(1)} MB',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w700,
-                                          color: Color(0xFF4B176E),
+                                          color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
                                         ),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    _buildScanStatusBadge(ebook.scanStatus),
+                                    _buildScanStatusBadge(context, ebook.scanStatus),
                                   ],
                                 ),
                               ],
@@ -181,25 +185,26 @@ class TutorEbookPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildScanStatusBadge(String status) {
+  Widget _buildScanStatusBadge(BuildContext context, String status) {
     Color color;
     IconData icon;
     String text;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     switch (status) {
       case 'infected':
-        color = Colors.red.shade700;
+        color = isDark ? Colors.red.shade400 : Colors.red.shade700;
         icon = Icons.gpp_bad;
         text = 'Bahaya: Berkas Karantina';
         break;
       case 'pending':
-        color = Colors.blue.shade700;
+        color = isDark ? Colors.blue.shade400 : Colors.blue.shade700;
         icon = Icons.shield_outlined;
         text = 'Memindai Keamanan...';
         break;
       case 'clean':
       default:
-        color = Colors.green.shade700;
+        color = isDark ? Colors.green.shade400 : Colors.green.shade700;
         icon = Icons.verified;
         text = 'Terverifikasi Aman (ClamAV)';
         break;
@@ -297,6 +302,7 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
   @override
   Widget build(BuildContext context) {
     final bookingsAsync = ref.watch(myTutorBookingsProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: EdgeInsets.only(
@@ -305,30 +311,37 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
         top: 24,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1B2336) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Center(
+          Center(
             child: Text(
               'Unggah Modul E-Book',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : Colors.black,
+              ),
             ),
           ),
           const SizedBox(height: 24),
           TextField(
             controller: _titleController,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black),
             decoration: InputDecoration(
               labelText: 'Judul Modul',
+              labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
               filled: true,
-              fillColor: const Color(0xFFF7F9FF),
+              fillColor: isDark ? const Color(0xFF090D16) : const Color(0xFFF7F9FF),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
+                borderSide: isDark ? const BorderSide(color: Color(0xFF28354E)) : BorderSide.none,
               ),
             ),
           ),
@@ -336,13 +349,15 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
           TextField(
             controller: _descController,
             maxLines: 3,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black),
             decoration: InputDecoration(
               labelText: 'Deskripsi Modul',
+              labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
               filled: true,
-              fillColor: const Color(0xFFF7F9FF),
+              fillColor: isDark ? const Color(0xFF090D16) : const Color(0xFFF7F9FF),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
+                borderSide: isDark ? const BorderSide(color: Color(0xFF28354E)) : BorderSide.none,
               ),
             ),
           ),
@@ -357,13 +372,16 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
 
               return DropdownButtonFormField<String>(
                 initialValue: _selectedBookingId,
+                dropdownColor: isDark ? const Color(0xFF1B2336) : Colors.white,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black),
                 decoration: InputDecoration(
                   labelText: 'Bagikan Ke Kelas (Wajib)',
+                  labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
                   filled: true,
-                  fillColor: const Color(0xFFF7F9FF),
+                  fillColor: isDark ? const Color(0xFF090D16) : const Color(0xFFF7F9FF),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+                    borderSide: isDark ? const BorderSide(color: Color(0xFF28354E)) : BorderSide.none,
                   ),
                 ),
                 items: activeBookings.map((b) => DropdownMenuItem<String>(
@@ -390,13 +408,16 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: _selectedTargetLevel,
+            dropdownColor: isDark ? const Color(0xFF1B2336) : Colors.white,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black),
             decoration: InputDecoration(
               labelText: 'Target Tingkat Sekolah E-Book',
+              labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
               filled: true,
-              fillColor: const Color(0xFFF7F9FF),
+              fillColor: isDark ? const Color(0xFF090D16) : const Color(0xFFF7F9FF),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
+                borderSide: isDark ? const BorderSide(color: Color(0xFF28354E)) : BorderSide.none,
               ),
             ),
             items: const [
@@ -443,7 +464,7 @@ class _UploadEbookSheetState extends ConsumerState<_UploadEbookSheet> {
             child: FilledButton(
               onPressed: _isLoading ? null : _upload,
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFF59E0B),
+                backgroundColor: isDark ? const Color(0xFFFF1377) : const Color(0xFFF59E0B),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),

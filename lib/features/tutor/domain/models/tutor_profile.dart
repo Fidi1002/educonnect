@@ -27,6 +27,10 @@ class TutorProfile {
     this.birthDate,
     this.experienceCv,
     this.teachingLevels = const <String>[],
+    this.bankName,
+    this.bankAccountNumber,
+    this.languages = const <String>['Bahasa Indonesia'],
+    this.introductionVideoUrl,
   });
 
   final String uid;
@@ -56,6 +60,10 @@ class TutorProfile {
   final DateTime? birthDate;
   final List<Map<String, dynamic>>? experienceCv;
   final List<String> teachingLevels;
+  final String? bankName;
+  final String? bankAccountNumber;
+  final List<String> languages;
+  final String? introductionVideoUrl;
 
   factory TutorProfile.empty(String uid) {
     return TutorProfile(
@@ -86,6 +94,10 @@ class TutorProfile {
       birthDate: null,
       experienceCv: const <Map<String, dynamic>>[],
       teachingLevels: const <String>[],
+      bankName: null,
+      bankAccountNumber: null,
+      languages: const <String>['Bahasa Indonesia'],
+      introductionVideoUrl: null,
     );
   }
 
@@ -117,6 +129,10 @@ class TutorProfile {
     DateTime? birthDate,
     List<Map<String, dynamic>>? experienceCv,
     List<String>? teachingLevels,
+    String? bankName,
+    String? bankAccountNumber,
+    List<String>? languages,
+    String? introductionVideoUrl,
   }) {
     return TutorProfile(
       uid: uid ?? this.uid,
@@ -146,6 +162,10 @@ class TutorProfile {
       birthDate: birthDate ?? this.birthDate,
       experienceCv: experienceCv ?? this.experienceCv,
       teachingLevels: teachingLevels ?? this.teachingLevels,
+      bankName: bankName ?? this.bankName,
+      bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,
+      languages: languages ?? this.languages,
+      introductionVideoUrl: introductionVideoUrl ?? this.introductionVideoUrl,
     );
   }
 }

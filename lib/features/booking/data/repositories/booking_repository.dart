@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:educonnect/core/providers/backend_providers.dart';
+import 'package:educonnect/core/services/local_cache_service.dart';
 import 'package:educonnect/core/utils/resilient_stream.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
 import 'package:educonnect/features/booking/domain/models/booking_session.dart';
@@ -10,32 +11,42 @@ import 'package:educonnect/features/booking/domain/models/session_learning_recor
 import 'package:educonnect/features/booking/domain/models/booking_status.dart';
 import 'package:educonnect/features/booking/domain/models/student_transaction.dart';
 import 'package:educonnect/features/booking/domain/models/booking_weekly_slot.dart';
+import 'package:educonnect/features/booking/domain/repositories/i_booking_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-final bookingRepositoryProvider = Provider<BookingRepository>((ref) {
-  return BookingRepository(client: ref.watch(supabaseClientProvider));
+final bookingRepositoryProvider = Provider<IBookingRepository>((ref) {
+  return SupabaseBookingRepository(client: ref.watch(supabaseClientProvider));
 });
 
-class BookingRepository {
-  BookingRepository({required SupabaseClient client}) : _client = client;
+class SupabaseBookingRepository implements IBookingRepository {
+  SupabaseBookingRepository({required SupabaseClient client}) : _client = client;
 
   final SupabaseClient _client;
   static const Duration _rescheduleDeadline = Duration(hours: 6);
   static const Duration _lateCancelThreshold = Duration(hours: 12);
 
-  Stream<List<BookingItem>> watchStudentBookings(String studentUid) {
+  @override
+  Stream<List<BookingItem>> watchStudentBookings(String studentUid) async* {
     unawaited(_expireStaleBookings());
-    return resilientStream(
+    final cached = await LocalCacheService.getStudentBookings(studentUid);
+    if (cached.isNotEmpty) {
+      yield cached.map(BookingItem.fromMap).toList();
+    }
+    yield* resilientStream(
       () => _client
           .from('bookings')
           .stream(primaryKey: ['id'])
           .eq('student_uid', studentUid)
           .order('session_start', ascending: false)
-          .map((rows) => rows.map(BookingItem.fromMap).toList()),
+          .map((rows) {
+            unawaited(LocalCacheService.cacheStudentBookings(studentUid, rows));
+            return rows.map(BookingItem.fromMap).toList();
+          }),
     );
   }
 
+  @override
   Stream<BookingItem?> watchBookingById(String bookingId) {
     unawaited(_expireStaleBookings(bookingId: bookingId));
     return resilientStream(
@@ -52,6 +63,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Future<BookingItem?> fetchBookingById(String bookingId) async {
     await _expireStaleBookings(bookingId: bookingId);
     final row = await _client
@@ -59,7 +71,9 @@ class BookingRepository {
         .select(
           'id,student_uid,tutor_uid,subject,session_start,duration_minutes,session_end,status,'
           'message,created_at,total_amount,paid_at,package_months,sessions_per_week,'
-          'package_start_date,package_end_date,weekly_schedule,student_name,tutor_name',
+          'package_start_date,package_end_date,weekly_schedule,meeting_type,meeting_location,'
+          'student:student_uid(display_name),'
+          'tutor:tutor_uid(display_name)',
         )
         .eq('id', bookingId)
         .maybeSingle();
@@ -69,18 +83,31 @@ class BookingRepository {
     return BookingItem.fromMap(row);
   }
 
+  @override
   Stream<List<BookingItem>> watchTutorBookings(
     String tutorUid, {
     bool pendingOnly = false,
-  }) {
+  }) async* {
     unawaited(_expireStaleBookings());
-    return resilientStream(
+    final cached = await LocalCacheService.getTutorBookings(tutorUid);
+    if (cached.isNotEmpty) {
+      final cachedItems = cached.map(BookingItem.fromMap).toList();
+      if (pendingOnly) {
+        yield cachedItems
+            .where((item) => item.status == BookingStatus.pending)
+            .toList();
+      } else {
+        yield cachedItems;
+      }
+    }
+    yield* resilientStream(
       () => _client
           .from('bookings')
           .stream(primaryKey: ['id'])
           .eq('tutor_uid', tutorUid)
           .order('session_start', ascending: false)
           .map((rows) {
+            unawaited(LocalCacheService.cacheTutorBookings(tutorUid, rows));
             final mapped = rows.map(BookingItem.fromMap).toList();
             if (!pendingOnly) {
               return mapped;
@@ -92,6 +119,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Future<void> createBooking({
     required String studentUid,
     required String tutorUid,
@@ -198,6 +226,7 @@ class BookingRepository {
     }).eq('id', bookingId);
   }
 
+  @override
   Future<void> updateBookingStatus({
     required String bookingId,
     required BookingStatus status,
@@ -276,6 +305,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Future<void> processSecureWebhookPayment({
     required String bookingId,
     required String studentUid,
@@ -325,6 +355,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Stream<List<BookingSession>> watchBookingSessions(String bookingId) {
     return resilientStream(
       () => _client
@@ -336,6 +367,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Stream<List<BookingSession>> watchStudentBookingSessions(String studentUid) {
     unawaited(_expireStaleBookings());
     return resilientStream(
@@ -348,6 +380,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Stream<List<BookingSession>> watchTutorBookingSessions(String tutorUid) {
     unawaited(_expireStaleBookings());
     return resilientStream(
@@ -360,6 +393,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Future<void> processStudentSessionReminders(String studentUid) async {
     await _client.rpc(
       'process_student_session_reminders',
@@ -367,10 +401,12 @@ class BookingRepository {
     );
   }
 
+  @override
   Future<void> processAutoConfirmSessions() async {
     await _client.rpc('process_auto_confirm_sessions');
   }
 
+  @override
   Stream<List<SessionChangeRequest>> watchBookingSessionChangeRequests(
     String bookingId,
   ) {
@@ -385,6 +421,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Stream<List<SessionLearningRecord>> watchSessionLearningRecords(
     String bookingId,
   ) {
@@ -398,6 +435,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Stream<List<SessionLearningRecord>> watchStudentLearningRecords(
     String studentUid,
   ) {
@@ -411,6 +449,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Stream<List<SessionLearningRecord>> watchTutorPendingHomeworkRecords(
     String tutorUid,
   ) {
@@ -431,6 +470,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Future<void> requestSessionReschedule({
     required String sessionId,
     required String requesterUid,
@@ -477,6 +517,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Future<void> requestSessionCancel({
     required String sessionId,
     required String requesterUid,
@@ -513,6 +554,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Future<void> respondSessionChangeRequest({
     required String requestId,
     required String reviewerUid,
@@ -696,6 +738,7 @@ class BookingRepository {
     await _syncBookingCompletionState(session['booking_id'] as String? ?? '');
   }
 
+  @override
   Future<void> markSessionStartedByTutor(String sessionId) async {
     final now = DateTime.now().toUtc().toIso8601String();
     await _client
@@ -707,6 +750,7 @@ class BookingRepository {
         .eq('id', sessionId);
   }
 
+  @override
   Future<void> markSessionDoneByTutor(String sessionId) async {
     final row = await _client
         .from('booking_sessions')
@@ -735,6 +779,7 @@ class BookingRepository {
     await _recalculateTutorConsistency(row['tutor_uid'] as String? ?? '');
   }
 
+  @override
   Future<void> markStudentNoShowByTutor(String sessionId) async {
     final row = await _client
         .from('booking_sessions')
@@ -784,6 +829,7 @@ class BookingRepository {
     await _syncBookingCompletionState(row['booking_id'] as String? ?? '');
   }
 
+  @override
   Future<void> markTutorNoShowByStudent(String sessionId) async {
     final row = await _client
         .from('booking_sessions')
@@ -833,6 +879,7 @@ class BookingRepository {
     await _syncBookingCompletionState(row['booking_id'] as String? ?? '');
   }
 
+  @override
   Future<void> confirmSessionByStudent({
     required String sessionId,
     required int? rating,
@@ -875,6 +922,7 @@ class BookingRepository {
     await _syncBookingCompletionState(row['booking_id'] as String? ?? '');
   }
 
+  @override
   Future<void> disputeSessionByStudent(String sessionId) async {
     final row = await _client
         .from('booking_sessions')
@@ -915,6 +963,7 @@ class BookingRepository {
     await _syncBookingCompletionState(row['booking_id'] as String? ?? '');
   }
 
+  @override
   Future<void> resolveDisputeByTutor(String sessionId) async {
     final row = await _client
         .from('booking_sessions')
@@ -953,6 +1002,7 @@ class BookingRepository {
     await _syncBookingCompletionState(row['booking_id'] as String? ?? '');
   }
 
+  @override
   Future<void> confirmSessionPresenceByStudent(String sessionId) async {
     final row = await _client
         .from('booking_sessions')
@@ -986,6 +1036,7 @@ class BookingRepository {
         .eq('id', sessionId);
   }
 
+  @override
   Future<void> upsertTutorLearningRecord({
     required String bookingId,
     required String sessionId,
@@ -1041,6 +1092,7 @@ class BookingRepository {
         .eq('id', existing['id'] as String? ?? '');
   }
 
+  @override
   Future<void> submitHomeworkByStudent({
     required String sessionId,
     required String submissionText,
@@ -1067,6 +1119,7 @@ class BookingRepository {
         .eq('id', existing['id'] as String? ?? '');
   }
 
+  @override
   Future<void> markHomeworkReviewedByTutor({required String sessionId}) async {
     final existing = await _client
         .from('session_learning_records')
@@ -1523,6 +1576,7 @@ class BookingRepository {
     );
   }
 
+  @override
   Future<int> getRescheduleCountInLast30Days(String bookingId) async {
     try {
       final response = await _client
@@ -1539,6 +1593,7 @@ class BookingRepository {
     }
   }
 
+  @override
   Future<List<StudentTransaction>> fetchStudentTransactions(String studentUid) async {
     final data = await _client
         .from('transactions')
@@ -1621,6 +1676,7 @@ class BookingRepository {
       'is_read': false,
     });
   }
+  @override
   Future<List<BookingWeeklySlot>> fetchBookedWeeklySlots(String tutorUid) async {
     final today = DateTime.now().toUtc().toIso8601String();
     final rows = await _client

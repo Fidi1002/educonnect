@@ -1,7 +1,7 @@
 import 'dart:async';
-
 import 'package:educonnect/core/providers/backend_providers.dart';
 import 'package:educonnect/features/notifications/data/repositories/push_token_repository.dart';
+import 'package:educonnect/core/services/local_notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -12,6 +12,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   debugPrint('Handling a background message: ${message.messageId}');
+  final data = message.data;
+  if (data['type'] == 'call_start') {
+    final tutorName = data['tutor_name'] ?? 'Tutor';
+    final subject = data['subject'] ?? 'Kelas Online';
+    await LocalNotificationService.initialize();
+    await LocalNotificationService.showNotification(
+      id: 999,
+      title: 'Panggilan Masuk: $tutorName',
+      body: 'Mulai kelas online untuk mata pelajaran: $subject',
+    );
+  }
 }
 
 final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) {
@@ -47,6 +58,20 @@ class PushNotificationService {
       await Firebase.initializeApp();
       await FirebaseMessaging.instance.requestPermission();
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      
+      FirebaseMessaging.onMessage.listen((message) {
+        final data = message.data;
+        if (data['type'] == 'call_start') {
+          final tutorName = data['tutor_name'] ?? 'Tutor';
+          final subject = data['subject'] ?? 'Kelas Online';
+          LocalNotificationService.showNotification(
+            id: 999,
+            title: 'Panggilan Masuk: $tutorName',
+            body: 'Mulai kelas online untuk mata pelajaran: $subject',
+          );
+        }
+      });
+
       _tokenRefreshSubscription ??= FirebaseMessaging.instance.onTokenRefresh
           .listen((token) {
             unawaited(_syncToken(token));

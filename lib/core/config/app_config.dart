@@ -3,12 +3,12 @@ final class AppConfig {
 
   static const supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://vkhmleulohwavtdvkwdb.supabase.co',
+    defaultValue: '',
   );
   
   static const supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'sb_publishable_52V0XsvvtcYYr_XYaKrm8A_Ya0gzmhk',
+    defaultValue: '',
   );
 
   static const supabaseGoogleRedirectUrl = String.fromEnvironment(

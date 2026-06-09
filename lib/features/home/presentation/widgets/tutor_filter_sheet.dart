@@ -134,10 +134,12 @@ class _TutorFilterSheetState extends State<_TutorFilterSheet> {
     final maxPrice = widget.maxAvailablePrice.toDouble();
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1B2336) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
       ),
       padding: EdgeInsets.fromLTRB(24, 8, 24, 24 + bottomInset),
       child: Column(
@@ -149,7 +151,7 @@ class _TutorFilterSheetState extends State<_TutorFilterSheet> {
               width: 48,
               height: 5,
               decoration: BoxDecoration(
-                color: const Color(0xFFEAF2FF),
+                color: isDark ? const Color(0xFF28354E) : const Color(0xFFEAF2FF),
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -158,12 +160,12 @@ class _TutorFilterSheetState extends State<_TutorFilterSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Filter Pencarian',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFF4B176E),
+                  color: isDark ? Colors.white : const Color(0xFF4B176E),
                 ),
               ),
               TextButton(
@@ -201,7 +203,7 @@ class _TutorFilterSheetState extends State<_TutorFilterSheet> {
             max: maxPrice <= minPrice ? minPrice + 1 : maxPrice,
             divisions: 20,
             activeColor: const Color(0xFFFF1377),
-            inactiveColor: const Color(0xFFF3F0F7),
+            inactiveColor: isDark ? const Color(0xFF28354E) : const Color(0xFFF3F0F7),
             labels: RangeLabels(
               'Rp ${_priceRange.start.round()}',
               'Rp ${_priceRange.end.round()}',
@@ -339,12 +341,13 @@ class _TutorFilterSheetState extends State<_TutorFilterSheet> {
   }
 
   Widget _sectionHeader(String title) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w800,
-        color: Color(0xFF4B176E),
+        color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
       ),
     );
   }
@@ -357,17 +360,18 @@ class _PillLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF2FF),
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEAF2FF),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFD3DFFB)),
+        border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFD3DFFB)),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Color(0xFF4B176E),
+        style: TextStyle(
+          color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
           fontWeight: FontWeight.w800,
           fontSize: 11,
         ),

@@ -76,6 +76,10 @@ class TutorProfileRepository {
       'birth_date': profile.birthDate?.toIso8601String().split('T').first,
       'experience_cv': profile.experienceCv,
       'teaching_levels': profile.teachingLevels,
+      'bank_name': profile.bankName,
+      'bank_account_number': profile.bankAccountNumber,
+      'languages': profile.languages,
+      'introduction_video_url': profile.introductionVideoUrl,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'uid');
   }
@@ -165,6 +169,13 @@ class TutorProfileRepository {
         .toSet()
         .length;
 
+    // Fetch total bookings count
+    final allBookingsData = await _client
+        .from('bookings')
+        .select('student_uid')
+        .eq('tutor_uid', tutorUid);
+    final bookingsCount = (allBookingsData as List).length;
+
     // 3. Fetch monthly earnings
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1).toUtc().toIso8601String();
@@ -187,6 +198,7 @@ class TutorProfileRepository {
       activeStudentsCount: activeStudentsCount,
       monthlyEarnings: monthlyEarnings,
       weekdaySessionCounts: weekdayCounts,
+      bookingsCount: bookingsCount,
     );
   }
 
@@ -275,6 +287,12 @@ class TutorProfileRepository {
       teachingLevels: (tutorMap['teaching_levels'] as List<dynamic>? ?? <dynamic>[])
           .map((item) => item.toString())
           .toList(),
+      bankName: (tutorMap['bank_name'] as String?) ?? (tutorMap['bankName'] as String?),
+      bankAccountNumber: (tutorMap['bank_account_number'] as String?) ?? (tutorMap['bankAccountNumber'] as String?),
+      languages: (tutorMap['languages'] as List<dynamic>? ?? <dynamic>[])
+          .map((item) => item.toString())
+          .toList(),
+      introductionVideoUrl: (tutorMap['introduction_video_url'] as String?) ?? (tutorMap['introductionVideoUrl'] as String?),
     );
   }
 }

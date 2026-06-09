@@ -1,6 +1,5 @@
 import 'package:educonnect/app/routes/auth_refresh_notifier.dart';
 import 'package:educonnect/features/auth/data/repositories/auth_repository.dart';
-import 'package:educonnect/features/auth/data/repositories/user_repository.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/auth/presentation/pages/auth_page.dart';
 import 'package:educonnect/features/auth/presentation/pages/edit_profile_page.dart';
@@ -30,25 +29,32 @@ import 'package:educonnect/features/tutor/presentation/pages/tutor_profile_form_
 import 'package:educonnect/features/tutor/presentation/pages/tutor_profile_page.dart';
 import 'package:educonnect/features/tutor/presentation/pages/tutor_stats_page.dart';
 import 'package:educonnect/features/wallet/presentation/pages/tutor_wallet_page.dart';
+import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 final authRefreshNotifierProvider = Provider<AuthRefreshNotifier>((ref) {
-  final authRepository = ref.watch(authRepositoryProvider);
-  final notifier = AuthRefreshNotifier(authRepository.authStateChanges());
-  ref.onDispose(notifier.dispose);
+  final notifier = AuthRefreshNotifier();
+  
+  ref.listen(authStateProvider, (prev, next) {
+    notifier.triggerRefresh();
+  });
+  
+  ref.listen(currentUserProfileProvider, (prev, next) {
+    notifier.triggerRefresh();
+  });
+  
   return notifier;
 });
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
-  final userRepository = ref.watch(userRepositoryProvider);
   final refreshNotifier = ref.watch(authRefreshNotifierProvider);
 
   return GoRouter(
     initialLocation: AuthPage.routePath,
     refreshListenable: refreshNotifier,
-    redirect: (context, state) async {
+    redirect: (context, state) {
       final location = state.matchedLocation;
       final user = authRepository.currentUser;
 
@@ -61,13 +67,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         return isAuthRoute ? null : AuthPage.routePath;
       }
 
-      var profile = await userRepository.fetchUserProfile(user.uid);
-      if (profile == null) {
-        await userRepository.upsertFromAuthUser(user);
-        profile = await userRepository.fetchUserProfile(user.uid);
+      final profileAsync = ref.read(currentUserProfileProvider);
+      
+      // If the profile is loading, wait on the current route
+      if (profileAsync.isLoading) {
+        return null;
       }
 
+      final profile = profileAsync.valueOrNull;
       final role = profile?.role ?? AppUserRole.unknown;
+      
       if (role == AppUserRole.unknown) {
         return isRoleRoute ? null : RoleOnboardingPage.routePath;
       }

@@ -1,5 +1,6 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
+import 'package:educonnect/core/utils/calendar_sync_helper.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/booking/application/booking_controller.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
@@ -231,6 +232,8 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
               ? 1
               : 0;
 
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+
           _scheduleAutoScrollToSession(
             focusedSessionId: focusedSessionId,
             focusedSessionKey: focusedSessionKey,
@@ -249,7 +252,7 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
-                      color: Theme.of(context).brightness == Brightness.dark
+                      color: isDark
                           ? const Color(0xFFF1F5F9)
                           : const Color(0xFF4B176E),
                       letterSpacing: -0.5,
@@ -265,9 +268,9 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF0F4FF),
+                    color: isDark ? const Color(0xFF1B2336) : const Color(0xFFF0F4FF),
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: const Color(0xFFD3DFFB)),
+                    border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFD3DFFB)),
                   ),
                   child: TabBar(
                     indicator: BoxDecoration(
@@ -284,7 +287,7 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
                       ],
                     ),
                     labelColor: Colors.white,
-                    unselectedLabelColor: const Color(0xFF756E81),
+                    unselectedLabelColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF756E81),
                     indicatorSize: TabBarIndicatorSize.tab,
                     dividerColor: Colors.transparent,
                     tabs: const [
@@ -427,18 +430,22 @@ class _StudentBookingOverview extends StatelessWidget {
     final active = allItems
         .where((item) => item.status == BookingStatus.paid)
         .length;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFF3F7FF), Color(0xFFFFFFFF)],
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1B2336), const Color(0xFF131926)]
+              : [const Color(0xFFF3F7FF), const Color(0xFFFFFFFF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: const Color(0xFFD9E4FF)),
+        border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFD9E4FF)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0C1E1E59),
@@ -455,50 +462,50 @@ class _StudentBookingOverview extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
-                  vertical: 6,
+                  vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                  color: isDark
+                      ? const Color(0xFFFF1377).withValues(alpha: 0.15)
+                      : const Color(0xFF6366F1).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: const Text(
+                child: Text(
                   'Booking & Jadwal',
                   style: TextStyle(
-                    color: Color(0xFF4B176E),
+                    color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
                     fontWeight: FontWeight.w800,
-                    fontSize: 12,
+                    fontSize: 11,
                   ),
                 ),
               ),
               const Spacer(),
-              const Icon(
+              Icon(
                 FluentIcons.calendar_ltr_24_regular,
-                color: Color(0xFF6366F1),
+                color: isDark ? const Color(0xFFFF1377) : const Color(0xFF6366F1),
+                size: 20,
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             'Ringkasan Booking Belajar',
             style: Theme.of(
               context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Pantau paket aktif, pembayaran, status sesi, dan riwayat belajar dari satu tempat.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: const Color(0xFF756E81)),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
                 child: _OverviewMetricPill(
                   label: 'Akan datang',
                   value: '${upcomingItems.length}',
-                  accent: const Color(0xFF4B176E),
+                  accent: isDark ? const Color(0xFFD8B4FE) : const Color(0xFF4B176E),
                   icon: FluentIcons.clock_24_regular,
                 ),
               ),
@@ -507,7 +514,7 @@ class _StudentBookingOverview extends StatelessWidget {
                 child: _OverviewMetricPill(
                   label: 'Aktif',
                   value: '$active',
-                  accent: const Color(0xFF6366F1),
+                  accent: isDark ? const Color(0xFF818CF8) : const Color(0xFF6366F1),
                   icon: FluentIcons.book_open_24_regular,
                 ),
               ),
@@ -516,7 +523,7 @@ class _StudentBookingOverview extends StatelessWidget {
                 child: _OverviewMetricPill(
                   label: 'Riwayat',
                   value: '${historyItems.length}',
-                  accent: const Color(0xFFFF1377),
+                  accent: isDark ? const Color(0xFFFB7185) : const Color(0xFFFF1377),
                   icon: FluentIcons.history_24_regular,
                 ),
               ),
@@ -527,21 +534,22 @@ class _StudentBookingOverview extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF2E5),
+                color: isDark ? const Color(0xFF78350F).withValues(alpha: 0.2) : const Color(0xFFFFF2E5),
                 borderRadius: BorderRadius.circular(18),
+                border: isDark ? Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.3)) : null,
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     FluentIcons.money_24_regular,
-                    color: Color(0xFFB45309),
+                    color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       '$awaitingPayment booking masih menunggu pembayaran agar jadwal aktif penuh.',
-                      style: const TextStyle(
-                        color: Color(0xFF92400E),
+                      style: TextStyle(
+                        color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -572,31 +580,33 @@ class _OverviewMetricPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accent.withValues(alpha: 0.12)),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 18, color: accent),
-          const SizedBox(height: 8),
+          Icon(icon, size: 15, color: accent),
+          const SizedBox(height: 4),
           Text(
             value,
             style: TextStyle(
               color: accent,
               fontWeight: FontWeight.w800,
-              fontSize: 20,
+              fontSize: 16,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF736A81),
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF94A3B8)
+                  : const Color(0xFF736A81),
               fontWeight: FontWeight.w600,
-              fontSize: 12,
+              fontSize: 10.5,
             ),
           ),
         ],
@@ -652,9 +662,9 @@ class _BookingList extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       itemCount: items.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final item = items[index];
         return _BookingCard(
@@ -715,11 +725,13 @@ class _BookingCard extends ConsumerWidget {
     final requestsAsync = ref.watch(sessionChangeRequestsProvider(item.id));
     final learningAsync = ref.watch(sessionLearningRecordsProvider(item.id));
     final currentUid = ref.watch(authStateProvider).value?.uid ?? '';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1B2336) : Colors.white,
         borderRadius: BorderRadius.circular(28),
+        border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
         boxShadow: const [
           BoxShadow(
             color: Color(0x0C1E1E59),
@@ -729,7 +741,7 @@ class _BookingCard extends ConsumerWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -741,17 +753,17 @@ class _BookingCard extends ConsumerWidget {
                     children: [
                       Text(
                         item.subject,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 18,
-                          color: Color(0xFF4B176E),
+                          color: isDark ? Colors.white : const Color(0xFF4B176E),
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Tutor: ${item.tutorName.isEmpty ? item.tutorUid : item.tutorName}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF6F7280),
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF6F7280),
                         ),
                       ),
                     ],
@@ -760,21 +772,21 @@ class _BookingCard extends ConsumerWidget {
                 _BookingStatusBadge(status: item.status),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             Wrap(
               spacing: 8,
-              runSpacing: 8,
+              runSpacing: 6,
               children: [
                 _InfoChip(
                   icon: Icons.calendar_month_outlined,
                   label:
                       '${item.packageMonths} bulan • ${item.sessionsPerWeek}x/minggu',
-                  accent: const Color(0xFF4B176E),
+                  accent: isDark ? const Color(0xFFD8B4FE) : const Color(0xFF4B176E),
                 ),
                 _InfoChip(
                   icon: Icons.schedule_rounded,
                   label: _formatDateTimeShort(item.sessionStart),
-                  accent: const Color(0xFF6366F1),
+                  accent: isDark ? const Color(0xFF818CF8) : const Color(0xFF6366F1),
                 ),
                 _InfoChip(
                   icon: FluentIcons.money_24_regular,
@@ -782,63 +794,25 @@ class _BookingCard extends ConsumerWidget {
                       ? 'Menunggu pembayaran'
                       : 'Pembayaran tuntas',
                   accent: item.paidAt == null
-                      ? const Color(0xFFB45309)
-                      : const Color(0xFF0F766E),
+                      ? (isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309))
+                      : (isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0F766E)),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF7F9FF),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFDCE4F3)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Detail Paket',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: const Color(0xFF4B176E),
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Periode: ${item.packageStartDate.day}/${item.packageStartDate.month}/${item.packageStartDate.year}'
-                    ' - ${item.packageEndDate.day}/${item.packageEndDate.month}/${item.packageEndDate.year}',
-                  ),
-                  if (item.weeklySchedule.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Jadwal tetap: ${_formatWeekdayScheduleLabel(item.weeklySchedule)}',
-                    ),
-                  ],
-                  const SizedBox(height: 4),
-                  Text('Durasi: ${item.durationMinutes} menit'),
-                  Text('Biaya: Rp ${item.totalAmount}'),
-                  if (item.paidAt != null) ...[
-                    const SizedBox(height: 4),
-                    Text('Dibayar: ${_formatDateTimeShort(item.paidAt!)}'),
-                  ],
-                  if (item.message.trim().isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text('Catatan: ${item.message}'),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
+            _CollapsibleBookingDetails(item: item),
+            const SizedBox(height: 6),
             Text(
               'Progress Pertemuan',
               style: Theme.of(
                 context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 13.5,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             sessionsAsync.when(
               data: (sessions) {
                 if (sessions.isEmpty) {
@@ -905,31 +879,55 @@ class _BookingCard extends ConsumerWidget {
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 220),
                             key: isFocusedSession ? focusedSessionKey : null,
-                            padding: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(10),
                               color: isFocusedSession
-                                  ? const Color(0xFFF8F0FF)
-                                  : Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceContainerHigh,
+                                  ? (isDark ? const Color(0xFF3B1E54) : const Color(0xFFF8F0FF))
+                                  : (isDark ? const Color(0xFF090D16) : Theme.of(context).colorScheme.surfaceContainerHigh),
                               border: isFocusedSession
                                   ? Border.all(
-                                      color: const Color(0xFF7B2CBF),
+                                      color: isDark ? const Color(0xFFBD68FF) : const Color(0xFF7B2CBF),
                                       width: 1.4,
                                     )
-                                  : null,
+                                  : (isDark ? Border.all(color: const Color(0xFF28354E)) : null),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  '${session.sessionStart.day}/${session.sessionStart.month} '
-                                  '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
-                                  ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '${session.sessionStart.day}/${session.sessionStart.month} '
+                                        '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
+                                        ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark ? Colors.white : Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                    if (session.status == BookingSessionStatus.scheduled)
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.calendar_today_rounded,
+                                          size: 16,
+                                          color: isDark ? const Color(0xFFBD68FF) : const Color(0xFF7B2CBF),
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        tooltip: 'Tambahkan ke Google Calendar',
+                                        onPressed: () => CalendarSyncHelper.addToGoogleCalendar(
+                                          title: item.subject,
+                                          startTime: session.sessionStart,
+                                          endTime: session.sessionEnd,
+                                          description: 'Kelas EduConnect bersama ${item.tutorName}.',
+                                          location: item.meetingType == 'offline' ? item.meetingLocation : 'Online Classroom',
+                                        ),
+                                      ),
+                                  ],
                                 ),
                                 const SizedBox(height: 6),
                                 _SessionStatusBadge(status: session.status),
@@ -985,29 +983,32 @@ class _BookingCard extends ConsumerWidget {
                                 if (learningRecord != null &&
                                     (learningRecord.hasMaterial ||
                                         learningRecord.hasHomework)) ...[
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.68,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Learning Journal',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelLarge
-                                              ?.copyWith(
-                                                color: const Color(0xFF4B176E),
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                        ),
+                                   const SizedBox(height: 8),
+                                   Container(
+                                     padding: const EdgeInsets.all(10),
+                                     decoration: BoxDecoration(
+                                       color: isDark
+                                           ? const Color(0xFF1B2336)
+                                           : Colors.white.withValues(
+                                               alpha: 0.68,
+                                             ),
+                                       borderRadius: BorderRadius.circular(12),
+                                       border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+                                     ),
+                                     child: Column(
+                                       crossAxisAlignment:
+                                           CrossAxisAlignment.start,
+                                       children: [
+                                         Text(
+                                           'Learning Journal',
+                                           style: Theme.of(context)
+                                               .textTheme
+                                               .labelLarge
+                                               ?.copyWith(
+                                                 color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
+                                                 fontWeight: FontWeight.w800,
+                                               ),
+                                         ),
                                         if (learningRecord.hasMaterial) ...[
                                           const SizedBox(height: 6),
                                           Text(
@@ -1252,7 +1253,7 @@ class _BookingCard extends ConsumerWidget {
                                               : () => _showCancelRequestDialog(
                                                   context: context,
                                                   ref: ref,
-                                                  sessionId: session.id,
+                                                  session: session,
                                                 ),
                                           child: const Text('Ajukan Batal'),
                                         ),
@@ -1266,7 +1267,7 @@ class _BookingCard extends ConsumerWidget {
                                                     _showRescheduleRequestDialog(
                                                       context: context,
                                                       ref: ref,
-                                                      sessionId: session.id,
+                                                      session: session,
                                                       durationMinutes:
                                                           item.durationMinutes,
                                                     ),
@@ -1351,12 +1352,18 @@ class _BookingCard extends ConsumerWidget {
                                   Expanded(
                                     child: Text(
                                       'Progress: $confirmedCount/${sessions.length} sesi',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.w700,
+                                        color: isDark ? Colors.white70 : Colors.black87,
                                       ),
                                     ),
                                   ),
-                                  Text('$progressPercent%'),
+                                  Text(
+                                    '$progressPercent%',
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white70 : Colors.black87,
+                                    ),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 6),
@@ -1365,10 +1372,10 @@ class _BookingCard extends ConsumerWidget {
                                 child: LinearProgressIndicator(
                                   minHeight: 8,
                                   value: confirmedCount / sessions.length,
-                                  backgroundColor: const Color(0xFFE9E3F2),
+                                  backgroundColor: isDark ? const Color(0xFF28354E) : const Color(0xFFE9E3F2),
                                   valueColor:
-                                      const AlwaysStoppedAnimation<Color>(
-                                        Color(0xFF4B176E),
+                                      AlwaysStoppedAnimation<Color>(
+                                        isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
                                       ),
                                 ),
                               ),
@@ -1556,17 +1563,24 @@ class _BookingCard extends ConsumerWidget {
   Future<void> _showCancelRequestDialog({
     required BuildContext context,
     required WidgetRef ref,
-    required String sessionId,
+    required BookingSession session,
   }) async {
     final reasonController = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final timeDiff = session.sessionStart.difference(DateTime.now());
+    final isEarlyCancel = timeDiff.inHours >= 12;
+    
     final submit = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => Padding(
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1B2336) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+        ),
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           left: 24,
@@ -1581,10 +1595,65 @@ class _BookingCard extends ConsumerWidget {
               'Ajukan Pembatalan',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isEarlyCancel 
+                    ? (isDark ? const Color(0xFF0C2A1C) : const Color(0xFFE8F5E9))
+                    : (isDark ? const Color(0xFF2E1C0C) : const Color(0xFFFFF3E0)),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isEarlyCancel 
+                      ? (isDark ? const Color(0xFF1E5235) : Colors.green.shade200)
+                      : (isDark ? const Color(0xFF5E3C1C) : Colors.orange.shade200),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isEarlyCancel ? Icons.check_circle_outline_rounded : Icons.warning_amber_rounded,
+                    color: isEarlyCancel ? Colors.green : Colors.orange,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isEarlyCancel ? 'Pembatalan Awal (Bebas Biaya)' : 'Pembatalan Terlambat',
+                          style: TextStyle(
+                            color: isEarlyCancel 
+                                ? (isDark ? Colors.green.shade300 : Colors.green.shade800)
+                                : (isDark ? Colors.orange.shade300 : Colors.orange.shade800),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isEarlyCancel 
+                              ? 'Pembatalan dilakukan >= 12 jam sebelum kelas. Saldo Anda akan dikembalikan penuh.'
+                              : 'Pembatalan dilakukan < 12 jam sebelum kelas. Murid dapat dikenakan biaya sesi penuh.',
+                          style: TextStyle(
+                            color: isEarlyCancel 
+                                ? (isDark ? Colors.green.shade400 : Colors.green.shade700)
+                                : (isDark ? Colors.orange.shade400 : Colors.orange.shade700),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
             TextFormField(
               controller: reasonController,
               maxLines: 3,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black),
               decoration: InputDecoration(
                 labelText: 'Alasan pembatalan',
                 border: OutlineInputBorder(
@@ -1627,7 +1696,7 @@ class _BookingCard extends ConsumerWidget {
     await ref
         .read(bookingControllerProvider)
         .requestSessionCancel(
-          sessionId: sessionId,
+          sessionId: session.id,
           reason: reasonController.text,
         );
     reasonController.dispose();
@@ -1636,114 +1705,210 @@ class _BookingCard extends ConsumerWidget {
   Future<void> _showRescheduleRequestDialog({
     required BuildContext context,
     required WidgetRef ref,
-    required String sessionId,
+    required BookingSession session,
     required int durationMinutes,
   }) async {
     final reasonController = TextEditingController();
     DateTime? selectedDateTime;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final timeDiff = session.sessionStart.difference(DateTime.now());
+    final isTooLate = timeDiff.inHours < 6;
+
     final submit = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                left: 24,
-                right: 24,
-                top: 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Ajukan Reschedule',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            return Consumer(
+              builder: (context, ref, child) {
+                final countAsync = ref.watch(rescheduleCountProvider(session.bookingId));
+                final count = countAsync.valueOrNull ?? 0;
+                final isLimitReached = count >= 2;
+                final cannotReschedule = isTooLate || isLimitReached;
+
+                return Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1B2336) : Colors.white,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
                   ),
-                  const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 120)),
-                        initialDate: DateTime.now().add(
-                          const Duration(days: 1),
-                        ),
-                      );
-                      if (date == null || !context.mounted) return;
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: const TimeOfDay(hour: 16, minute: 0),
-                      );
-                      if (time == null || !context.mounted) return;
-                      setState(() {
-                        selectedDateTime = DateTime(
-                          date.year,
-                          date.month,
-                          date.day,
-                          time.hour,
-                          time.minute,
-                        );
-                      });
-                    },
-                    icon: const Icon(FluentIcons.clock_24_regular),
-                    label: Text(
-                      selectedDateTime == null
-                          ? 'Pilih jadwal baru'
-                          : '${selectedDateTime!.day}/${selectedDateTime!.month}/${selectedDateTime!.year} '
-                                '${selectedDateTime!.hour.toString().padLeft(2, '0')}:${selectedDateTime!.minute.toString().padLeft(2, '0')}',
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                    left: 24,
+                    right: 24,
+                    top: 24,
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: reasonController,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      labelText: 'Alasan',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                      const Text(
+                        'Ajukan Reschedule',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Peringatan Batas Waktu 6 Jam
+                      if (isTooLate) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF2A0C0C) : const Color(0xFFFFEBEE),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isDark ? const Color(0xFF521E1E) : Colors.red.shade200),
                           ),
-                          child: const Text('Batal'),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline_rounded, color: Colors.red, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Reschedule tidak diperbolehkan kurang dari 6 jam sebelum sesi dimulai.',
+                                  style: TextStyle(
+                                    color: isDark ? Colors.red.shade300 : Colors.red.shade800,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ] else ...[
+                        // Kuota Reschedule
+                        countAsync.when(
+                          data: (countVal) {
+                            final remaining = (2 - countVal).clamp(0, 2);
+                            return Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: remaining == 0 
+                                    ? (isDark ? const Color(0xFF2A0C0C) : const Color(0xFFFFEBEE))
+                                    : (isDark ? const Color(0xFF2E260C) : const Color(0xFFFFFDE7)),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: remaining == 0 
+                                      ? (isDark ? const Color(0xFF521E1E) : Colors.red.shade200)
+                                      : (isDark ? const Color(0xFF52451E) : Colors.amber.shade200),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    remaining == 0 ? Icons.error_outline_rounded : Icons.info_outline_rounded,
+                                    color: remaining == 0 ? Colors.red : Colors.amber.shade800,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      remaining == 0
+                                          ? 'Batas reschedule untuk kelas ini (Maks 2x/30 hari) telah tercapai.'
+                                          : 'Sisa kuota reschedule kelas ini: $remaining kali.',
+                                      style: TextStyle(
+                                        color: remaining == 0 
+                                            ? (isDark ? Colors.red.shade300 : Colors.red.shade800)
+                                            : (isDark ? Colors.amber.shade300 : Colors.amber.shade900),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          loading: () => const LinearProgressIndicator(),
+                          error: (error, stack) => const SizedBox.shrink(),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
+                      OutlinedButton.icon(
+                        onPressed: cannotReschedule ? null : () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(const Duration(days: 120)),
+                            initialDate: DateTime.now().add(
+                              const Duration(days: 1),
+                            ),
+                          );
+                          if (date == null || !context.mounted) return;
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: const TimeOfDay(hour: 16, minute: 0),
+                          );
+                          if (time == null || !context.mounted) return;
+                          setState(() {
+                            selectedDateTime = DateTime(
+                              date.year,
+                              date.month,
+                              date.day,
+                              time.hour,
+                              time.minute,
+                            );
+                          });
+                        },
+                        icon: const Icon(FluentIcons.clock_24_regular),
+                        label: Text(
+                          selectedDateTime == null
+                              ? 'Pilih jadwal baru'
+                              : '${selectedDateTime!.day}/${selectedDateTime!.month}/${selectedDateTime!.year} '
+                                    '${selectedDateTime!.hour.toString().padLeft(2, '0')}:${selectedDateTime!.minute.toString().padLeft(2, '0')}',
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: selectedDateTime == null
-                              ? null
-                              : () => Navigator.pop(context, true),
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: reasonController,
+                        maxLines: 2,
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                        enabled: !cannotReschedule,
+                        decoration: InputDecoration(
+                          labelText: 'Alasan',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Text('Kirim'),
                         ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              child: const Text('Batal'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: (selectedDateTime == null || cannotReschedule)
+                                  ? null
+                                  : () => Navigator.pop(context, true),
+                              style: FilledButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              child: const Text('Kirim'),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                );
+              }
             );
           },
         );
@@ -1757,7 +1922,7 @@ class _BookingCard extends ConsumerWidget {
     await ref
         .read(bookingControllerProvider)
         .requestSessionReschedule(
-          sessionId: sessionId,
+          sessionId: session.id,
           proposedStart: selectedDateTime!,
           proposedEnd: selectedDateTime!.add(
             Duration(minutes: durationMinutes),
@@ -1868,17 +2033,20 @@ class _BookingCard extends ConsumerWidget {
     final submissionController = TextEditingController();
     String? selectedImagePath;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final submit = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return Padding(
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1B2336) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+              ),
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom + 24,
                 left: 24,
@@ -1893,9 +2061,13 @@ class _BookingCard extends ConsumerWidget {
                     children: [
                       const Icon(Icons.assignment_turned_in_rounded, color: Color(0xFFFF1377), size: 24),
                       const SizedBox(width: 8),
-                      const Text(
+                      Text(
                         'Kumpulkan PR Kamu',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1E1A33)),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : const Color(0xFF1E1A33),
+                        ),
                       ),
                     ],
                   ),
@@ -1903,6 +2075,7 @@ class _BookingCard extends ConsumerWidget {
                   TextFormField(
                     controller: submissionController,
                     maxLines: 3,
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
                       labelText: 'Catatan Jawaban / Link Tugas',
                       hintText: 'Tulis jawaban atau tempel link tugasmu di sini...',
@@ -1926,7 +2099,7 @@ class _BookingCard extends ConsumerWidget {
                           width: double.infinity,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey.shade300),
+                            border: Border.all(color: isDark ? const Color(0xFF28354E) : Colors.grey.shade300),
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(16),
@@ -1957,17 +2130,21 @@ class _BookingCard extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+                        border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFF6366F1).withValues(alpha: 0.3)),
                         borderRadius: BorderRadius.circular(16),
-                        color: const Color(0xFFF7F9FF),
+                        color: isDark ? const Color(0xFF090D16) : const Color(0xFFF7F9FF),
                       ),
                       child: Column(
                         children: [
                           const Icon(Icons.camera_alt_outlined, size: 36, color: Color(0xFF6366F1)),
                           const SizedBox(height: 8),
-                          const Text(
+                          Text(
                             'Lampirkan Lembar Jawaban Gambar (Opsional)',
-                            style: TextStyle(fontSize: 12, color: Color(0xFF756E81), fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white70 : const Color(0xFF756E81),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           const SizedBox(height: 12),
                           Row(
@@ -1986,8 +2163,8 @@ class _BookingCard extends ConsumerWidget {
                                 icon: const Icon(Icons.photo_library),
                                 label: const Text('Galeri'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFE7F8F1),
-                                  foregroundColor: const Color(0xFF0F766E),
+                                  backgroundColor: isDark ? const Color(0xFF0F766E).withValues(alpha: 0.2) : const Color(0xFFE7F8F1),
+                                  foregroundColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0F766E),
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
@@ -2006,8 +2183,8 @@ class _BookingCard extends ConsumerWidget {
                                 icon: const Icon(Icons.photo_camera),
                                 label: const Text('Kamera'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFFFF0E5),
-                                  foregroundColor: const Color(0xFFB45309),
+                                  backgroundColor: isDark ? const Color(0xFFD97706).withValues(alpha: 0.2) : const Color(0xFFFFF0E5),
+                                  foregroundColor: isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309),
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
@@ -2290,6 +2467,7 @@ class _ReviewBottomSheetState extends ConsumerState<_ReviewBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: EdgeInsets.only(
         left: 24,
@@ -2297,9 +2475,10 @@ class _ReviewBottomSheetState extends ConsumerState<_ReviewBottomSheet> {
         top: 24,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1B2336) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -2309,18 +2488,18 @@ class _ReviewBottomSheetState extends ConsumerState<_ReviewBottomSheet> {
               width: 48,
               height: 6,
               decoration: BoxDecoration(
-                color: const Color(0xFFE2E8F0),
+                color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Bagaimana pengalaman belajarmu?',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF191622),
+              color: isDark ? Colors.white : const Color(0xFF191622),
             ),
             textAlign: TextAlign.center,
           ),
@@ -2347,13 +2526,14 @@ class _ReviewBottomSheetState extends ConsumerState<_ReviewBottomSheet> {
           TextField(
             controller: _commentController,
             maxLines: 4,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black),
             decoration: InputDecoration(
               hintText: 'Tutornya asik banget dan materinya jelas...',
               filled: true,
-              fillColor: const Color(0xFFF7F9FF),
+              fillColor: isDark ? const Color(0xFF090D16) : const Color(0xFFF7F9FF),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
+                borderSide: isDark ? const BorderSide(color: Color(0xFF28354E)) : BorderSide.none,
               ),
             ),
           ),
@@ -2363,7 +2543,7 @@ class _ReviewBottomSheetState extends ConsumerState<_ReviewBottomSheet> {
             child: FilledButton(
               onPressed: _isLoading ? null : _submit,
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF4B176E),
+                backgroundColor: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
@@ -2410,52 +2590,54 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
   Widget build(BuildContext context) {
     const double serviceFee = 4000;
     final double totalBill = widget.item.totalAmount + serviceFee;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1B2336) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
       ),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _isProcessing
-            ? _buildProcessingView()
-            : _buildCheckoutView(totalBill, serviceFee),
+            ? _buildProcessingView(isDark)
+            : _buildCheckoutView(totalBill, serviceFee, isDark),
       ),
     );
   }
 
-  Widget _buildProcessingView() {
+  Widget _buildProcessingView(bool isDark) {
     return Column(
       key: const ValueKey('processing'),
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 32),
-        const SizedBox(
+        SizedBox(
           width: 60,
           height: 60,
           child: CircularProgressIndicator(
-            color: Color(0xFF7B2CBF),
+            color: isDark ? const Color(0xFFFF1377) : const Color(0xFF7B2CBF),
             strokeWidth: 5,
           ),
         ),
         const SizedBox(height: 24),
         Text(
           _processingMessage,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF191622),
+            color: isDark ? Colors.white : const Color(0xFF191622),
           ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Transaksi Anda diproses secara aman menggunakan enkripsi SSL.',
           style: TextStyle(
             fontSize: 12,
-            color: Color(0xFF756E81),
+            color: isDark ? Colors.white70 : const Color(0xFF756E81),
           ),
           textAlign: TextAlign.center,
         ),
@@ -2464,7 +2646,7 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
     );
   }
 
-  Widget _buildCheckoutView(double totalBill, double serviceFee) {
+  Widget _buildCheckoutView(double totalBill, double serviceFee, bool isDark) {
     return Column(
       key: const ValueKey('checkout'),
       mainAxisSize: MainAxisSize.min,
@@ -2476,7 +2658,7 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: const Color(0xFFE2E8F0),
+              color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0),
               borderRadius: BorderRadius.circular(10),
             ),
           ),
@@ -2536,9 +2718,9 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
+            color: isDark ? const Color(0xFF090D16) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0)),
           ),
           child: Column(
             children: [
@@ -2563,7 +2745,7 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
                   ),
                 ],
               ),
-              const Divider(height: 20, color: Color(0xFFE2E8F0)),
+              Divider(height: 20, color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0)),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -2573,10 +2755,10 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
                   ),
                   Text(
                     'Rp ${totalBill.toInt()}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
-                      color: Color(0xFF7B2CBF),
+                      color: isDark ? const Color(0xFFFF1377) : const Color(0xFF7B2CBF),
                     ),
                   ),
                 ],
@@ -2596,6 +2778,7 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
           icon: Icons.qr_code_scanner,
           title: 'GoPay / QRIS Dinamis',
           subtitle: 'Scan QR Code instan dari aplikasi e-wallet',
+          isDark: isDark,
         ),
         const SizedBox(height: 10),
         // Virtual Account Select
@@ -2604,6 +2787,7 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
           icon: Icons.account_balance,
           title: 'BCA Virtual Account',
           subtitle: 'Transfer via m-BCA / ATM',
+          isDark: isDark,
         ),
         const SizedBox(height: 16),
 
@@ -2613,8 +2797,8 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
           child: Container(
             key: ValueKey(_selectedMethod),
             child: _selectedMethod == 'gopay'
-                ? _buildGopayDetail()
-                : _buildVaDetail(),
+                ? _buildGopayDetail(isDark)
+                : _buildVaDetail(isDark),
           ),
         ),
         const SizedBox(height: 24),
@@ -2623,7 +2807,7 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
         FilledButton(
           onPressed: _startPaymentProcess,
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF7B2CBF),
+            backgroundColor: isDark ? const Color(0xFFFF1377) : const Color(0xFF7B2CBF),
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -2650,6 +2834,7 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
     required IconData icon,
     required String title,
     required String subtitle,
+    required bool isDark,
   }) {
     final isSelected = _selectedMethod == id;
     return InkWell(
@@ -2662,10 +2847,14 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF7B2CBF).withValues(alpha: 0.04) : Colors.white,
+          color: isSelected
+              ? (isDark ? const Color(0xFFFF1377).withValues(alpha: 0.1) : const Color(0xFF7B2CBF).withValues(alpha: 0.04))
+              : (isDark ? const Color(0xFF090D16) : Colors.white),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? const Color(0xFF7B2CBF) : const Color(0xFFE2E8F0),
+            color: isSelected
+                ? (isDark ? const Color(0xFFFF1377) : const Color(0xFF7B2CBF))
+                : (isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0)),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -2674,12 +2863,16 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF7B2CBF).withValues(alpha: 0.1) : const Color(0xFFF1F5F9),
+                color: isSelected
+                    ? (isDark ? const Color(0xFFFF1377).withValues(alpha: 0.2) : const Color(0xFF7B2CBF).withValues(alpha: 0.1))
+                    : (isDark ? const Color(0xFF1B2336) : const Color(0xFFF1F5F9)),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon,
-                color: isSelected ? const Color(0xFF7B2CBF) : const Color(0xFF64748B),
+                color: isSelected
+                    ? (isDark ? const Color(0xFFFF1377) : const Color(0xFF7B2CBF))
+                    : const Color(0xFF64748B),
                 size: 24,
               ),
             ),
@@ -2692,20 +2885,24 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
                     title,
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: isSelected ? const Color(0xFF7B2CBF) : const Color(0xFF191622),
+                      color: isSelected
+                          ? (isDark ? const Color(0xFFFF1377) : const Color(0xFF7B2CBF))
+                          : (isDark ? Colors.white : const Color(0xFF191622)),
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF756E81)),
+                    style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF756E81)),
                   ),
                 ],
               ),
             ),
             Icon(
               isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: isSelected ? const Color(0xFF7B2CBF) : const Color(0xFFCBD5E1),
+              color: isSelected
+                  ? (isDark ? const Color(0xFFFF1377) : const Color(0xFF7B2CBF))
+                  : (isDark ? const Color(0xFF28354E) : const Color(0xFFCBD5E1)),
             ),
           ],
         ),
@@ -2713,11 +2910,11 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
     );
   }
 
-  Widget _buildGopayDetail() {
+  Widget _buildGopayDetail(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: isDark ? const Color(0xFF090D16) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -2725,30 +2922,30 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1B2336) : Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFCBD5E1)),
+              border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFCBD5E1)),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.qr_code_2,
               size: 72,
-              color: Color(0xFF191622),
+              color: isDark ? Colors.white : const Color(0xFF191622),
             ),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Instruksi Pembayaran QRIS',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: isDark ? Colors.white : Colors.black),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   '1. Pindai kode QR menggunakan aplikasi GoPay, OVO, Dana, atau LinkAja.\n'
                   '2. Status pembayaran akan terverifikasi secara otomatis setelah pembayaran sukses.',
-                  style: TextStyle(fontSize: 11, height: 1.4, color: Color(0xFF475569)),
+                  style: TextStyle(fontSize: 11, height: 1.4, color: isDark ? Colors.white70 : const Color(0xFF475569)),
                 ),
               ],
             ),
@@ -2758,30 +2955,30 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
     );
   }
 
-  Widget _buildVaDetail() {
+  Widget _buildVaDetail(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: isDark ? const Color(0xFF090D16) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Nomor Virtual Account BCA',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: isDark ? Colors.white : Colors.black),
           ),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 '88012893829103',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFF0F766E),
+                  color: isDark ? const Color(0xFF0D9488) : const Color(0xFF0F766E),
                   letterSpacing: 1.1,
                 ),
               ),
@@ -2794,20 +2991,20 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDark ? const Color(0xFF1B2336) : Colors.white,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                    border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFCBD5E1)),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.copy, size: 14, color: Color(0xFF0F766E)),
-                      SizedBox(width: 4),
+                      Icon(Icons.copy, size: 14, color: isDark ? const Color(0xFF0D9488) : const Color(0xFF0F766E)),
+                      const SizedBox(width: 4),
                       Text(
                         'Salin',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F766E),
+                          color: isDark ? const Color(0xFF0D9488) : const Color(0xFF0F766E),
                         ),
                       ),
                     ],
@@ -2817,9 +3014,9 @@ class _SecureCheckoutSheetState extends State<_SecureCheckoutSheet> {
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Transfer tepat sejumlah total pembayaran via m-BCA atau ATM BCA. Pembayaran akan terverifikasi secara instan.',
-            style: TextStyle(fontSize: 11, height: 1.3, color: Color(0xFF475569)),
+            style: TextStyle(fontSize: 11, height: 1.3, color: isDark ? Colors.white70 : const Color(0xFF475569)),
           ),
         ],
       ),
@@ -2916,13 +3113,20 @@ class _GpsGeofencingWidgetState extends State<_GpsGeofencingWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _isVerified ? const Color(0xFFECFDF5) : const Color(0xFFFFF7ED),
+        color: _isVerified
+            ? (isDark ? const Color(0xFF064E3B).withValues(alpha: 0.2) : const Color(0xFFECFDF5))
+            : (isDark ? const Color(0xFF78350F).withValues(alpha: 0.2) : const Color(0xFFFFF7ED)),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _isVerified ? const Color(0xFF10B981) : const Color(0xFFFDBA74)),
+        border: Border.all(
+          color: _isVerified
+              ? (isDark ? const Color(0xFF059669) : const Color(0xFF10B981))
+              : (isDark ? const Color(0xFFD97706) : const Color(0xFFFDBA74)),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2931,7 +3135,9 @@ class _GpsGeofencingWidgetState extends State<_GpsGeofencingWidget> {
             children: [
               Icon(
                 _isVerified ? Icons.verified_user : Icons.gpp_maybe_outlined,
-                color: _isVerified ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                color: _isVerified
+                    ? (isDark ? const Color(0xFF34D399) : const Color(0xFF10B981))
+                    : (isDark ? const Color(0xFFFBBF24) : const Color(0xFFF59E0B)),
                 size: 18,
               ),
               const SizedBox(width: 8),
@@ -2940,7 +3146,9 @@ class _GpsGeofencingWidgetState extends State<_GpsGeofencingWidget> {
                   _isVerified ? 'Kehadiran Terverifikasi GPS' : 'Verifikasi Kehadiran Offline',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: _isVerified ? const Color(0xFF065F46) : const Color(0xFF9A3412),
+                    color: _isVerified
+                        ? (isDark ? const Color(0xFF6EE7B7) : const Color(0xFF065F46))
+                        : (isDark ? const Color(0xFFFFD3A3) : const Color(0xFF9A3412)),
                     fontSize: 13,
                   ),
                 ),
@@ -2951,7 +3159,9 @@ class _GpsGeofencingWidgetState extends State<_GpsGeofencingWidget> {
           Text(
             _message,
             style: TextStyle(
-              color: _isVerified ? const Color(0xFF047857) : const Color(0xFFC2410C),
+              color: _isVerified
+                  ? (isDark ? const Color(0xFF34D399) : const Color(0xFF047857))
+                  : (isDark ? const Color(0xFFFBBF24) : const Color(0xFFC2410C)),
               fontSize: 12,
             ),
           ),
@@ -2970,13 +3180,127 @@ class _GpsGeofencingWidgetState extends State<_GpsGeofencingWidget> {
                     : const Icon(Icons.gps_fixed, size: 14),
                 label: const Text('Verifikasi GPS Sekarang', style: TextStyle(fontSize: 12)),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFC2410C),
-                  side: const BorderSide(color: Color(0xFFFDBA74)),
+                  foregroundColor: isDark ? const Color(0xFFFBBF24) : const Color(0xFFC2410C),
+                  side: BorderSide(color: isDark ? const Color(0xFFD97706) : const Color(0xFFFDBA74)),
                   padding: const EdgeInsets.symmetric(vertical: 6),
                 ),
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CollapsibleBookingDetails extends StatefulWidget {
+  const _CollapsibleBookingDetails({required this.item});
+
+  final BookingItem item;
+
+  @override
+  State<_CollapsibleBookingDetails> createState() => _CollapsibleBookingDetailsState();
+}
+
+class _CollapsibleBookingDetailsState extends State<_CollapsibleBookingDetails> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1B2336) : const Color(0xFFF7F9FF),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFDCE4F3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Detail Paket',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    _isExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 20,
+                    color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_isExpanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Divider(color: isDark ? const Color(0xFF28354E) : const Color(0xFFDCE4F3), height: 1),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Periode: ${item.packageStartDate.day}/${item.packageStartDate.month}/${item.packageStartDate.year}'
+                    ' - ${item.packageEndDate.day}/${item.packageEndDate.month}/${item.packageEndDate.year}',
+                    style: const TextStyle(fontSize: 12.5),
+                  ),
+                  if (item.weeklySchedule.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Jadwal tetap: ${_formatWeekdayScheduleLabel(item.weeklySchedule)}',
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                  ],
+                  const SizedBox(height: 4),
+                  Text(
+                    'Durasi: ${item.durationMinutes} menit',
+                    style: const TextStyle(fontSize: 12.5),
+                  ),
+                  Text(
+                    'Biaya: Rp ${item.totalAmount}',
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                  ),
+                  if (item.paidAt != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Dibayar: ${_formatDateTimeShort(item.paidAt!)}',
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                  ],
+                  if (item.message.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Catatan: ${item.message}',
+                      style: const TextStyle(fontSize: 12.5, fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                ],
+              ),
+            ),
         ],
       ),
     );

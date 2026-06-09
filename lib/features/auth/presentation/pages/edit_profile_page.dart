@@ -128,253 +128,283 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
             ),
         ],
       ),
-      body: profileAsync.when(
-        data: (profile) {
-          if (profile == null) {
-            return AppEmptyState(
-              message: translations.failed,
-              hint: 'Pastikan Anda sudah login',
-              icon: FluentIcons.person_alert_24_regular,
-            );
-          }
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isTablet = constraints.maxWidth > 600;
+            return profileAsync.when(
+              data: (profile) {
+                if (profile == null) {
+                  return AppEmptyState(
+                    message: translations.failed,
+                    hint: 'Pastikan Anda sudah login',
+                    icon: FluentIcons.person_alert_24_regular,
+                  );
+                }
 
-          if (!_isInitialized) {
-            _nameController.text = profile.displayName.isNotEmpty 
-                ? profile.displayName 
-                : 'Pengguna EduConnect';
-            _currentPhotoUrl = profile.photoUrl;
-            _selectedSchoolLevel = profile.schoolLevel;
-            _isInitialized = true;
-          }
+                if (!_isInitialized) {
+                  _nameController.text = profile.displayName.isNotEmpty 
+                      ? profile.displayName 
+                      : 'Pengguna EduConnect';
+                  _currentPhotoUrl = profile.photoUrl;
+                  _selectedSchoolLevel = profile.schoolLevel;
+                  _isInitialized = true;
+                }
 
-          ImageProvider<Object>? avatarImage;
-          if (_selectedImage != null) {
-            avatarImage = FileImage(_selectedImage!);
-          } else if (_currentPhotoUrl.isNotEmpty) {
-            avatarImage = NetworkImage(_currentPhotoUrl);
-          }
+                ImageProvider<Object>? avatarImage;
+                if (_selectedImage != null) {
+                  avatarImage = FileImage(_selectedImage!);
+                } else if (_currentPhotoUrl.isNotEmpty) {
+                  avatarImage = NetworkImage(_currentPhotoUrl);
+                }
 
-          return Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-              children: [
-                Text(
-                  _isEditing ? translations.editProfile : translations.viewProfile,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xFFF1F5F9)
-                        : const Color(0xFF4B176E),
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Avatar Area with dynamic camera badge
-                Center(
-                  child: Stack(
+                final formContent = Form(
+                  key: _formKey,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1B2336) : Colors.white,
-                          shape: BoxShape.circle,
-                          border: isDark ? Border.all(color: const Color(0xFF28354E), width: 1.5) : null,
-                          boxShadow: isDark ? null : [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 15,
-                              offset: const Offset(0, 5),
+                      Text(
+                        _isEditing ? translations.editProfile : translations.viewProfile,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: Theme.of(context).colorScheme.primary,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Avatar Area with dynamic camera badge
+                      Center(
+                        child: Stack(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).cardTheme.color,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Theme.of(context).colorScheme.outline, width: 1.5),
+                                boxShadow: isDark ? null : [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: CircleAvatar(
+                                radius: 60,
+                                backgroundColor: TutorUi.lavender,
+                                backgroundImage: avatarImage,
+                                child: (_selectedImage == null && _currentPhotoUrl.isEmpty)
+                                    ? const Icon(
+                                        FluentIcons.person_24_regular,
+                                        size: 50,
+                                        color: TutorUi.ink,
+                                      )
+                                    : null,
+                              ),
                             ),
+                            if (_isEditing)
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Semantics(
+                                  label: 'Pilih foto profil baru dari galeri',
+                                  button: true,
+                                  child: GestureDetector(
+                                    onTap: isSaving ? null : _pickImage,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).colorScheme.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        FluentIcons.camera_24_regular,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
+                                ).animate().scale(delay: 100.ms, duration: 200.ms),
+                              ),
                           ],
                         ),
-                        child: CircleAvatar(
-                          radius: 60,
-                          backgroundColor: TutorUi.lavender,
-                          backgroundImage: avatarImage,
-                          child: (_selectedImage == null && _currentPhotoUrl.isEmpty)
-                              ? const Icon(
-                                  FluentIcons.person_24_regular,
-                                  size: 50,
-                                  color: TutorUi.ink,
-                                )
-                              : null,
-                        ),
                       ),
-                      if (_isEditing)
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: GestureDetector(
-                            onTap: isSaving ? null : _pickImage,
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                FluentIcons.camera_24_regular,
-                                color: Colors.white,
-                                size: 20,
+                      const SizedBox(height: 32),
+
+                      // If in Read-Only Mode, display beautiful stylized cards
+                      if (!_isEditing) ...[
+                        _buildReadOnlyCard(
+                          context,
+                          translations.fullName,
+                          profile.displayName.isNotEmpty ? profile.displayName : 'Pengguna EduConnect',
+                          FluentIcons.person_24_regular,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildReadOnlyCard(
+                          context,
+                          translations.emailAddress,
+                          profile.email,
+                          FluentIcons.mail_24_regular,
+                        ),
+                        const SizedBox(height: 16),
+                        if (profile.role == AppUserRole.student) ...[
+                          _buildReadOnlyCard(
+                            context,
+                            translations.schoolLevel,
+                            profile.schoolLevel ?? 'SD / SMP / SMA',
+                            FluentIcons.book_24_regular,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        _buildReadOnlyCard(
+                          context,
+                          translations.appRole,
+                          profile.role == AppUserRole.student
+                              ? translations.appRoleStudent
+                              : translations.appRoleTutor,
+                          FluentIcons.shield_keyhole_24_regular,
+                        ),
+                      ] else ...[
+                        // If in Edit Mode, display TextFormFields
+                        Text(
+                          translations.fullName,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Semantics(
+                          label: 'Kolom input nama lengkap Anda',
+                          textField: true,
+                          child: TextFormField(
+                            controller: _nameController,
+                            enabled: !isSaving,
+                            decoration: InputDecoration(
+                              hintText: translations.enterFullName,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Nama wajib diisi.';
+                              }
+                              if (value.trim().length < 3) {
+                                return 'Nama terlalu pendek.';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        if (profile.role == AppUserRole.student) ...[
+                          const SizedBox(height: 24),
+                          Text(
+                            translations.schoolLevel,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Semantics(
+                            label: 'Pilihan tingkat sekolah',
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _selectedSchoolLevel,
+                              decoration: const InputDecoration(),
+                              items: [
+                                DropdownMenuItem(
+                                  value: 'SD',
+                                  child: Text(translations.chooseFromSD),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'SMP',
+                                  child: Text(translations.chooseFromSMP),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'SMA',
+                                  child: Text(translations.chooseFromSMA),
+                                ),
+                              ],
+                              onChanged: isSaving
+                                  ? null
+                                  : (value) {
+                                      setState(() {
+                                        _selectedSchoolLevel = value;
+                                      });
+                                    },
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Tingkat sekolah wajib dipilih.';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 40),
+                        
+                        // Save Button
+                        Semantics(
+                          label: 'Tombol simpan perubahan profil',
+                          button: true,
+                          child: FilledButton(
+                            onPressed: isSaving ? null : () => _onSavePressed(translations),
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
                               ),
                             ),
-                          ).animate().scale(delay: 100.ms, duration: 200.ms),
-                        ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (isSaving) ...[
+                                  const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
+                                Text(
+                                  isSaving ? translations.saving : translations.saveChanges,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ).animate().slideY(begin: 0.2, duration: 250.ms, curve: Curves.easeOutQuad),
+                      ],
                     ],
                   ),
-                ),
-                const SizedBox(height: 32),
+                );
 
-                // If in Read-Only Mode, display beautiful stylized cards
-                if (!_isEditing) ...[
-                  _buildReadOnlyCard(
-                    context,
-                    translations.fullName,
-                    profile.displayName.isNotEmpty ? profile.displayName : 'Pengguna EduConnect',
-                    FluentIcons.person_24_regular,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildReadOnlyCard(
-                    context,
-                    translations.emailAddress,
-                    profile.email,
-                    FluentIcons.mail_24_regular,
-                  ),
-                  const SizedBox(height: 16),
-                  if (profile.role == AppUserRole.student) ...[
-                    _buildReadOnlyCard(
-                      context,
-                      translations.schoolLevel,
-                      profile.schoolLevel ?? 'SD / SMP / SMA',
-                      FluentIcons.book_24_regular,
+                if (isTablet) {
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 600),
+                      child: formContent,
                     ),
-                    const SizedBox(height: 16),
-                  ],
-                  _buildReadOnlyCard(
-                    context,
-                    translations.appRole,
-                    profile.role == AppUserRole.student
-                        ? translations.appRoleStudent
-                        : translations.appRoleTutor,
-                    FluentIcons.shield_keyhole_24_regular,
-                  ),
-                ] else ...[
-                  // If in Edit Mode, display TextFormFields
-                  Text(
-                    translations.fullName,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _nameController,
-                    enabled: !isSaving,
-                    decoration: InputDecoration(
-                      hintText: translations.enterFullName,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Nama wajib diisi.';
-                      }
-                      if (value.trim().length < 3) {
-                        return 'Nama terlalu pendek.';
-                      }
-                      return null;
-                    },
-                  ),
-                  if (profile.role == AppUserRole.student) ...[
-                    const SizedBox(height: 24),
-                    Text(
-                      translations.schoolLevel,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedSchoolLevel,
-                      decoration: const InputDecoration(),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'SD',
-                          child: Text(translations.chooseFromSD),
-                        ),
-                        DropdownMenuItem(
-                          value: 'SMP',
-                          child: Text(translations.chooseFromSMP),
-                        ),
-                        DropdownMenuItem(
-                          value: 'SMA',
-                          child: Text(translations.chooseFromSMA),
-                        ),
-                      ],
-                      onChanged: isSaving
-                          ? null
-                          : (val) {
-                              setState(() {
-                                _selectedSchoolLevel = val;
-                              });
-                            },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Tingkat sekolah wajib dipilih.';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                  const SizedBox(height: 40),
-                  
-                  // Save Button
-                  FilledButton(
-                    onPressed: isSaving ? null : () => _onSavePressed(translations),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (isSaving) ...[
-                          const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                        ],
-                        Text(
-                          isSaving ? translations.saving : translations.saveChanges,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ).animate().slideY(begin: 0.2, duration: 250.ms, curve: Curves.easeOutQuad),
-                ],
-              ],
-            ),
-          );
-        },
-        loading: () => const AppLoadingState(message: 'Memuat profil...'),
-        error: (error, _) => AppErrorState(
-          message: translations.failed,
-          detail: error.toString(),
-          onRetry: () => ref.invalidate(currentUserProfileProvider),
+                  );
+                }
+                return formContent;
+              },
+              loading: () => const AppLoadingState(message: 'Memuat profil...'),
+              error: (error, _) => AppErrorState(
+                message: translations.failed,
+                detail: error.toString(),
+                onRetry: () => ref.invalidate(currentUserProfileProvider),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -386,12 +416,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1B2336) : Colors.white,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFEAF2FF), width: 1),
+        border: Border.all(color: Theme.of(context).colorScheme.outline, width: 1),
         boxShadow: isDark ? null : [
           BoxShadow(
-            color: const Color(0xFFEAF2FF).withValues(alpha: 0.3),
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -402,7 +432,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF28354E) : const Color(0xFFF3F0F7),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(

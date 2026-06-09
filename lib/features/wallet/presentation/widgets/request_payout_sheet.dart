@@ -12,10 +12,7 @@ class RequestPayoutSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (_) => RequestPayoutSheet(availableBalance: availableBalance),
     );
   }
@@ -74,8 +71,16 @@ class _RequestPayoutSheetState extends ConsumerState<RequestPayoutSheet> {
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(walletLoadingProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inputFillColor = isDark ? const Color(0xFF28354E) : TutorUi.slate;
+    final accentColor = isDark ? const Color(0xFFFF1377) : TutorUi.ink;
 
-    return Padding(
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1B2336) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+      ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
         left: 24,
@@ -112,14 +117,14 @@ class _RequestPayoutSheetState extends ConsumerState<RequestPayoutSheet> {
                   labelText: 'Jumlah Penarikan (Rp)',
                   hintText: 'Contoh: 500000',
                   filled: true,
-                  fillColor: TutorUi.slate,
+                  fillColor: inputFillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: TutorUi.ink, width: 2),
+                    borderSide: BorderSide(color: accentColor, width: 2),
                   ),
                 ),
                 validator: (val) {
@@ -137,14 +142,14 @@ class _RequestPayoutSheetState extends ConsumerState<RequestPayoutSheet> {
                   labelText: 'Nama Bank / E-Wallet',
                   hintText: 'Contoh: BCA, Mandiri, GoPay',
                   filled: true,
-                  fillColor: TutorUi.slate,
+                  fillColor: inputFillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: TutorUi.ink, width: 2),
+                    borderSide: BorderSide(color: accentColor, width: 2),
                   ),
                 ),
                 validator: (val) => val == null || val.isEmpty ? 'Wajib diisi' : null,
@@ -156,14 +161,14 @@ class _RequestPayoutSheetState extends ConsumerState<RequestPayoutSheet> {
                 decoration: InputDecoration(
                   labelText: 'Nomor Rekening / No. HP',
                   filled: true,
-                  fillColor: TutorUi.slate,
+                  fillColor: inputFillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: TutorUi.ink, width: 2),
+                    borderSide: BorderSide(color: accentColor, width: 2),
                   ),
                 ),
                 validator: (val) => val == null || val.isEmpty ? 'Wajib diisi' : null,
@@ -174,14 +179,14 @@ class _RequestPayoutSheetState extends ConsumerState<RequestPayoutSheet> {
                 decoration: InputDecoration(
                   labelText: 'Nama Pemilik Rekening',
                   filled: true,
-                  fillColor: TutorUi.slate,
+                  fillColor: inputFillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: TutorUi.ink, width: 2),
+                    borderSide: BorderSide(color: accentColor, width: 2),
                   ),
                 ),
                 validator: (val) => val == null || val.isEmpty ? 'Wajib diisi' : null,
@@ -190,7 +195,7 @@ class _RequestPayoutSheetState extends ConsumerState<RequestPayoutSheet> {
               FilledButton(
                 onPressed: isLoading ? null : _submit,
                 style: FilledButton.styleFrom(
-                  backgroundColor: TutorUi.ink,
+                  backgroundColor: accentColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),

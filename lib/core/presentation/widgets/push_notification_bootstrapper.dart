@@ -177,6 +177,15 @@ class _PushNotificationBootstrapperState
       if (bookingId != null && bookingId.toString().isNotEmpty) {
         router.push('/chat/$bookingId');
       }
+    } else if (type == 'call_start') {
+      final bookingId = data['booking_id']?.toString() ?? '';
+      final role = ref.read(currentUserProfileProvider).valueOrNull?.role;
+      if (role == AppUserRole.student) {
+        router.pushNamed(
+          'student-bookings',
+          queryParameters: {'bookingId': bookingId},
+        );
+      }
     } else if (type == 'booking_update') {
       final bookingId = data['booking_id']?.toString() ?? '';
       final sessionId = data['session_id']?.toString() ?? '';

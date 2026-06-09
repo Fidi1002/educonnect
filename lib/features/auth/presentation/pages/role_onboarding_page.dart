@@ -125,15 +125,15 @@ class _RoleOptionCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: selected
-            ? const LinearGradient(
-                colors: [Color(0xFF4B176E), Color(0xFFFF1377)],
+            ? LinearGradient(
+                colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.tertiary],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
             : null,
-        color: selected ? null : const Color(0xFFF0F4FF),
+        color: selected ? null : Theme.of(context).colorScheme.surfaceContainerHigh,
         border: Border.all(
-          color: selected ? Colors.transparent : const Color(0xFFC9D8F2),
+          color: selected ? Colors.transparent : Theme.of(context).colorScheme.outline,
         ),
       ),
       child: Material(
@@ -155,7 +155,7 @@ class _RoleOptionCard extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: 32,
-                    color: selected ? Colors.white : const Color(0xFF4B176E),
+                    color: selected ? Colors.white : Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -168,7 +168,7 @@ class _RoleOptionCard extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: selected
                               ? Colors.white
-                              : const Color(0xFF4B176E),
+                              : Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -178,7 +178,7 @@ class _RoleOptionCard extends StatelessWidget {
                         style: TextStyle(
                           color: selected
                               ? Colors.white70
-                              : const Color(0xFF667085),
+                              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                           height: 1.3,
                         ),
                       ),

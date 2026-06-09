@@ -1,5 +1,5 @@
--- Phase 1 schema for EduConnect on Supabase
 create extension if not exists postgis;
+create extension if not exists pgcrypto;
 
 create table if not exists public.users (
   uid uuid primary key references auth.users(id) on delete cascade,
@@ -29,6 +29,10 @@ create table if not exists public.tutors (
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  bank_name text,
+  bank_account_number text,
+  languages text[] not null default '{Bahasa Indonesia}',
+  introduction_video_url text,
   location geography(point, 4326) generated always as (
     case
       when latitude is null or longitude is null then null
@@ -3375,7 +3379,15 @@ create policy users_select_all_auth
 on public.users
 for select
 to authenticated
-using (true);
+using (
+  auth.uid() = uid
+  or role = 'tutor'
+  or exists (
+    select 1 from public.bookings b
+    where (b.student_uid = auth.uid() and b.tutor_uid = uid)
+       or (b.tutor_uid = auth.uid() and b.student_uid = uid)
+  )
+);
 -- Fase 3: Sistem Rekomendasi Tutor Cerdas Berbasis Jarak & Preferensi Murid
 
 -- 1. Tambahkan kolom preferensi pada tabel users
@@ -4064,7 +4076,7 @@ declare
   now_utc timestamptz := now();
 begin
   -- Secure validation: Verify signature using a mock server secret key (simulating Midtrans signature logic)
-  v_expected_signature := md5(p_booking_id::text || 'EDUCONNECT_SECRET_SERVER_KEY');
+  v_expected_signature := encode(hmac(p_booking_id::text, 'EDUCONNECT_SECRET_SERVER_KEY', 'sha256'), 'hex');
   
   if p_signature_key <> v_expected_signature then
     return jsonb_build_object(
@@ -4208,3 +4220,137 @@ create policy transactions_update_student_or_tutor
     (auth.uid() = student_uid or auth.uid() = tutor_uid)
     and (payment_status = 'pending' or payment_status = old.payment_status)
   );
+
+-- =========================================================================
+-- double booking prevention trigger on booking_sessions
+-- =========================================================================
+create or replace function public.prevent_double_booking()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.status in ('cancelled_by_student', 'cancelled_by_tutor', 'cancelled_early', 'cancelled_late', 'rescheduled') then
+    return new;
+  end if;
+
+  if exists (
+    select 1 from public.booking_sessions s
+    where s.tutor_uid = new.tutor_uid
+      and s.id <> coalesce(new.id, '00000000-0000-0000-0000-000000000000'::uuid)
+      and s.status not in ('cancelled_by_student', 'cancelled_by_tutor', 'cancelled_early', 'cancelled_late', 'rescheduled')
+      and s.session_start < new.session_end
+      and s.session_end > new.session_start
+  ) then
+    raise exception 'Tutor sudah memiliki sesi lain yang tumpang tindih pada waktu tersebut.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_prevent_double_booking on public.booking_sessions;
+create trigger trg_prevent_double_booking
+before insert or update of session_start, session_end, status on public.booking_sessions
+for each row
+execute function public.prevent_double_booking();
+
+-- =========================================================================
+-- reschedule & cancel time constraints triggers
+-- =========================================================================
+create or replace function public.check_session_change_request_time()
+returns trigger
+language plpgsql
+as $$
+declare
+  v_session_start timestamptz;
+begin
+  select session_start into v_session_start
+  from public.booking_sessions
+  where id = new.session_id;
+
+  if not found then
+    raise exception 'Sesi tidak ditemukan.';
+  end if;
+
+  if v_session_start <= now() then
+    raise exception 'Sesi sudah dimulai atau sudah lewat, tidak bisa diajukan perubahan.';
+  end if;
+
+  if new.request_type = 'reschedule' then
+    if v_session_start - now() < interval '6 hours' then
+      raise exception 'Request reschedule harus diajukan minimal H-6 sebelum sesi.';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_check_session_change_request_time on public.session_change_requests;
+create trigger trg_check_session_change_request_time
+before insert on public.session_change_requests
+for each row
+execute function public.check_session_change_request_time();
+
+
+create or replace function public.check_booking_session_status_time()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.status = old.status then
+    return new;
+  end if;
+
+  if new.status = 'cancelled_early' then
+    if old.session_start - now() < interval '12 hours' then
+      raise exception 'Pembatalan kurang dari 12 jam harus berupa cancelled_late.';
+    end if;
+  end if;
+
+  if new.status = 'rescheduled' then
+    if old.session_start - now() < interval '6 hours' then
+      raise exception 'Reschedule kurang dari 6 jam tidak diperbolehkan.';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_check_booking_session_status_time on public.booking_sessions;
+create trigger trg_check_booking_session_status_time
+before update of status on public.booking_sessions
+for each row
+execute function public.check_booking_session_status_time();
+
+-- Automate payout request approvals for verified tutors and amounts < Rp 2,000,000
+create or replace function public.auto_approve_payout_requests()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_verification_status text;
+begin
+  select verification_status into v_verification_status
+  from public.tutors
+  where uid = new.tutor_uid;
+
+  if v_verification_status = 'approved' and new.amount < 2000000 then
+    update public.payout_requests
+    set status = 'completed'
+    where id = new.id;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_auto_approve_payout_requests on public.payout_requests;
+create trigger trg_auto_approve_payout_requests
+  after insert
+  on public.payout_requests
+  for each row
+  execute function public.auto_approve_payout_requests();

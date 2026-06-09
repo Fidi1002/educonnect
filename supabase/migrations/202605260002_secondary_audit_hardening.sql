@@ -23,7 +23,7 @@ declare
   now_utc timestamptz := now();
 begin
   -- Secure validation: Verify signature using a mock server secret key (simulating Midtrans signature logic)
-  v_expected_signature := md5(p_booking_id::text || 'EDUCONNECT_SECRET_SERVER_KEY');
+  v_expected_signature := encode(hmac(p_booking_id::text, 'EDUCONNECT_SECRET_SERVER_KEY', 'sha256'), 'hex');
   
   if p_signature_key <> v_expected_signature then
     return jsonb_build_object(

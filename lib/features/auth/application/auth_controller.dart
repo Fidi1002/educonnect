@@ -6,6 +6,8 @@ import 'package:educonnect/features/auth/data/repositories/user_repository.dart'
 import 'package:educonnect/features/auth/domain/models/app_user_profile.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/auth/domain/models/auth_user.dart';
+import 'package:educonnect/features/auth/domain/repositories/i_auth_repository.dart';
+import 'package:educonnect/features/auth/domain/repositories/i_user_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -36,8 +38,8 @@ class AuthController {
 
   final Ref _ref;
 
-  AuthRepository get _authRepository => _ref.read(authRepositoryProvider);
-  UserRepository get _userRepository => _ref.read(userRepositoryProvider);
+  IAuthRepository get _authRepository => _ref.read(authRepositoryProvider);
+  IUserRepository get _userRepository => _ref.read(userRepositoryProvider);
 
   Future<void> signInWithEmail({
     required String email,

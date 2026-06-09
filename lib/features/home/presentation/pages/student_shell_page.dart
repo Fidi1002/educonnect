@@ -3,6 +3,7 @@ import 'package:educonnect/features/booking/presentation/pages/student_bookings_
 import 'package:educonnect/features/home/presentation/pages/student_ebook_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_home_page.dart';
 import 'package:educonnect/features/home/presentation/pages/student_profile_page.dart';
+import 'package:educonnect/features/home/presentation/pages/tutor_list_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -50,18 +51,23 @@ class StudentShellPage extends StatelessWidget {
                 onTap: () => context.go(StudentHomePage.routePath),
               ),
               _BottomNavItem(
-                icon: FluentIcons.book_24_filled,
+                icon: FluentIcons.search_24_filled,
                 isSelected: selectedIndex == 1,
+                onTap: () => context.go(TutorListPage.routePath),
+              ),
+              _BottomNavItem(
+                icon: FluentIcons.book_24_filled,
+                isSelected: selectedIndex == 2,
                 onTap: () => context.go(StudentBookingsPage.routePath),
               ),
               _BottomNavItem(
                 icon: Icons.auto_stories,
-                isSelected: selectedIndex == 2,
+                isSelected: selectedIndex == 3,
                 onTap: () => context.go(StudentEbookPage.routePath),
               ),
               _BottomNavItem(
                 icon: FluentIcons.person_24_filled,
-                isSelected: selectedIndex == 3,
+                isSelected: selectedIndex == 4,
                 onTap: () => context.go(StudentProfilePage.routePath),
               ),
             ],
@@ -72,17 +78,20 @@ class StudentShellPage extends StatelessWidget {
   }
 
   int _indexFromLocation(String location) {
+    if (location.startsWith('/student/tutors')) {
+      return 1;
+    }
     if (location.startsWith('/student/bookings')) {
-      return 1;
-    }
-    if (location.startsWith('/student/learning-journal')) {
-      return 1;
-    }
-    if (location.startsWith('/student/ebooks')) {
       return 2;
     }
-    if (location.startsWith('/student/profile')) {
+    if (location.startsWith('/student/learning-journal')) {
+      return 2;
+    }
+    if (location.startsWith('/student/ebooks')) {
       return 3;
+    }
+    if (location.startsWith('/student/profile')) {
+      return 4;
     }
     return 0;
   }

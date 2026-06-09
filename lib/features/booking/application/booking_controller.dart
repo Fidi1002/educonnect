@@ -1,7 +1,10 @@
 
+import 'dart:async';
+import 'package:educonnect/core/services/offline_sync_service.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/booking/data/repositories/booking_repository.dart';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
+import 'package:educonnect/features/booking/domain/repositories/i_booking_repository.dart';
 import 'package:educonnect/features/booking/domain/models/booking_session.dart';
 import 'package:educonnect/features/booking/domain/models/booking_status.dart';
 import 'package:educonnect/features/booking/domain/models/booking_weekly_slot.dart';
@@ -206,7 +209,7 @@ class BookingController {
 
   final Ref _ref;
 
-  BookingRepository get _repository => _ref.read(bookingRepositoryProvider);
+  IBookingRepository get _repository => _ref.read(bookingRepositoryProvider);
 
   String _requireUid() {
     final user = _ref.read(authStateProvider).value;
@@ -347,6 +350,13 @@ class BookingController {
     required String sessionId,
     required String reason,
   }) async {
+    if (!await OfflineSyncService.hasInternet()) {
+      await OfflineSyncService.addOperation('request_cancel', {
+        'sessionId': sessionId,
+        'reason': reason,
+      });
+      return;
+    }
     final uid = _requireUid();
     await _runLoadingTask(
       () => _repository.requestSessionCancel(
@@ -363,6 +373,15 @@ class BookingController {
     required DateTime proposedEnd,
     required String reason,
   }) async {
+    if (!await OfflineSyncService.hasInternet()) {
+      await OfflineSyncService.addOperation('request_reschedule', {
+        'sessionId': sessionId,
+        'proposedStart': proposedStart.toIso8601String(),
+        'proposedEnd': proposedEnd.toIso8601String(),
+        'reason': reason,
+      });
+      return;
+    }
     final uid = _requireUid();
     await _runLoadingTask(
       () => _repository.requestSessionReschedule(
@@ -403,6 +422,13 @@ class BookingController {
     required String sessionId,
     required String submissionText,
   }) async {
+    if (!await OfflineSyncService.hasInternet()) {
+      await OfflineSyncService.addOperation('submit_homework', {
+        'sessionId': sessionId,
+        'submissionText': submissionText,
+      });
+      return;
+    }
     await _runLoadingTask(
       () => _repository.submitHomeworkByStudent(
         sessionId: sessionId,
@@ -421,6 +447,13 @@ class BookingController {
     required String requestId,
     required bool approved,
   }) async {
+    if (!await OfflineSyncService.hasInternet()) {
+      await OfflineSyncService.addOperation('respond_change_request', {
+        'requestId': requestId,
+        'approved': approved,
+      });
+      return;
+    }
     final uid = _requireUid();
     await _runLoadingTask(
       () => _repository.respondSessionChangeRequest(
@@ -434,6 +467,9 @@ class BookingController {
   Future<T> _runLoadingTask<T>(Future<T> Function() action) async {
     _ref.read(bookingLoadingProvider.notifier).state = true;
     try {
+      if (await OfflineSyncService.hasInternet()) {
+        unawaited(OfflineSyncService.syncPendingOperations(this));
+      }
       return await action();
     } finally {
       _ref.read(bookingLoadingProvider.notifier).state = false;

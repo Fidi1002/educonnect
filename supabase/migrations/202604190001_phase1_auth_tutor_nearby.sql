@@ -1,5 +1,5 @@
--- Phase 1 schema for EduConnect on Supabase
 create extension if not exists postgis;
+create extension if not exists pgcrypto;
 
 create table if not exists public.users (
   uid uuid primary key references auth.users(id) on delete cascade,

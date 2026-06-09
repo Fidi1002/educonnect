@@ -133,27 +133,46 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      TextField(
-                        controller: _searchController,
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: 'Cari murid atau mapel...',
-                          prefixIcon: const Icon(FluentIcons.search_24_regular),
-                          suffixIcon: _searchController.text.isEmpty
-                              ? null
-                              : IconButton(
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() {});
-                                  },
-                                  icon: const Icon(
-                                    FluentIcons.dismiss_24_regular,
-                                  ),
-                                ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
+                      Builder(
+                        builder: (context) {
+                          final isDark = Theme.of(context).brightness == Brightness.dark;
+                          return TextField(
+                            controller: _searchController,
+                            onChanged: (_) => setState(() {}),
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                            decoration: InputDecoration(
+                              hintText: 'Cari murid atau mapel...',
+                              hintStyle: TextStyle(color: isDark ? Colors.white60 : Colors.black54),
+                              prefixIcon: Icon(FluentIcons.search_24_regular, color: isDark ? Colors.white60 : Colors.black54),
+                              suffixIcon: _searchController.text.isEmpty
+                                  ? null
+                                  : IconButton(
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        setState(() {});
+                                      },
+                                      icon: Icon(
+                                        FluentIcons.dismiss_24_regular,
+                                        color: isDark ? Colors.white70 : Colors.black54,
+                                      ),
+                                    ),
+                              filled: true,
+                              fillColor: isDark ? const Color(0xFF1B2336) : const Color(0xFFF1F5F9),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(18),
+                                borderSide: isDark ? const BorderSide(color: Color(0xFF28354E)) : BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(18),
+                                borderSide: isDark ? const BorderSide(color: Color(0xFF28354E)) : BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(18),
+                                borderSide: BorderSide(color: isDark ? const Color(0xFFFF1377) : const Color(0xFF7B2CBF)),
+                              ),
+                            ),
+                          );
+                        }
                       ),
                       const SizedBox(height: 10),
                       SizedBox(
@@ -216,13 +235,21 @@ class _TutorBookingsPageState extends ConsumerState<TutorBookingsPage> {
                     ],
                   ),
                 ),
-                const TabBar(
-                  isScrollable: true,
-                  tabs: [
-                    Tab(text: 'Permintaan'),
-                    Tab(text: 'Jadwal Aktif'),
-                    Tab(text: 'Riwayat'),
-                  ],
+                Builder(
+                  builder: (context) {
+                    final isDark = Theme.of(context).brightness == Brightness.dark;
+                    return TabBar(
+                      isScrollable: true,
+                      labelColor: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
+                      unselectedLabelColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF756E81),
+                      indicatorColor: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
+                      tabs: const [
+                        Tab(text: 'Permintaan'),
+                        Tab(text: 'Jadwal Aktif'),
+                        Tab(text: 'Riwayat'),
+                      ],
+                    );
+                  }
                 ),
                 Expanded(
                   child: TabBarView(
@@ -492,17 +519,85 @@ class _TutorBookingList extends ConsumerWidget {
   Future<void> _showCancelRequestDialog({
     required BuildContext context,
     required WidgetRef ref,
-    required String sessionId,
+    required BookingSession session,
   }) async {
     final reasonController = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final timeDiff = session.sessionStart.difference(DateTime.now());
+    final isEarlyCancel = timeDiff.inHours >= 12;
+
     final submit = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Ajukan Pembatalan'),
-        content: TextField(
-          controller: reasonController,
-          maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Alasan pembatalan'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isEarlyCancel 
+                    ? (isDark ? const Color(0xFF0C2A1C) : const Color(0xFFE8F5E9))
+                    : (isDark ? const Color(0xFF2E1C0C) : const Color(0xFFFFF3E0)),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isEarlyCancel 
+                      ? (isDark ? const Color(0xFF1E5235) : Colors.green.shade200)
+                      : (isDark ? const Color(0xFF5E3C1C) : Colors.orange.shade200),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isEarlyCancel ? Icons.check_circle_outline_rounded : Icons.warning_amber_rounded,
+                    color: isEarlyCancel ? Colors.green : Colors.orange,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isEarlyCancel ? 'Pembatalan Awal (Bebas Biaya)' : 'Pembatalan Terlambat',
+                          style: TextStyle(
+                            color: isEarlyCancel 
+                                ? (isDark ? Colors.green.shade300 : Colors.green.shade800)
+                                : (isDark ? Colors.orange.shade300 : Colors.orange.shade800),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isEarlyCancel 
+                              ? 'Pembatalan dilakukan >= 12 jam sebelum kelas.'
+                              : 'Pembatalan dilakukan < 12 jam sebelum kelas.',
+                          style: TextStyle(
+                            color: isEarlyCancel 
+                                ? (isDark ? Colors.green.shade400 : Colors.green.shade700)
+                                : (isDark ? Colors.orange.shade400 : Colors.orange.shade700),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Alasan pembatalan',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -523,7 +618,7 @@ class _TutorBookingList extends ConsumerWidget {
     await ref
         .read(bookingControllerProvider)
         .requestSessionCancel(
-          sessionId: sessionId,
+          sessionId: session.id,
           reason: reasonController.text,
         );
     reasonController.dispose();
@@ -532,12 +627,16 @@ class _TutorBookingList extends ConsumerWidget {
   Future<void> _showRescheduleRequestDialog({
     required BuildContext context,
     required WidgetRef ref,
-    required String sessionId,
-    required String bookingId,
+    required BookingSession session,
     required int durationMinutes,
   }) async {
     final reasonController = TextEditingController();
     DateTime? selectedDateTime;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final timeDiff = session.sessionStart.difference(DateTime.now());
+    final isTooLate = timeDiff.inHours < 6;
 
     final submit = await showDialog<bool>(
       context: context,
@@ -546,61 +645,98 @@ class _TutorBookingList extends ConsumerWidget {
           builder: (context, setState) {
             return Consumer(
               builder: (context, ref, child) {
-                final countAsync = ref.watch(rescheduleCountProvider(bookingId));
+                final countAsync = ref.watch(rescheduleCountProvider(session.bookingId));
                 final count = countAsync.valueOrNull ?? 0;
                 final isLimitReached = count >= 2;
+                final cannotReschedule = isTooLate || isLimitReached;
 
                 return AlertDialog(
                   title: const Text('Ajukan Reschedule'),
                   content: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      countAsync.when(
-                        data: (countVal) {
-                          final remaining = (2 - countVal).clamp(0, 2);
-                          final color = remaining == 0 ? Colors.red.shade800 : Colors.amber.shade900;
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: remaining == 0 ? Colors.red.shade50 : Colors.amber.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: remaining == 0 ? Colors.red.shade200 : Colors.amber.shade200,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  remaining == 0 ? FluentIcons.warning_24_regular : FluentIcons.info_24_regular,
-                                  color: color,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    remaining == 0
-                                        ? 'Batas reschedule bulan ini habis (Maks 2x/30 hari).'
-                                        : 'Sisa kuota reschedule bulan ini: $remaining kali.',
-                                    style: TextStyle(
-                                      color: color,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                      // Peringatan Batas Waktu 6 Jam
+                      if (isTooLate) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF2A0C0C) : const Color(0xFFFFEBEE),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isDark ? const Color(0xFF521E1E) : Colors.red.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline_rounded, color: Colors.red, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Reschedule tidak diperbolehkan kurang dari 6 jam sebelum sesi dimulai.',
+                                  style: TextStyle(
+                                    color: isDark ? Colors.red.shade300 : Colors.red.shade800,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              ],
-                            ),
-                          );
-                        },
-                        loading: () => const Padding(
-                          padding: EdgeInsets.only(bottom: 16),
-                          child: LinearProgressIndicator(),
+                              ),
+                            ],
+                          ),
                         ),
-                        error: (error, stack) => const SizedBox.shrink(),
-                      ),
+                      ] else ...[
+                        // Kuota Reschedule
+                        countAsync.when(
+                          data: (countVal) {
+                            final remaining = (2 - countVal).clamp(0, 2);
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: remaining == 0 
+                                    ? (isDark ? const Color(0xFF2A0C0C) : const Color(0xFFFFEBEE))
+                                    : (isDark ? const Color(0xFF2E260C) : const Color(0xFFFFFDE7)),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: remaining == 0 
+                                      ? (isDark ? const Color(0xFF521E1E) : Colors.red.shade200)
+                                      : (isDark ? const Color(0xFF52451E) : Colors.amber.shade200),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    remaining == 0 ? Icons.error_outline_rounded : Icons.info_outline_rounded,
+                                    color: remaining == 0 ? Colors.red : Colors.amber.shade800,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      remaining == 0
+                                          ? 'Batas reschedule bulan ini habis (Maks 2x/30 hari).'
+                                          : 'Sisa kuota reschedule bulan ini: $remaining kali.',
+                                      style: TextStyle(
+                                        color: remaining == 0 
+                                            ? (isDark ? Colors.red.shade300 : Colors.red.shade800)
+                                            : (isDark ? Colors.amber.shade300 : Colors.amber.shade900),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          loading: () => const Padding(
+                            padding: EdgeInsets.only(bottom: 16),
+                            child: LinearProgressIndicator(),
+                          ),
+                          error: (error, stack) => const SizedBox.shrink(),
+                        ),
+                      ],
+
                       OutlinedButton.icon(
-                        onPressed: isLimitReached ? null : () async {
+                        onPressed: cannotReschedule ? null : () async {
                           final date = await showDatePicker(
                             context: context,
                             firstDate: DateTime.now(),
@@ -641,8 +777,11 @@ class _TutorBookingList extends ConsumerWidget {
                       TextField(
                         controller: reasonController,
                         maxLines: 2,
-                        decoration: const InputDecoration(labelText: 'Alasan'),
-                        enabled: !isLimitReached,
+                        decoration: const InputDecoration(
+                          labelText: 'Alasan',
+                          border: OutlineInputBorder(),
+                        ),
+                        enabled: !cannotReschedule,
                       ),
                     ],
                   ),
@@ -652,7 +791,7 @@ class _TutorBookingList extends ConsumerWidget {
                       child: const Text('Batal'),
                     ),
                     FilledButton(
-                      onPressed: (selectedDateTime == null || isLimitReached)
+                      onPressed: (selectedDateTime == null || cannotReschedule)
                           ? null
                           : () => Navigator.pop(context, true),
                       child: const Text('Kirim'),
@@ -674,7 +813,7 @@ class _TutorBookingList extends ConsumerWidget {
       await ref
           .read(bookingControllerProvider)
           .requestSessionReschedule(
-            sessionId: sessionId,
+            sessionId: session.id,
             proposedStart: selectedDateTime!,
             proposedEnd: selectedDateTime!.add(
               Duration(minutes: durationMinutes),
@@ -751,14 +890,17 @@ class _TutorBookingList extends ConsumerWidget {
       text: existing?.homeworkDescription ?? '',
     );
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final submit = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => Padding(
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1B2336) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+        ),
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           left: 24,
@@ -934,12 +1076,18 @@ class _TutorBookingList extends ConsumerWidget {
                 : 'Murid Baru';
           }
 
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           return Padding(
             padding: EdgeInsets.only(
               bottom: index == items.length - 1 ? 0 : 16,
             ),
             child: Container(
-              decoration: TutorUi.raisedCardDecoration(radius: 20),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1B2336) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+                boxShadow: const [TutorUi.mediumShadow],
+              ),
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -949,12 +1097,12 @@ class _TutorBookingList extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF2E8FF),
+                          color: isDark ? const Color(0xFF7B2CBF).withValues(alpha: 0.15) : const Color(0xFFF2E8FF),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           FluentIcons.book_24_regular,
-                          color: Color(0xFF7B2CBF),
+                          color: isDark ? const Color(0xFFD8B4FE) : const Color(0xFF7B2CBF),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -964,15 +1112,16 @@ class _TutorBookingList extends ConsumerWidget {
                           children: [
                             Text(
                               item.subject,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 18,
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
                             ),
                             Text(
                               displayStudentName,
-                              style: const TextStyle(
-                                color: Color(0xFF655C74),
+                              style: TextStyle(
+                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF655C74),
                                 fontSize: 14,
                               ),
                             ),
@@ -1049,37 +1198,41 @@ class _TutorBookingList extends ConsumerWidget {
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
-                      decoration: TutorUi.softPanelDecoration(
-                        color: const Color(0xFFFFF7ED),
-                        radius: 12,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF78350F).withValues(alpha: 0.2) : const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(12),
+                        border: isDark ? Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.3)) : null,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Catatan Murid',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF9A4D00),
+                              color: isDark ? const Color(0xFFFB923C) : const Color(0xFF9A4D00),
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             item.message,
-                            style: const TextStyle(color: Color(0xFF7A3D00)),
+                            style: TextStyle(
+                              color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF7A3D00),
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ],
                   const SizedBox(height: 16),
-                  const Divider(color: Color(0xFFE9E3F2)),
+                  Divider(color: isDark ? const Color(0xFF28354E) : const Color(0xFFE9E3F2)),
                   const SizedBox(height: 16),
                   Text(
                     'Riwayat Pertemuan',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white70 : Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -1145,16 +1298,14 @@ class _TutorBookingList extends ConsumerWidget {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(10),
                               color: isFocusedSession
-                                  ? const Color(0xFFF8F0FF)
-                                  : Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceContainerHigh,
+                                  ? (isDark ? const Color(0xFF3B1E54) : const Color(0xFFF8F0FF))
+                                  : (isDark ? const Color(0xFF090D16) : Theme.of(context).colorScheme.surfaceContainerHigh),
                               border: isFocusedSession
                                   ? Border.all(
-                                      color: const Color(0xFF7B2CBF),
+                                      color: isDark ? const Color(0xFFBD68FF) : const Color(0xFF7B2CBF),
                                       width: 1.4,
                                     )
-                                  : null,
+                                  : (isDark ? Border.all(color: const Color(0xFF28354E)) : null),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1167,7 +1318,10 @@ class _TutorBookingList extends ConsumerWidget {
                                          '${session.sessionStart.day}/${session.sessionStart.month} '
                                          '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
                                          ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
-                                         style: const TextStyle(fontWeight: FontWeight.w700),
+                                         style: TextStyle(
+                                           fontWeight: FontWeight.w700,
+                                           color: isDark ? Colors.white : Colors.black87,
+                                         ),
                                        ),
                                      ),
                                      if (session.status == BookingSessionStatus.scheduled) ...[
@@ -1643,7 +1797,7 @@ class _TutorBookingList extends ConsumerWidget {
                                               : () => _showCancelRequestDialog(
                                                   context: context,
                                                   ref: ref,
-                                                  sessionId: session.id,
+                                                  session: session,
                                                 ),
                                           child: const Text('Ajukan Batal'),
                                         ),
@@ -1657,8 +1811,7 @@ class _TutorBookingList extends ConsumerWidget {
                                                     _showRescheduleRequestDialog(
                                                       context: context,
                                                       ref: ref,
-                                                      sessionId: session.id,
-                                                      bookingId: item.id,
+                                                      session: session,
                                                       durationMinutes:
                                                           item.durationMinutes,
                                                     ),
@@ -1884,21 +2037,33 @@ class _TutorActionSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: TutorUi.softPanelDecoration(radius: 18),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1B2336) : const Color(0xFFF7F9FF),
+        borderRadius: BorderRadius.circular(18),
+        border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Booking Butuh Aksi',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             pendingCount == 0 && waitingPaymentCount == 0
                 ? 'Semua booking cukup terkendali sekarang. Kamu bisa fokus ke sesi aktif.'
                 : 'Prioritaskan permintaan baru dan booking yang sedang menunggu pembayaran murid.',
+            style: TextStyle(
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF4B5563),
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -1945,12 +2110,14 @@ class _InfoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: TutorUi.softPanelDecoration(
-        color: const Color(0xFFF7F9FF),
-        radius: 12,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF090D16) : const Color(0xFFF7F9FF),
+        borderRadius: BorderRadius.circular(12),
+        border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1958,16 +2125,16 @@ class _InfoTile extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF655C74),
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF655C74),
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w700,
-              color: Color(0xFF191622),
+              color: isDark ? Colors.white : const Color(0xFF191622),
             ),
           ),
         ],
@@ -2046,13 +2213,20 @@ class _GpsGeofencingWidgetState extends State<_GpsGeofencingWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _isVerified ? const Color(0xFFECFDF5) : const Color(0xFFFFF7ED),
+        color: _isVerified
+            ? (isDark ? const Color(0xFF064E3B).withValues(alpha: 0.2) : const Color(0xFFECFDF5))
+            : (isDark ? const Color(0xFF78350F).withValues(alpha: 0.2) : const Color(0xFFFFF7ED)),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _isVerified ? const Color(0xFF10B981) : const Color(0xFFFDBA74)),
+        border: Border.all(
+          color: _isVerified
+              ? (isDark ? const Color(0xFF059669) : const Color(0xFF10B981))
+              : (isDark ? const Color(0xFFD97706) : const Color(0xFFFDBA74)),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2061,7 +2235,9 @@ class _GpsGeofencingWidgetState extends State<_GpsGeofencingWidget> {
             children: [
               Icon(
                 _isVerified ? Icons.verified_user : Icons.gpp_maybe_outlined,
-                color: _isVerified ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                color: _isVerified
+                    ? (isDark ? const Color(0xFF34D399) : const Color(0xFF10B981))
+                    : (isDark ? const Color(0xFFFBBF24) : const Color(0xFFF59E0B)),
                 size: 18,
               ),
               const SizedBox(width: 8),
@@ -2070,7 +2246,9 @@ class _GpsGeofencingWidgetState extends State<_GpsGeofencingWidget> {
                   _isVerified ? 'Kehadiran Terverifikasi GPS' : 'Verifikasi Kehadiran Offline',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: _isVerified ? const Color(0xFF065F46) : const Color(0xFF9A3412),
+                    color: _isVerified
+                        ? (isDark ? const Color(0xFF6EE7B7) : const Color(0xFF065F46))
+                        : (isDark ? const Color(0xFFFFD3A3) : const Color(0xFF9A3412)),
                     fontSize: 13,
                   ),
                 ),
@@ -2081,7 +2259,9 @@ class _GpsGeofencingWidgetState extends State<_GpsGeofencingWidget> {
           Text(
             _message,
             style: TextStyle(
-              color: _isVerified ? const Color(0xFF047857) : const Color(0xFFC2410C),
+              color: _isVerified
+                  ? (isDark ? const Color(0xFF34D399) : const Color(0xFF047857))
+                  : (isDark ? const Color(0xFFFBBF24) : const Color(0xFFC2410C)),
               fontSize: 12,
             ),
           ),
@@ -2100,8 +2280,8 @@ class _GpsGeofencingWidgetState extends State<_GpsGeofencingWidget> {
                     : const Icon(Icons.gps_fixed, size: 14),
                 label: const Text('Verifikasi GPS Sekarang', style: TextStyle(fontSize: 12)),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFC2410C),
-                  side: const BorderSide(color: Color(0xFFFDBA74)),
+                  foregroundColor: isDark ? const Color(0xFFFBBF24) : const Color(0xFFC2410C),
+                  side: BorderSide(color: isDark ? const Color(0xFFD97706) : const Color(0xFFFDBA74)),
                   padding: const EdgeInsets.symmetric(vertical: 6),
                 ),
               ),

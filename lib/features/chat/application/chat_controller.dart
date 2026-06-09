@@ -4,6 +4,7 @@ import 'package:educonnect/features/booking/domain/models/booking_item.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/chat/data/repositories/chat_repository.dart';
 import 'package:educonnect/features/chat/domain/models/chat_message.dart';
+import 'package:educonnect/features/chat/domain/repositories/i_chat_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final chatSendingProvider = StateProvider<bool>((ref) => false);
@@ -76,7 +77,7 @@ class ChatController {
 
   final Ref _ref;
 
-  ChatRepository get _chatRepository => _ref.read(chatRepositoryProvider);
+  IChatRepository get _chatRepository => _ref.read(chatRepositoryProvider);
 
   String _requireUid() {
     final user = _ref.read(authStateProvider).value;
