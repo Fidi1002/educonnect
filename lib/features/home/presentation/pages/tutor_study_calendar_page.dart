@@ -80,7 +80,9 @@ class _TutorStudyCalendarPageState
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
-                    decoration: TutorUi.raisedCardDecoration(),
+                    decoration: TutorUi.raisedCardDecoration(
+                      isDark: Theme.of(context).brightness == Brightness.dark,
+                    ),
                     child: CalendarDatePicker(
                       initialDate: _selectedDate,
                       firstDate: DateTime.now().subtract(

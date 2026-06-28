@@ -857,9 +857,10 @@ class _ActionInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: TutorUi.elevatedCardDecoration(),
+      decoration: TutorUi.elevatedCardDecoration(isDark: isDark),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1078,13 +1079,20 @@ class _SoftEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F7FB),
+        color: isDark ? const Color(0xFF090D16) : const Color(0xFFF7F7FB),
         borderRadius: BorderRadius.circular(16),
+        border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
       ),
-      child: Text(message),
+      child: Text(
+        message,
+        style: TextStyle(
+          color: isDark ? Colors.white70 : Colors.black87,
+        ),
+      ),
     );
   }
 }

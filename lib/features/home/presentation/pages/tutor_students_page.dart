@@ -337,7 +337,10 @@ class _StudentCard extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: TutorUi.raisedCardDecoration(radius: 24),
+      decoration: TutorUi.raisedCardDecoration(
+        radius: 24,
+        isDark: Theme.of(context).brightness == Brightness.dark,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

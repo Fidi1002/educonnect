@@ -423,7 +423,7 @@ class _FilterChipButton extends StatelessWidget {
   }
 }
 
-class _TutorBookingList extends ConsumerWidget {
+class _TutorBookingList extends ConsumerStatefulWidget {
   const _TutorBookingList({
     required this.items,
     required this.isLoading,
@@ -444,6 +444,14 @@ class _TutorBookingList extends ConsumerWidget {
     required String successMessage,
   })
   onRespond;
+
+  @override
+  ConsumerState<_TutorBookingList> createState() => _TutorBookingListState();
+}
+
+class _TutorBookingListState extends ConsumerState<_TutorBookingList> {
+  final Set<String> _clearedBookingFilters = {};
+  final Set<String> _expandedPastSessions = {};
 
   SessionChangeRequest? _findPendingRequest(
     String sessionId,
@@ -857,18 +865,10 @@ class _TutorBookingList extends ConsumerWidget {
     List<BookingSession> sessions,
     String? targetSessionId,
   ) {
-    if (targetSessionId == null ||
-        targetSessionId.isEmpty ||
-        sessions.length <= 3) {
-      return sessions.take(3).toList(growable: false);
+    if (targetSessionId != null && targetSessionId.isNotEmpty) {
+      return sessions.where((s) => s.id == targetSessionId).toList();
     }
-    final focusIndex = sessions.indexWhere(
-      (session) => session.id == targetSessionId,
-    );
-    if (focusIndex < 0 || focusIndex < 3) {
-      return sessions.take(3).toList(growable: false);
-    }
-    return <BookingSession>[sessions[0], sessions[1], sessions[focusIndex]];
+    return sessions.take(3).toList(growable: false);
   }
 
   Future<void> _showLearningRecordDialog({
@@ -1023,10 +1023,13 @@ class _TutorBookingList extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final items = widget.items;
+    final isLoading = widget.isLoading;
+    final onRespond = widget.onRespond;
     if (items.isEmpty) {
       return AppEmptyState(
-        message: emptyMessage,
+        message: widget.emptyMessage,
         hint:
             'Saat ada aktivitas booking dari murid, detail pengelolaannya akan muncul di sini.',
         icon: FluentIcons.hat_graduation_24_regular,
@@ -1248,52 +1251,38 @@ class _TutorBookingList extends ConsumerWidget {
                           fullScreen: false,
                         );
                       }
-                      final shortlist = _selectDisplayedSessions(
-                        sessions,
-                        focusedSessionId,
-                      );
-                      return Column(
-                        children: shortlist.map((session) {
-                          final isFocusedSession =
-                              focusedSessionId != null &&
-                              focusedSessionId!.isNotEmpty &&
-                              session.id == focusedSessionId;
-                          final request = _findPendingRequest(
-                            session.id,
-                            requestsAsync.valueOrNull ?? const [],
-                          );
-                          final learningRecord = _findLearningRecord(
-                            session.id,
-                            learningAsync.valueOrNull ?? const [],
-                          );
-                          final canStartSession =
-                              session.status ==
-                                  BookingSessionStatus.scheduled &&
-                              session.sessionStart
-                                      .difference(DateTime.now())
-                                      .inMinutes <=
-                                  15 &&
-                              session.sessionEnd.isAfter(DateTime.now());
-                          final canMarkDone =
-                              (session.status ==
-                                      BookingSessionStatus.scheduled ||
-                                  session.status ==
-                                      BookingSessionStatus.inProgress) &&
-                              session.sessionEnd.isBefore(DateTime.now());
-                          final canMarkStudentNoShow =
-                              (session.status ==
-                                      BookingSessionStatus.scheduled ||
-                                  session.status ==
-                                      BookingSessionStatus.inProgress) &&
-                              session.sessionEnd.isBefore(DateTime.now());
-                          final canRequestChange =
-                              request == null &&
-                              session.status ==
-                                  BookingSessionStatus.scheduled &&
-                              session.sessionStart.isAfter(DateTime.now());
-                          return AnimatedContainer(
+                      Widget buildSessionCard(BookingSession session) {
+                        final isFocusedSession =
+                            widget.focusedSessionId != null &&
+                            widget.focusedSessionId!.isNotEmpty &&
+                            session.id == widget.focusedSessionId;
+                        final request = _findPendingRequest(
+                          session.id,
+                          requestsAsync.valueOrNull ?? const [],
+                        );
+                        final learningRecord = _findLearningRecord(
+                          session.id,
+                          learningAsync.valueOrNull ?? const [],
+                        );
+                        final canStartSession =
+                            session.status == BookingSessionStatus.scheduled &&
+                            session.sessionStart.difference(DateTime.now()).inMinutes <= 10 &&
+                            session.sessionEnd.isAfter(DateTime.now());
+                        final canMarkDone =
+                            (session.status == BookingSessionStatus.scheduled ||
+                                session.status == BookingSessionStatus.inProgress) &&
+                            session.sessionEnd.isBefore(DateTime.now());
+                        final canMarkStudentNoShow =
+                            (session.status == BookingSessionStatus.scheduled ||
+                                session.status == BookingSessionStatus.inProgress) &&
+                            session.sessionEnd.isBefore(DateTime.now());
+                        final canRequestChange =
+                            request == null &&
+                            session.status == BookingSessionStatus.scheduled &&
+                            session.sessionStart.isAfter(DateTime.now());
+                        return AnimatedContainer(
                             duration: const Duration(milliseconds: 220),
-                            key: isFocusedSession ? focusedSessionKey : null,
+                            key: isFocusedSession ? widget.focusedSessionKey : null,
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
@@ -1385,8 +1374,7 @@ class _TutorBookingList extends ConsumerWidget {
                                  ),
                                  const SizedBox(height: 4),
                                  if (item.meetingType == 'online' &&
-                                     (session.status == BookingSessionStatus.scheduled ||
-                                      session.status == BookingSessionStatus.inProgress ||
+                                     (session.status == BookingSessionStatus.inProgress ||
                                       session.status == BookingSessionStatus.donePendingConfirmation)) ...[
                                    const SizedBox(height: 8),
                                    SizedBox(
@@ -1973,8 +1961,120 @@ class _TutorBookingList extends ConsumerWidget {
                               ],
                             ),
                           );
-                        }).toList(),
-                      );
+                        }
+
+                        final showFilteredOnly = widget.focusedSessionId != null &&
+                            widget.focusedSessionId!.isNotEmpty &&
+                            !_clearedBookingFilters.contains(item.id);
+
+                        if (showFilteredOnly) {
+                          final shortlist = _selectDisplayedSessions(
+                            sessions,
+                            widget.focusedSessionId,
+                          );
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ...shortlist.map(buildSessionCard),
+                              if (sessions.length > 1)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: TextButton.icon(
+                                    onPressed: () {
+                                      setState(() {
+                                        _clearedBookingFilters.add(item.id);
+                                      });
+                                    },
+                                    icon: const Icon(Icons.unfold_more, size: 16),
+                                    label: const Text('Tampilkan Semua Sesi'),
+                                  ),
+                                ),
+                            ],
+                          );
+                        }
+
+                        final now = DateTime.now();
+                        final upcoming = sessions.where((s) =>
+                            s.status == BookingSessionStatus.inProgress ||
+                            s.status == BookingSessionStatus.donePendingConfirmation ||
+                            s.sessionEnd.isAfter(now)).toList()
+                          ..sort((a, b) => a.sessionStart.compareTo(b.sessionStart));
+
+                        final past = sessions.where((s) =>
+                            s.status == BookingSessionStatus.confirmed ||
+                            s.status == BookingSessionStatus.disputedResolved ||
+                            s.status == BookingSessionStatus.studentNoShow ||
+                            s.status == BookingSessionStatus.tutorNoShow ||
+                            s.status.name.startsWith('cancelled') ||
+                            s.sessionEnd.isBefore(now)).toList()
+                          ..sort((a, b) => b.sessionStart.compareTo(a.sessionStart));
+
+                        final isExpanded = _expandedPastSessions.contains(item.id);
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (upcoming.isNotEmpty) ...[
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.event_outlined, size: 16, color: isDark ? const Color(0xFFD8B4FE) : const Color(0xFF4B176E)),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Sesi Mendatang',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: isDark ? const Color(0xFFD8B4FE) : const Color(0xFF4B176E),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              ...upcoming.map(buildSessionCard),
+                            ],
+                            if (past.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    if (isExpanded) {
+                                      _expandedPastSessions.remove(item.id);
+                                    } else {
+                                      _expandedPastSessions.add(item.id);
+                                    }
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.history, size: 16, color: isDark ? Colors.white60 : Colors.black54),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Sesi Selesai / Terlewat (${past.length})',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12,
+                                          color: isDark ? Colors.white60 : Colors.black54,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      Icon(
+                                        isExpanded ? Icons.expand_less : Icons.expand_more,
+                                        size: 18,
+                                        color: isDark ? Colors.white60 : Colors.black54,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (isExpanded) ...past.map(buildSessionCard),
+                            ],
+                          ],
+                        );
                     },
                     loading: () => const Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),

@@ -48,6 +48,8 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
   final Map<String, GlobalKey> _sessionAnchorKeys = <String, GlobalKey>{};
   String? _lastAutoScrolledSessionId;
   RealtimeChannel? _callChannel;
+  final Set<String> _clearedBookingFilters = {};
+  final Set<String> _expandedPastSessions = {};
 
   @override
   void initState() {
@@ -308,6 +310,22 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
                             _payWebhook(bookingId, paymentMethod),
                         focusedSessionId: focusedSessionId,
                         focusedSessionKey: focusedSessionKey,
+                        clearedBookingFilters: _clearedBookingFilters,
+                        expandedPastSessions: _expandedPastSessions,
+                        onClearSessionFilter: (bookingId) {
+                          setState(() {
+                            _clearedBookingFilters.add(bookingId);
+                          });
+                        },
+                        onTogglePastSessions: (bookingId) {
+                          setState(() {
+                            if (_expandedPastSessions.contains(bookingId)) {
+                              _expandedPastSessions.remove(bookingId);
+                            } else {
+                              _expandedPastSessions.add(bookingId);
+                            }
+                          });
+                        },
                       ),
                       _BookingList(
                         items: history,
@@ -317,6 +335,22 @@ class _StudentBookingsPageState extends ConsumerState<StudentBookingsPage> {
                             _payWebhook(bookingId, paymentMethod),
                         focusedSessionId: focusedSessionId,
                         focusedSessionKey: focusedSessionKey,
+                        clearedBookingFilters: _clearedBookingFilters,
+                        expandedPastSessions: _expandedPastSessions,
+                        onClearSessionFilter: (bookingId) {
+                          setState(() {
+                            _clearedBookingFilters.add(bookingId);
+                          });
+                        },
+                        onTogglePastSessions: (bookingId) {
+                          setState(() {
+                            if (_expandedPastSessions.contains(bookingId)) {
+                              _expandedPastSessions.remove(bookingId);
+                            } else {
+                              _expandedPastSessions.add(bookingId);
+                            }
+                          });
+                        },
                       ),
                     ],
                   ),
@@ -623,6 +657,10 @@ class _BookingList extends StatelessWidget {
     required this.onPay,
     required this.focusedSessionId,
     required this.focusedSessionKey,
+    required this.clearedBookingFilters,
+    required this.expandedPastSessions,
+    required this.onClearSessionFilter,
+    required this.onTogglePastSessions,
   });
 
   final List<BookingItem> items;
@@ -631,6 +669,10 @@ class _BookingList extends StatelessWidget {
   final void Function(String bookingId, String paymentMethod) onPay;
   final String? focusedSessionId;
   final GlobalKey? focusedSessionKey;
+  final Set<String> clearedBookingFilters;
+  final Set<String> expandedPastSessions;
+  final void Function(String bookingId) onClearSessionFilter;
+  final void Function(String bookingId) onTogglePastSessions;
 
   Future<void> _showMockPaymentGateway(
     BuildContext context,
@@ -667,14 +709,20 @@ class _BookingList extends StatelessWidget {
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final item = items[index];
+        final showFilteredOnly = focusedSessionId != null &&
+            focusedSessionId!.isNotEmpty &&
+            !clearedBookingFilters.contains(item.id);
         return _BookingCard(
               item: item,
               paymentLoading: isLoading,
               onPay: item.status == BookingStatus.awaitingPayment
                   ? () => _showMockPaymentGateway(context, item)
                   : null,
-              focusedSessionId: focusedSessionId,
-              focusedSessionKey: focusedSessionKey,
+              focusedSessionId: showFilteredOnly ? focusedSessionId : null,
+              focusedSessionKey: showFilteredOnly ? focusedSessionKey : null,
+              onClearSessionFilter: () => onClearSessionFilter(item.id),
+              isPastSessionsExpanded: expandedPastSessions.contains(item.id),
+              onTogglePastSessions: () => onTogglePastSessions(item.id),
             )
             .animate()
             .fade(delay: (index * 50).ms, duration: 400.ms)
@@ -691,6 +739,9 @@ class _BookingCard extends ConsumerWidget {
     this.onPay,
     this.focusedSessionId,
     this.focusedSessionKey,
+    this.onClearSessionFilter,
+    required this.isPastSessionsExpanded,
+    required this.onTogglePastSessions,
   });
 
   final BookingItem item;
@@ -698,25 +749,592 @@ class _BookingCard extends ConsumerWidget {
   final VoidCallback? onPay;
   final String? focusedSessionId;
   final GlobalKey? focusedSessionKey;
+  final VoidCallback? onClearSessionFilter;
+  final bool isPastSessionsExpanded;
+  final VoidCallback onTogglePastSessions;
 
   List<BookingSession> _selectDisplayedSessions(
     List<BookingSession> sessions,
     String? targetSessionId,
   ) {
-    if (targetSessionId == null ||
-        targetSessionId.isEmpty ||
-        sessions.length <= 3) {
-      return sessions.take(3).toList(growable: false);
+    if (targetSessionId != null && targetSessionId.isNotEmpty) {
+      return sessions.where((s) => s.id == targetSessionId).toList();
     }
+    return sessions.take(3).toList(growable: false);
+  }
 
-    final focusIndex = sessions.indexWhere(
-      (session) => session.id == targetSessionId,
+  Widget _buildProgressBar({
+    required bool isDark,
+    required int confirmedCount,
+    required int totalCount,
+    required int progressPercent,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Progress: $confirmedCount/$totalCount sesi',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
+              ),
+              Text(
+                '$progressPercent%',
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              minHeight: 8,
+              value: confirmedCount / totalCount,
+              backgroundColor: isDark ? const Color(0xFF28354E) : const Color(0xFFE9E3F2),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
-    if (focusIndex < 0 || focusIndex < 3) {
-      return sessions.take(3).toList(growable: false);
-    }
+  }
 
-    return <BookingSession>[sessions[0], sessions[1], sessions[focusIndex]];
+  Widget _buildSessionCard({
+    required BuildContext context,
+    required WidgetRef ref,
+    required BookingSession session,
+    required bool isDark,
+    required List<SessionChangeRequest> requests,
+    required List<SessionLearningRecord> learningRecords,
+  }) {
+    final isFocusedSession =
+        focusedSessionId != null &&
+        focusedSessionId!.isNotEmpty &&
+        session.id == focusedSessionId;
+    final request = _findPendingRequest(session.id, requests);
+    final learningRecord = _findLearningRecord(session.id, learningRecords);
+    final canConfirm =
+        session.status == BookingSessionStatus.donePendingConfirmation;
+    final canRequestChange =
+        request == null &&
+        session.status == BookingSessionStatus.scheduled &&
+        session.sessionStart.isAfter(DateTime.now());
+    final canConfirmPresence =
+        session.studentPresenceConfirmedAt == null &&
+        (session.status == BookingSessionStatus.scheduled || session.status == BookingSessionStatus.inProgress) &&
+        (session.sessionStart.isAfter(DateTime.now()) || session.status == BookingSessionStatus.inProgress) &&
+        session.sessionStart.isBefore(
+          DateTime.now().add(const Duration(hours: 24)),
+        );
+    final canMarkTutorNoShow =
+        (session.status == BookingSessionStatus.scheduled || session.status == BookingSessionStatus.inProgress) &&
+        session.sessionEnd.isBefore(DateTime.now());
+    final canSubmitHomework =
+        learningRecord != null &&
+        learningRecord.homeworkStatus == HomeworkStatus.assigned &&
+        session.status == BookingSessionStatus.confirmed;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        key: isFocusedSession ? focusedSessionKey : null,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: isFocusedSession
+              ? (isDark ? const Color(0xFF3B1E54) : const Color(0xFFF8F0FF))
+              : (isDark ? const Color(0xFF090D16) : Theme.of(context).colorScheme.surfaceContainerHigh),
+          border: isFocusedSession
+              ? Border.all(
+                  color: isDark ? const Color(0xFFBD68FF) : const Color(0xFF7B2CBF),
+                  width: 1.4,
+                )
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _formatDateTimeShort(session.sessionStart),
+                        style: TextStyle(
+                          fontWeight: isFocusedSession ? FontWeight.bold : FontWeight.w600,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          _SessionStatusBadge(status: session.status),
+                          if (item.meetingType == 'offline') ...[
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF2E1A20) : const Color(0xFFFFE4E6),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Tatap Muka',
+                                style: TextStyle(
+                                  color: isDark ? const Color(0xFFFDA4AF) : const Color(0xFFE11D48),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 9.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                if (session.status == BookingSessionStatus.scheduled) ...[
+                  IconButton(
+                    icon: Icon(
+                      Icons.calendar_today_rounded,
+                      size: 16,
+                      color: isDark ? const Color(0xFFBD68FF) : const Color(0xFF7B2CBF),
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Tambahkan ke Google Calendar',
+                    onPressed: () => CalendarSyncHelper.addToGoogleCalendar(
+                      title: item.subject,
+                      startTime: session.sessionStart,
+                      endTime: session.sessionEnd,
+                      description: 'Kelas EduConnect bersama ${item.tutorName}.',
+                      location: item.meetingType == 'offline' ? item.meetingLocation : 'Online Classroom',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (isFocusedSession) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEDCFF),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'Sesi dari notifikasi',
+                      style: TextStyle(
+                        color: Color(0xFF6B21A8),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            if (session.studentPresenceConfirmedAt != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Hadir dikonfirmasi '
+                  '${session.studentPresenceConfirmedAt!.hour.toString().padLeft(2, '0')}:'
+                  '${session.studentPresenceConfirmedAt!.minute.toString().padLeft(2, '0')}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            if (session.sessionPhotoUrl != null && session.sessionPhotoUrl!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => Dialog(
+                      backgroundColor: Colors.transparent,
+                      insetPadding: const EdgeInsets.all(16),
+                      child: Stack(
+                        alignment: Alignment.topRight,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.network(
+                              session.sessionPhotoUrl!,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const CircleAvatar(
+                              backgroundColor: Colors.black54,
+                              child: Icon(Icons.close, color: Colors.white),
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1B2336) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFCBD5E1)),
+                  ),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          session.sessionPhotoUrl!,
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Foto Bukti Kehadiran',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Ketuk untuk memperbesar foto',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.zoom_in, size: 20, color: Color(0xFF4B176E)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            if (item.meetingType == 'offline') ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.location_on, size: 14, color: Color(0xFFE11D48)),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Tatap Muka: ${item.meetingLocation}',
+                      style: const TextStyle(fontSize: 11, color: Color(0xFFE11D48), fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              _GpsGeofencingWidget(locationName: item.meetingLocation),
+            ],
+            if (item.meetingType == 'online' &&
+                (session.status == BookingSessionStatus.inProgress ||
+                 session.status == BookingSessionStatus.donePendingConfirmation)) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => VirtualClassroomPage(
+                          subject: item.subject,
+                          partnerName: item.tutorName.isEmpty ? item.tutorUid : item.tutorName,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.class_outlined, size: 16),
+                  label: const Text(
+                    'Masuk Ruang Kelas',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF4B176E),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            if (learningRecord != null &&
+                (learningRecord.hasMaterial || learningRecord.hasHomework)) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1B2336) : Colors.white.withValues(alpha: 0.68),
+                  borderRadius: BorderRadius.circular(12),
+                  border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Learning Journal',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11.5,
+                        color: isDark ? const Color(0xFFFDA4AF) : const Color(0xFFE11D48),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    if (learningRecord.hasMaterial) ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.menu_book, size: 12, color: Colors.grey),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Materi: ${learningRecord.materialSummary}',
+                              style: const TextStyle(fontSize: 11, height: 1.3),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    if (learningRecord.hasHomework) ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.home_work, size: 12, color: Colors.grey),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'PR: ${learningRecord.homeworkDescription}',
+                                  style: const TextStyle(fontSize: 11, height: 1.3),
+                                ),
+                                const SizedBox(height: 2),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: learningRecord.homeworkStatus == HomeworkStatus.submitted
+                                        ? const Color(0xFFD1FAE5)
+                                        : (learningRecord.homeworkStatus == HomeworkStatus.reviewed ? const Color(0xFFDBEAFE) : const Color(0xFFFEE2E2)),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    learningRecord.homeworkStatus == HomeworkStatus.submitted
+                                        ? 'PR Dikumpulkan'
+                                        : (learningRecord.homeworkStatus == HomeworkStatus.reviewed ? 'PR Direview' : 'PR Belum Dikumpulkan'),
+                                    style: TextStyle(
+                                      color: learningRecord.homeworkStatus == HomeworkStatus.submitted
+                                          ? const Color(0xFF065F46)
+                                          : (learningRecord.homeworkStatus == HomeworkStatus.reviewed ? const Color(0xFF1E40AF) : const Color(0xFF991B1B)),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 8.5,
+                                    ),
+                                  ),
+                                ),
+                                if (learningRecord.homeworkStatus == HomeworkStatus.reviewed &&
+                                    learningRecord.tutorFeedback.trim().isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Feedback Tutor: ${learningRecord.tutorFeedback}',
+                                    style: const TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: Colors.blueGrey),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+            if (request != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF2E1A20) : const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.red),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Reschedule/Batal diajukan: ${request.reason}',
+                        style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (canConfirm) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  onPressed: paymentLoading
+                      ? null
+                      : () async {
+                          try {
+                            await _showConfirmDialog(
+                              context: context,
+                              ref: ref,
+                              sessionId: session.id,
+                            );
+                          } on Exception catch (error) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Gagal mengonfirmasi sesi. ${error.toString()}')),
+                            );
+                          }
+                        },
+                  icon: const Icon(Icons.check_circle_outline, size: 16),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  label: const Text('Konfirmasi Selesai', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+              ),
+            ],
+            if (session.status == BookingSessionStatus.disputedPending) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showDisputeSupportDialog(context),
+                  icon: const Icon(Icons.support_agent, size: 16, color: Colors.white),
+                  label: const Text('Hubungi Dukungan CS (Mediasi)', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFDC2626),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+            if (canMarkTutorNoShow) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: paymentLoading
+                      ? null
+                      : () async {
+                          try {
+                            await ref.read(bookingControllerProvider).markTutorNoShow(session.id);
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Sesi berhasil ditandai sebagai tutor tidak hadir.')),
+                            );
+                          } on Exception catch (error) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Gagal memperbarui kehadiran tutor. Coba lagi. ${error.toString()}')),
+                            );
+                          }
+                        },
+                  icon: const Icon(FluentIcons.person_prohibited_24_regular),
+                  label: const Text('Tutor Tidak Hadir'),
+                ),
+              ),
+            ],
+            if (canRequestChange) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: paymentLoading
+                          ? null
+                          : () => _showCancelRequestDialog(context: context, ref: ref, session: session),
+                      child: const Text('Ajukan Batal'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: paymentLoading
+                          ? null
+                          : () => _showRescheduleRequestDialog(
+                                context: context,
+                                ref: ref,
+                                session: session,
+                                durationMinutes: item.durationMinutes,
+                              ),
+                      child: const Text('Ajukan Reschedule'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (canConfirmPresence) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  onPressed: paymentLoading
+                      ? null
+                      : () async {
+                          await ref.read(bookingControllerProvider).confirmSessionPresence(session.id);
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Kehadiran berhasil dikonfirmasi untuk sesi ini.')),
+                          );
+                        },
+                  icon: const Icon(Icons.how_to_reg_outlined),
+                  label: Text(isFocusedSession ? 'Konfirmasi Hadir (Sesi Ini)' : 'Konfirmasi Hadir'),
+                ),
+              ),
+            ],
+            if (canSubmitHomework) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.tonalIcon(
+                  onPressed: paymentLoading
+                      ? null
+                      : () => _showHomeworkSubmitDialog(context: context, ref: ref, sessionId: session.id),
+                  icon: const Icon(Icons.assignment_turned_in),
+                  label: const Text('Kumpulkan PR'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -724,7 +1342,6 @@ class _BookingCard extends ConsumerWidget {
     final sessionsAsync = ref.watch(bookingSessionsProvider(item.id));
     final requestsAsync = ref.watch(sessionChangeRequestsProvider(item.id));
     final learningAsync = ref.watch(sessionLearningRecordsProvider(item.id));
-    final currentUid = ref.watch(authStateProvider).value?.uid ?? '';
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -818,8 +1435,7 @@ class _BookingCard extends ConsumerWidget {
                 if (sessions.isEmpty) {
                   return const AppEmptyState(
                     message: 'Belum ada data pertemuan.',
-                    hint:
-                        'Sesi akan tampil setelah booking diproses dan jadwal terbentuk.',
+                    hint: 'Sesi akan tampil setelah booking diproses dan jadwal terbentuk.',
                     icon: Icons.event_busy_outlined,
                   );
                 }
@@ -827,658 +1443,132 @@ class _BookingCard extends ConsumerWidget {
                     .where(
                       (session) =>
                           session.status == BookingSessionStatus.confirmed ||
-                          session.status ==
-                              BookingSessionStatus.disputedResolved,
+                          session.status == BookingSessionStatus.disputedResolved,
                     )
                     .length;
                 final progressPercent =
                     ((confirmedCount / sessions.length) * 100).round();
-                final shortlist = _selectDisplayedSessions(
-                  sessions,
-                  focusedSessionId,
-                );
+
+                final showFilteredOnly = focusedSessionId != null &&
+                    focusedSessionId!.isNotEmpty;
+
+                Widget buildProgressBarWidget() {
+                  return _buildProgressBar(
+                    isDark: isDark,
+                    confirmedCount: confirmedCount,
+                    totalCount: sessions.length,
+                    progressPercent: progressPercent,
+                  );
+                }
+
+                Widget buildSessionCardWidget(BookingSession session) {
+                  return _buildSessionCard(
+                    context: context,
+                    ref: ref,
+                    session: session,
+                    isDark: isDark,
+                    requests: requestsAsync.valueOrNull ?? const [],
+                    learningRecords: learningAsync.valueOrNull ?? const [],
+                  );
+                }
+
+                if (showFilteredOnly) {
+                  final shortlist = _selectDisplayedSessions(
+                    sessions,
+                    focusedSessionId,
+                  );
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      buildProgressBarWidget(),
+                      ...shortlist.map(buildSessionCardWidget),
+                      if (sessions.length > 1)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: TextButton.icon(
+                            onPressed: onClearSessionFilter,
+                            icon: const Icon(Icons.unfold_more, size: 16),
+                            label: const Text('Tampilkan Semua Sesi'),
+                          ),
+                        ),
+                    ],
+                  );
+                }
+
+                final now = DateTime.now();
+                final upcoming = sessions.where((s) =>
+                    s.status == BookingSessionStatus.inProgress ||
+                    s.status == BookingSessionStatus.donePendingConfirmation ||
+                    s.sessionEnd.isAfter(now)).toList()
+                  ..sort((a, b) => a.sessionStart.compareTo(b.sessionStart));
+
+                final past = sessions.where((s) =>
+                    s.status == BookingSessionStatus.confirmed ||
+                    s.status == BookingSessionStatus.disputedResolved ||
+                    s.status == BookingSessionStatus.studentNoShow ||
+                    s.status == BookingSessionStatus.tutorNoShow ||
+                    s.status.name.startsWith('cancelled') ||
+                    s.sessionEnd.isBefore(now)).toList()
+                  ..sort((a, b) => b.sessionStart.compareTo(a.sessionStart));
+
+                final isExpanded = isPastSessionsExpanded;
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children:
-                      shortlist.map((session) {
-                        final isFocusedSession =
-                            focusedSessionId != null &&
-                            focusedSessionId!.isNotEmpty &&
-                            session.id == focusedSessionId;
-                        final request = _findPendingRequest(
-                          session.id,
-                          requestsAsync.valueOrNull ?? const [],
-                        );
-                        final learningRecord = _findLearningRecord(
-                          session.id,
-                          learningAsync.valueOrNull ?? const [],
-                        );
-                        final canConfirm =
-                            session.status ==
-                            BookingSessionStatus.donePendingConfirmation;
-                        final canRequestChange =
-                            request == null &&
-                            session.status == BookingSessionStatus.scheduled &&
-                            session.sessionStart.isAfter(DateTime.now());
-                        final canConfirmPresence =
-                            session.studentPresenceConfirmedAt == null &&
-                            (session.status == BookingSessionStatus.scheduled || session.status == BookingSessionStatus.inProgress) &&
-                            (session.sessionStart.isAfter(DateTime.now()) || session.status == BookingSessionStatus.inProgress) &&
-                            session.sessionStart.isBefore(
-                              DateTime.now().add(const Duration(hours: 24)),
-                            );
-                        final canMarkTutorNoShow =
-                            (session.status == BookingSessionStatus.scheduled || session.status == BookingSessionStatus.inProgress) &&
-                            session.sessionEnd.isBefore(DateTime.now());
-                        final canSubmitHomework =
-                            learningRecord != null &&
-                            learningRecord.homeworkStatus ==
-                                HomeworkStatus.assigned &&
-                            session.status == BookingSessionStatus.confirmed;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 220),
-                            key: isFocusedSession ? focusedSessionKey : null,
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              color: isFocusedSession
-                                  ? (isDark ? const Color(0xFF3B1E54) : const Color(0xFFF8F0FF))
-                                  : (isDark ? const Color(0xFF090D16) : Theme.of(context).colorScheme.surfaceContainerHigh),
-                              border: isFocusedSession
-                                  ? Border.all(
-                                      color: isDark ? const Color(0xFFBD68FF) : const Color(0xFF7B2CBF),
-                                      width: 1.4,
-                                    )
-                                  : (isDark ? Border.all(color: const Color(0xFF28354E)) : null),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        '${session.sessionStart.day}/${session.sessionStart.month} '
-                                        '${session.sessionStart.hour.toString().padLeft(2, '0')}:${session.sessionStart.minute.toString().padLeft(2, '0')}'
-                                        ' - ${session.sessionEnd.hour.toString().padLeft(2, '0')}:${session.sessionEnd.minute.toString().padLeft(2, '0')}',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: isDark ? Colors.white : Colors.black87,
-                                        ),
-                                      ),
-                                    ),
-                                    if (session.status == BookingSessionStatus.scheduled)
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.calendar_today_rounded,
-                                          size: 16,
-                                          color: isDark ? const Color(0xFFBD68FF) : const Color(0xFF7B2CBF),
-                                        ),
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        tooltip: 'Tambahkan ke Google Calendar',
-                                        onPressed: () => CalendarSyncHelper.addToGoogleCalendar(
-                                          title: item.subject,
-                                          startTime: session.sessionStart,
-                                          endTime: session.sessionEnd,
-                                          description: 'Kelas EduConnect bersama ${item.tutorName}.',
-                                          location: item.meetingType == 'offline' ? item.meetingLocation : 'Online Classroom',
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                _SessionStatusBadge(status: session.status),
-                                if (isFocusedSession) ...[
-                                  const SizedBox(height: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 5,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFEEDCFF),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    child: const Text(
-                                      'Sesi dari notifikasi',
-                                      style: TextStyle(
-                                        color: Color(0xFF6B21A8),
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                if (session.studentPresenceConfirmedAt != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 6),
-                                    child: Text(
-                                      'Hadir dikonfirmasi '
-                                      '${session.studentPresenceConfirmedAt!.hour.toString().padLeft(2, '0')}:'
-                                      '${session.studentPresenceConfirmedAt!.minute.toString().padLeft(2, '0')}',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                  ),
-                                if (session.sessionPhotoUrl != null && session.sessionPhotoUrl!.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  InkWell(
-                                    onTap: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (_) => Dialog(
-                                          backgroundColor: Colors.transparent,
-                                          insetPadding: const EdgeInsets.all(16),
-                                          child: Stack(
-                                            alignment: Alignment.topRight,
-                                            children: [
-                                              ClipRRect(
-                                                borderRadius: BorderRadius.circular(16),
-                                                child: Image.network(
-                                                  session.sessionPhotoUrl!,
-                                                  fit: BoxFit.contain,
-                                                ),
-                                              ),
-                                              IconButton(
-                                                icon: const CircleAvatar(
-                                                  backgroundColor: Colors.black54,
-                                                  child: Icon(Icons.close, color: Colors.white),
-                                                ),
-                                                onPressed: () => Navigator.pop(context),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: isDark ? const Color(0xFF1B2336) : const Color(0xFFF1F5F9),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFCBD5E1)),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(8),
-                                            child: Image.network(
-                                              session.sessionPhotoUrl!,
-                                              width: 48,
-                                              height: 48,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          const Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Foto Bukti Kehadiran',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                                SizedBox(height: 2),
-                                                Text(
-                                                  'Ketuk untuk memperbesar foto',
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    color: Colors.grey,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          const Icon(Icons.zoom_in, size: 20, color: Color(0xFF4B176E)),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                if (item.meetingType == 'offline') ...[
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.location_on, size: 14, color: Color(0xFFE11D48)),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          'Tatap Muka: ${item.meetingLocation}',
-                                          style: const TextStyle(fontSize: 11, color: Color(0xFFE11D48), fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  _GpsGeofencingWidget(locationName: item.meetingLocation),
-                                ],
-                                if (learningRecord != null &&
-                                    (learningRecord.hasMaterial ||
-                                        learningRecord.hasHomework)) ...[
-                                   const SizedBox(height: 8),
-                                   Container(
-                                     padding: const EdgeInsets.all(10),
-                                     decoration: BoxDecoration(
-                                       color: isDark
-                                           ? const Color(0xFF1B2336)
-                                           : Colors.white.withValues(
-                                               alpha: 0.68,
-                                             ),
-                                       borderRadius: BorderRadius.circular(12),
-                                       border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
-                                     ),
-                                     child: Column(
-                                       crossAxisAlignment:
-                                           CrossAxisAlignment.start,
-                                       children: [
-                                         Text(
-                                           'Learning Journal',
-                                           style: Theme.of(context)
-                                               .textTheme
-                                               .labelLarge
-                                               ?.copyWith(
-                                                 color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
-                                                 fontWeight: FontWeight.w800,
-                                               ),
-                                         ),
-                                        if (learningRecord.hasMaterial) ...[
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            'Materi: ${learningRecord.materialSummary}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ],
-                                        if (learningRecord.materialNotes
-                                            .trim()
-                                            .isNotEmpty) ...[
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Catatan: ${learningRecord.materialNotes}',
-                                          ),
-                                        ],
-                                        if (learningRecord.hasHomework) ...[
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'PR: ${learningRecord.homeworkTitle}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          if (learningRecord.homeworkDescription
-                                              .trim()
-                                              .isNotEmpty) ...[
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              learningRecord
-                                                  .homeworkDescription,
-                                            ),
-                                          ],
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Status PR: ${learningRecord.homeworkStatus.label}',
-                                          ),
-                                          if (learningRecord.studentSubmission
-                                              .trim()
-                                              .isNotEmpty) ...[
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'Jawaban saya: ${learningRecord.studentSubmission}',
-                                            ),
-                                          ],
-                                          if (learningRecord.homeworkStatus == HomeworkStatus.reviewed) ...[
-                                            if (learningRecord.homeworkGrade != null) ...[
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Nilai PR: ${learningRecord.homeworkGrade}/100 🌟',
-                                                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
-                                              ),
-                                            ],
-                                            if (learningRecord.tutorFeedback.trim().isNotEmpty) ...[
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Catatan Tutor: ${learningRecord.tutorFeedback}',
-                                                style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
-                                              ),
-                                            ],
-                                          ],
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                                if (request != null) ...[
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Request ${request.requestType} menunggu persetujuan',
-                                    style: const TextStyle(
-                                      color: Color(0xFF8C4BC0),
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  if (request.targetUid == currentUid) ...[
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: OutlinedButton(
-                                            onPressed: paymentLoading
-                                                ? null
-                                                : () => ref
-                                                      .read(
-                                                        bookingControllerProvider,
-                                                      )
-                                                      .respondSessionChangeRequest(
-                                                        requestId: request.id,
-                                                        approved: false,
-                                                      ),
-                                            child: const Text('Tolak'),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: FilledButton(
-                                            onPressed: paymentLoading
-                                                ? null
-                                                : () => ref
-                                                      .read(
-                                                        bookingControllerProvider,
-                                                      )
-                                                      .respondSessionChangeRequest(
-                                                        requestId: request.id,
-                                                        approved: true,
-                                                      ),
-                                            child: const Text('Setujui'),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ],
-                                if (canConfirm) ...[
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          onPressed: paymentLoading
-                                              ? null
-                                              : () async {
-                                                  await ref
-                                                      .read(
-                                                        bookingControllerProvider,
-                                                      )
-                                                      .disputeSessionByStudent(
-                                                        session.id,
-                                                      );
-                                                  if (!context.mounted) {
-                                                    return;
-                                                  }
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        'Sesi ditandai bermasalah dan akan ditinjau bersama tutor.',
-                                                      ),
-                                                    ),
-                                                  );
-                                                },
-                                          child: const Text('Tidak Berjalan'),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: FilledButton(
-                                          onPressed: paymentLoading
-                                              ? null
-                                              : () async {
-                                                  try {
-                                                    await _showConfirmDialog(
-                                                      context: context,
-                                                      ref: ref,
-                                                      sessionId: session.id,
-                                                    );
-                                                  } on Exception catch (error) {
-                                                    if (!context.mounted) {
-                                                      return;
-                                                    }
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          'Gagal mengonfirmasi sesi. Coba lagi sebentar lagi. ${error.toString()}',
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }
-                                                },
-                                          child: const Text('Konfirmasi'),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                                if (canMarkTutorNoShow) ...[
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: OutlinedButton.icon(
-                                      onPressed: paymentLoading
-                                          ? null
-                                          : () async {
-                                              try {
-                                                await ref
-                                                    .read(
-                                                      bookingControllerProvider,
-                                                    )
-                                                    .markTutorNoShow(
-                                                      session.id,
-                                                    );
-                                                if (!context.mounted) {
-                                                  return;
-                                                }
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'Sesi berhasil ditandai sebagai tutor tidak hadir.',
-                                                    ),
-                                                  ),
-                                                );
-                                              } on Exception catch (error) {
-                                                if (!context.mounted) {
-                                                  return;
-                                                }
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      'Gagal memperbarui kehadiran tutor. Coba lagi. ${error.toString()}',
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                            },
-                                      icon: const Icon(
-                                        FluentIcons
-                                            .person_prohibited_24_regular,
-                                      ),
-                                      label: const Text('Tutor Tidak Hadir'),
-                                    ),
-                                  ),
-                                ],
-                                if (session.status == BookingSessionStatus.disputedPending) ...[
-                                  const SizedBox(height: 8),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => _showDisputeSupportDialog(context),
-                                      icon: const Icon(Icons.support_agent, color: Colors.white, size: 16),
-                                      label: const Text('Hubungi Dukungan CS (Mediasi)', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFFDC2626), // Merah untuk urgensi
-                                        padding: const EdgeInsets.symmetric(vertical: 10),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                if (canRequestChange) ...[
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          onPressed: paymentLoading
-                                              ? null
-                                              : () => _showCancelRequestDialog(
-                                                  context: context,
-                                                  ref: ref,
-                                                  session: session,
-                                                ),
-                                          child: const Text('Ajukan Batal'),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: FilledButton(
-                                          onPressed: paymentLoading
-                                              ? null
-                                              : () =>
-                                                    _showRescheduleRequestDialog(
-                                                      context: context,
-                                                      ref: ref,
-                                                      session: session,
-                                                      durationMinutes:
-                                                          item.durationMinutes,
-                                                    ),
-                                          child: const Text(
-                                            'Ajukan Reschedule',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                                if (canConfirmPresence) ...[
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: FilledButton.icon(
-                                      onPressed: paymentLoading
-                                          ? null
-                                          : () async {
-                                              await ref
-                                                  .read(
-                                                    bookingControllerProvider,
-                                                  )
-                                                  .confirmSessionPresence(
-                                                    session.id,
-                                                  );
-                                              if (!context.mounted) {
-                                                return;
-                                              }
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'Kehadiran berhasil dikonfirmasi untuk sesi ini.',
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                      icon: const Icon(
-                                        Icons.how_to_reg_outlined,
-                                      ),
-                                      label: Text(
-                                        isFocusedSession
-                                            ? 'Konfirmasi Hadir (Sesi Ini)'
-                                            : 'Konfirmasi Hadir',
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                if (canSubmitHomework) ...[
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: FilledButton.tonalIcon(
-                                      onPressed: paymentLoading
-                                          ? null
-                                          : () => _showHomeworkSubmitDialog(
-                                              context: context,
-                                              ref: ref,
-                                              sessionId: session.id,
-                                            ),
-                                      icon: const Icon(
-                                        Icons.assignment_turned_in,
-                                      ),
-                                      label: const Text('Kumpulkan PR'),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList()..insert(
-                        0,
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      'Progress: $confirmedCount/${sessions.length} sesi',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        color: isDark ? Colors.white70 : Colors.black87,
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    '$progressPercent%',
-                                    style: TextStyle(
-                                      color: isDark ? Colors.white70 : Colors.black87,
-                                    ),
-                                  ),
-                                ],
+                  children: [
+                    buildProgressBarWidget(),
+                    if (upcoming.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            Icon(Icons.event_outlined, size: 16, color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E)),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Sesi Mendatang',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
                               ),
-                              const SizedBox(height: 6),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(999),
-                                child: LinearProgressIndicator(
-                                  minHeight: 8,
-                                  value: confirmedCount / sessions.length,
-                                  backgroundColor: isDark ? const Color(0xFF28354E) : const Color(0xFFE9E3F2),
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(
-                                        isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
-                                      ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ...upcoming.map(buildSessionCardWidget),
+                    ],
+                    if (past.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: onTogglePastSessions,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                          child: Row(
+                            children: [
+                              Icon(Icons.history, size: 16, color: isDark ? Colors.white60 : Colors.black54),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Sesi Selesai / Terlewat (${past.length})',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white60 : Colors.black54,
                                 ),
+                              ),
+                              const Spacer(),
+                              Icon(
+                                isExpanded ? Icons.expand_less : Icons.expand_more,
+                                size: 18,
+                                color: isDark ? Colors.white60 : Colors.black54,
                               ),
                             ],
                           ),
                         ),
                       ),
+                      if (isExpanded) ...past.map(buildSessionCardWidget),
+                    ],
+                  ],
                 );
               },
               loading: () => const Padding(

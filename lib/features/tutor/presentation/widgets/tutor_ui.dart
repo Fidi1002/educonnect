@@ -33,24 +33,28 @@ class TutorUi {
   );
 
   static BoxDecoration elevatedCardDecoration({
-    Color color = Colors.white,
+    Color? color,
     double radius = 20,
+    bool isDark = false,
   }) {
     return BoxDecoration(
-      color: color,
+      color: color ?? (isDark ? const Color(0xFF1B2336) : Colors.white),
       borderRadius: BorderRadius.circular(radius),
-      boxShadow: const [softShadow],
+      border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+      boxShadow: isDark ? null : const [softShadow],
     );
   }
 
   static BoxDecoration raisedCardDecoration({
-    Color color = Colors.white,
+    Color? color,
     double radius = 22,
+    bool isDark = false,
   }) {
     return BoxDecoration(
-      color: color,
+      color: color ?? (isDark ? const Color(0xFF1B2336) : Colors.white),
       borderRadius: BorderRadius.circular(radius),
-      boxShadow: const [mediumShadow],
+      border: isDark ? Border.all(color: const Color(0xFF28354E)) : null,
+      boxShadow: isDark ? null : const [mediumShadow],
     );
   }
 

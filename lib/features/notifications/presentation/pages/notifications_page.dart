@@ -8,7 +8,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:educonnect/features/booking/application/booking_controller.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
-import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/booking/presentation/pages/student_bookings_page.dart';
 import 'package:educonnect/features/booking/presentation/pages/tutor_bookings_page.dart';
 
@@ -364,10 +363,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                       return;
                     }
                     
-                    final profile = ref.read(currentUserProfileProvider).valueOrNull;
-                    final role = profile?.role ?? AppUserRole.unknown;
+                    final currentUid = ref.read(authStateProvider).value?.uid;
                     
-                    if (role == AppUserRole.tutor) {
+                    if (currentUid == session.tutorUid) {
                       router.pushNamed(
                         TutorBookingsPage.routeName,
                         queryParameters: {
@@ -375,7 +373,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                           'sessionId': session.id,
                         },
                       );
-                    } else if (role == AppUserRole.student) {
+                    } else if (currentUid == session.studentUid) {
                       router.pushNamed(
                         StudentBookingsPage.routeName,
                         queryParameters: {
