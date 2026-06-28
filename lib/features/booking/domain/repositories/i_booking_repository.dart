@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:educonnect/features/booking/domain/models/booking_item.dart';
 import 'package:educonnect/features/booking/domain/models/booking_session.dart';
 import 'package:educonnect/features/booking/domain/models/session_change_request.dart';
@@ -73,7 +74,7 @@ abstract class IBookingRepository {
   });
 
   Future<void> markSessionStartedByTutor(String sessionId);
-  Future<void> markSessionDoneByTutor(String sessionId);
+  Future<void> markSessionDoneByTutor(String sessionId, {File? photoFile});
   Future<void> markStudentNoShowByTutor(String sessionId);
   Future<void> markTutorNoShowByStudent(String sessionId);
   
@@ -103,11 +104,15 @@ abstract class IBookingRepository {
     required String submissionText,
   });
 
-  Future<void> markHomeworkReviewedByTutor({required String sessionId});
+  Future<void> markHomeworkReviewedByTutor({required String sessionId, required String feedback, required int? grade});
 
   Future<int> getRescheduleCountInLast30Days(String bookingId);
 
   Future<List<StudentTransaction>> fetchStudentTransactions(String studentUid);
 
   Future<List<BookingWeeklySlot>> fetchBookedWeeklySlots(String tutorUid);
+
+  Future<void> checkSessionEndNotifications();
+  Future<BookingSession?> fetchSessionById(String sessionId);
 }
+

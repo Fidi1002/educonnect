@@ -1,4 +1,5 @@
 import 'package:educonnect/app/routes/auth_refresh_notifier.dart';
+import 'package:educonnect/core/providers/backend_providers.dart';
 import 'package:educonnect/features/auth/data/repositories/auth_repository.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
 import 'package:educonnect/features/auth/presentation/pages/auth_page.dart';
@@ -30,11 +31,31 @@ import 'package:educonnect/features/tutor/presentation/pages/tutor_profile_page.
 import 'package:educonnect/features/tutor/presentation/pages/tutor_stats_page.dart';
 import 'package:educonnect/features/wallet/presentation/pages/tutor_wallet_page.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
+import 'package:educonnect/features/auth/presentation/pages/reset_password_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+final passwordRecoveryStateProvider = StateProvider<bool>((ref) => false);
 
 final authRefreshNotifierProvider = Provider<AuthRefreshNotifier>((ref) {
   final notifier = AuthRefreshNotifier();
+  final supabase = ref.watch(supabaseClientProvider);
+  
+  final subscription = supabase.auth.onAuthStateChange.listen((data) {
+    final event = data.event;
+    if (event == AuthChangeEvent.passwordRecovery) {
+      ref.read(passwordRecoveryStateProvider.notifier).state = true;
+      notifier.triggerRefresh();
+    } else if (event == AuthChangeEvent.signedIn || event == AuthChangeEvent.signedOut) {
+      ref.read(passwordRecoveryStateProvider.notifier).state = false;
+      notifier.triggerRefresh();
+    }
+  });
+  
+  ref.onDispose(() {
+    subscription.cancel();
+  });
   
   ref.listen(authStateProvider, (prev, next) {
     notifier.triggerRefresh();
@@ -57,6 +78,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final location = state.matchedLocation;
       final user = authRepository.currentUser;
+
+      final isRecoveryMode = ref.read(passwordRecoveryStateProvider);
+      final isResetRoute = location == ResetPasswordPage.routePath;
+
+      if (isRecoveryMode) {
+        return isResetRoute ? null : ResetPasswordPage.routePath;
+      }
 
       final isAuthRoute = location == AuthPage.routePath;
       final isRoleRoute = location == RoleOnboardingPage.routePath;
@@ -112,6 +140,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: EditProfilePage.routePath,
         name: EditProfilePage.routeName,
         builder: (context, state) => const EditProfilePage(),
+      ),
+      GoRoute(
+        path: ResetPasswordPage.routePath,
+        name: ResetPasswordPage.routeName,
+        builder: (context, state) => const ResetPasswordPage(),
       ),
       GoRoute(
         path: '/settings',

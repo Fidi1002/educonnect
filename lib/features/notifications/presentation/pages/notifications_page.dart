@@ -5,6 +5,13 @@ import 'package:educonnect/features/notifications/domain/models/app_notification
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
+import 'package:educonnect/features/booking/application/booking_controller.dart';
+import 'package:educonnect/features/auth/application/auth_controller.dart';
+import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
+import 'package:educonnect/features/booking/presentation/pages/student_bookings_page.dart';
+import 'package:educonnect/features/booking/presentation/pages/tutor_bookings_page.dart';
+
 
 class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
@@ -324,7 +331,6 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
               ),
             ],
           ),
-          actionsAlignment: MainAxisAlignment.center,
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -339,6 +345,62 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
+            if (item.targetType == 'booking_session' && item.targetId.isNotEmpty)
+              TextButton(
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  final router = GoRouter.of(context);
+                  Navigator.of(context).pop();
+                  
+                  try {
+                    final session = await ref
+                        .read(bookingControllerProvider)
+                        .fetchSessionById(item.targetId);
+                    
+                    if (session == null) {
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Detail sesi tidak ditemukan.')),
+                      );
+                      return;
+                    }
+                    
+                    final profile = ref.read(currentUserProfileProvider).valueOrNull;
+                    final role = profile?.role ?? AppUserRole.unknown;
+                    
+                    if (role == AppUserRole.tutor) {
+                      router.pushNamed(
+                        TutorBookingsPage.routeName,
+                        queryParameters: {
+                          'bookingId': session.bookingId,
+                          'sessionId': session.id,
+                        },
+                      );
+                    } else if (role == AppUserRole.student) {
+                      router.pushNamed(
+                        StudentBookingsPage.routeName,
+                        queryParameters: {
+                          'bookingId': session.bookingId,
+                          'sessionId': session.id,
+                        },
+                      );
+                    }
+                  } catch (e) {
+                    messenger.showSnackBar(
+                      SnackBar(content: Text('Gagal memuat detail sesi: $e')),
+                    );
+                  }
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text(
+                  'Lihat Sesi',
+                  style: TextStyle(fontWeight: FontWeight.w800, color: Colors.green),
+                ),
+              ),
           ],
         );
       },

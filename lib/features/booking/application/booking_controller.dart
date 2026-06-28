@@ -1,5 +1,6 @@
 
 import 'dart:async';
+import 'dart:io';
 import 'package:educonnect/core/services/offline_sync_service.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/booking/data/repositories/booking_repository.dart';
@@ -300,8 +301,8 @@ class BookingController {
     return _runLoadingTask(() => _repository.markSessionStartedByTutor(sessionId));
   }
 
-  Future<void> markSessionDoneByTutor(String sessionId) {
-    return _runLoadingTask(() => _repository.markSessionDoneByTutor(sessionId));
+  Future<void> markSessionDoneByTutor(String sessionId, {File? photoFile}) {
+    return _runLoadingTask(() => _repository.markSessionDoneByTutor(sessionId, photoFile: photoFile));
   }
 
   Future<void> markStudentNoShow(String sessionId) {
@@ -437,10 +438,22 @@ class BookingController {
     );
   }
 
-  Future<void> markHomeworkReviewed({required String sessionId}) async {
+  Future<void> markHomeworkReviewed({
+    required String sessionId,
+    required String feedback,
+    required int? grade,
+  }) async {
     await _runLoadingTask(
-      () => _repository.markHomeworkReviewedByTutor(sessionId: sessionId),
+      () => _repository.markHomeworkReviewedByTutor(
+        sessionId: sessionId,
+        feedback: feedback,
+        grade: grade,
+      ),
     );
+  }
+
+  Future<BookingSession?> fetchSessionById(String sessionId) {
+    return _repository.fetchSessionById(sessionId);
   }
 
   Future<void> respondSessionChangeRequest({

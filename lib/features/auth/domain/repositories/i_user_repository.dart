@@ -31,6 +31,11 @@ abstract class IUserRepository {
     required String displayName,
     required String photoUrl,
     String? schoolLevel,
+    String? phoneNumber,
+    String? address,
+    double? latitude,
+    double? longitude,
+    String? preferredTutorGender,
   });
 
   Stream<List<TutorSummary>> watchRecommendedTutors({

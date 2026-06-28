@@ -13,6 +13,7 @@ class BookingSession {
     required this.studentReview,
     required this.cancelledByRole,
     required this.studentPresenceConfirmedAt,
+    this.sessionPhotoUrl,
   });
 
   final String id;
@@ -26,6 +27,7 @@ class BookingSession {
   final String studentReview;
   final String? cancelledByRole;
   final DateTime? studentPresenceConfirmedAt;
+  final String? sessionPhotoUrl;
 
   factory BookingSession.fromMap(Map<String, dynamic> map) {
     return BookingSession(
@@ -46,6 +48,7 @@ class BookingSession {
       studentPresenceConfirmedAt: DateTime.tryParse(
         map['student_presence_confirmed_at'] as String? ?? '',
       )?.toLocal(),
+      sessionPhotoUrl: (map['session_photo_url'] as String?) ?? (map['sessionPhotoUrl'] as String?),
     );
   }
 }

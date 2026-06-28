@@ -873,7 +873,8 @@ class _BookingCard extends ConsumerWidget {
                         final canSubmitHomework =
                             learningRecord != null &&
                             learningRecord.homeworkStatus ==
-                                HomeworkStatus.assigned;
+                                HomeworkStatus.assigned &&
+                            session.status == BookingSessionStatus.confirmed;
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: AnimatedContainer(
@@ -964,6 +965,85 @@ class _BookingCard extends ConsumerWidget {
                                       ).textTheme.bodySmall,
                                     ),
                                   ),
+                                if (session.sessionPhotoUrl != null && session.sessionPhotoUrl!.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  InkWell(
+                                    onTap: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (_) => Dialog(
+                                          backgroundColor: Colors.transparent,
+                                          insetPadding: const EdgeInsets.all(16),
+                                          child: Stack(
+                                            alignment: Alignment.topRight,
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(16),
+                                                child: Image.network(
+                                                  session.sessionPhotoUrl!,
+                                                  fit: BoxFit.contain,
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: const CircleAvatar(
+                                                  backgroundColor: Colors.black54,
+                                                  child: Icon(Icons.close, color: Colors.white),
+                                                ),
+                                                onPressed: () => Navigator.pop(context),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF1B2336) : const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFCBD5E1)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Image.network(
+                                              session.sessionPhotoUrl!,
+                                              width: 48,
+                                              height: 48,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          const Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Foto Bukti Kehadiran',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                                SizedBox(height: 2),
+                                                Text(
+                                                  'Ketuk untuk memperbesar foto',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const Icon(Icons.zoom_in, size: 20, color: Color(0xFF4B176E)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                                 if (item.meetingType == 'offline') ...[
                                   const SizedBox(height: 6),
                                   Row(
@@ -1054,6 +1134,22 @@ class _BookingCard extends ConsumerWidget {
                                             Text(
                                               'Jawaban saya: ${learningRecord.studentSubmission}',
                                             ),
+                                          ],
+                                          if (learningRecord.homeworkStatus == HomeworkStatus.reviewed) ...[
+                                            if (learningRecord.homeworkGrade != null) ...[
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Nilai PR: ${learningRecord.homeworkGrade}/100 🌟',
+                                                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
+                                              ),
+                                            ],
+                                            if (learningRecord.tutorFeedback.trim().isNotEmpty) ...[
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Catatan Tutor: ${learningRecord.tutorFeedback}',
+                                                style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+                                              ),
+                                            ],
                                           ],
                                         ],
                                       ],
@@ -1401,38 +1497,46 @@ class _BookingCard extends ConsumerWidget {
             ),
             const SizedBox(height: 10),
             if (item.status == BookingStatus.completed)
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (_) => _ReviewBottomSheet(item: item),
-                        );
-                      },
-                      icon: const Icon(FluentIcons.star_24_regular),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFF59E0B), // Warna emas/premium
-                        foregroundColor: Colors.white,
+              ref.watch(hasReviewedBookingProvider(item.id)).when(
+                data: (hasReviewed) {
+                  return Row(
+                    children: [
+                      if (!hasReviewed) ...[
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => _ReviewBottomSheet(item: item),
+                              );
+                            },
+                            icon: const Icon(FluentIcons.star_24_regular),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFFF59E0B), // Warna emas/premium
+                              foregroundColor: Colors.white,
+                            ),
+                            label: const Text('Beri Ulasan Tutor'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => context.pushNamed(
+                            ChatPage.routeName,
+                            pathParameters: {'bookingId': item.id},
+                          ),
+                          icon: const Icon(FluentIcons.chat_24_regular),
+                          label: const Text('Chat'),
+                        ),
                       ),
-                      label: const Text('Beri Ulasan Tutor'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => context.pushNamed(
-                        ChatPage.routeName,
-                        pathParameters: {'bookingId': item.id},
-                      ),
-                      icon: const Icon(FluentIcons.chat_24_regular),
-                      label: const Text('Chat'),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (error, stackTrace) => const SizedBox.shrink(),
               )
             else if (onPay != null)
               Row(
@@ -2428,6 +2532,14 @@ class _ReviewBottomSheetState extends ConsumerState<_ReviewBottomSheet> {
     super.dispose();
   }
 
+  String _getRatingDescription(double rating) {
+    if (rating == 1.0) return 'Sangat Kurang 😞';
+    if (rating == 2.0) return 'Kurang Baik 😕';
+    if (rating == 3.0) return 'Biasa Saja 🙂';
+    if (rating == 4.0) return 'Sangat Baik 😊';
+    return 'Sempurna! 🤩';
+  }
+
   void _submit() async {
     final comment = _commentController.text.trim();
     if (comment.isEmpty) {
@@ -2521,6 +2633,19 @@ class _ReviewBottomSheetState extends ConsumerState<_ReviewBottomSheet> {
                 ),
               );
             }),
+          ),
+          const SizedBox(height: 8),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Text(
+              _getRatingDescription(_rating),
+              key: ValueKey<double>(_rating),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFF59E0B),
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           TextField(

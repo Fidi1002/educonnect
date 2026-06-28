@@ -82,6 +82,10 @@ class AuthController {
     return _authRepository.sendPasswordResetEmail(email);
   }
 
+  Future<void> updatePassword(String newPassword) async {
+    await _authRepository.updatePassword(newPassword);
+  }
+
   Future<void> setRole(AppUserRole role) async {
     final user = _authRepository.currentUser;
     if (user == null) {
@@ -95,6 +99,11 @@ class AuthController {
     required String currentPhotoUrl,
     File? newPhoto,
     String? schoolLevel,
+    String? phoneNumber,
+    String? address,
+    double? latitude,
+    double? longitude,
+    String? preferredTutorGender,
   }) async {
     return runAuthTask(() async {
       final user = _authRepository.currentUser;
@@ -115,6 +124,11 @@ class AuthController {
         displayName: displayName,
         photoUrl: photoUrl,
         schoolLevel: schoolLevel,
+        phoneNumber: phoneNumber,
+        address: address,
+        latitude: latitude,
+        longitude: longitude,
+        preferredTutorGender: preferredTutorGender,
       );
     });
   }

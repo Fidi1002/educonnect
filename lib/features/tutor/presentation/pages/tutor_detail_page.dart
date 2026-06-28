@@ -578,7 +578,7 @@ class TutorDetailPage extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return TutorBookingPackageSheet(tutor: tutor);
+        return TutorBookingSheet(tutor: tutor);
       },
     );
   }

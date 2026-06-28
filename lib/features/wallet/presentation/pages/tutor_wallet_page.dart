@@ -30,6 +30,7 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
     final payoutRequestsAsync = ref.watch(payoutRequestsProvider);
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF090D16) : const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text('Dompet & Penghasilan'),
         actions: [
@@ -312,42 +313,106 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                         (context, index) {
                           final tx = displayTxs[index];
                           final isCredit = tx.type == TransactionType.credit;
-                          return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-                            leading: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isCredit ? TutorUi.mint : TutorUi.rose,
-                                shape: BoxShape.circle,
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1B2336) : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0),
                               ),
-                              child: Icon(
-                                isCredit
-                                    ? FluentIcons.arrow_down_24_regular
-                                    : FluentIcons.arrow_up_24_regular,
-                                color: isCredit
-                                    ? const Color(0xFF206A42)
-                                    : const Color(0xFFA6334A),
-                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                            title: Text(
-                              tx.description.isEmpty
-                                  ? (isCredit ? 'Penerimaan Dana' : 'Penarikan Dana')
-                                  : tx.description,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: Text(
-                              '${tx.createdAt.day}/${tx.createdAt.month}/${tx.createdAt.year}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            trailing: Text(
-                              '${isCredit ? '+' : '-'} Rp ${tx.amount.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                color: isCredit
-                                    ? const Color(0xFF206A42)
-                                    : const Color(0xFFA6334A),
-                                fontWeight: FontWeight.w800,
-                                fontSize: 14,
-                              ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: isCredit
+                                        ? const Color(0xFFD1FAE5).withValues(alpha: isDark ? 0.15 : 0.6)
+                                        : const Color(0xFFFEE2E2).withValues(alpha: isDark ? 0.15 : 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    isCredit
+                                        ? FluentIcons.arrow_down_24_regular
+                                        : FluentIcons.arrow_up_24_regular,
+                                    color: isCredit
+                                        ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
+                                        : (isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626)),
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: tx.referenceType == 'booking'
+                                                  ? const Color(0xFF4B176E).withValues(alpha: 0.1)
+                                                  : const Color(0xFFFF1377).withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              tx.referenceType == 'booking' ? 'PENDAPATAN LES' : 'PENARIKAN',
+                                              style: TextStyle(
+                                                fontSize: 8,
+                                                fontWeight: FontWeight.w900,
+                                                color: tx.referenceType == 'booking'
+                                                    ? const Color(0xFF4B176E)
+                                                    : const Color(0xFFFF1377),
+                                              ),
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          Text(
+                                            '${tx.createdAt.day}/${tx.createdAt.month}/${tx.createdAt.year}',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        tx.description.isEmpty
+                                            ? (isCredit ? 'Penerimaan Dana' : 'Penarikan Dana')
+                                            : tx.description,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  '${isCredit ? '+' : '-'} Rp ${tx.amount.toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                    color: isCredit
+                                        ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
+                                        : (isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626)),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
                             ),
                           );
                         },
@@ -435,12 +500,14 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: isDark ? const Color(0xFF1B2336) : Colors.white,
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0),
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.02),
+                                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -454,14 +521,14 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                                   children: [
                                     Text(
                                       'Rp ${req.amount.toStringAsFixed(0)}',
-                                      style: const TextStyle(
-                                        fontSize: 16,
+                                      style: TextStyle(
+                                        fontSize: 18,
                                         fontWeight: FontWeight.w900,
-                                        color: Color(0xFF191622),
+                                        color: isDark ? Colors.white : const Color(0xFF191622),
                                       ),
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                       decoration: BoxDecoration(
                                         color: statusBg,
                                         borderRadius: BorderRadius.circular(20),
@@ -478,25 +545,43 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  'Tujuan: ${req.bankName} • ${req.accountNumber}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF475569),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Penerima: ${req.accountHolder}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF64748B),
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                const SizedBox(height: 12),
+                                Divider(color: isDark ? const Color(0xFF28354E) : const Color(0xFFF1F5F9), height: 1),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Icon(Icons.account_balance, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569), size: 16),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Tujuan: ${req.bankName} • ${req.accountNumber}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Icon(Icons.person, color: isDark ? const Color(0xFF64748B) : const Color(0xFF64748B), size: 16),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Penerima: ${req.accountHolder}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
                                 Text(
                                   'Diajukan pada: ${req.createdAt.day}/${req.createdAt.month}/${req.createdAt.year} ${req.createdAt.hour.toString().padLeft(2, '0')}:${req.createdAt.minute.toString().padLeft(2, '0')}',
                                   style: const TextStyle(
@@ -506,31 +591,69 @@ class _TutorWalletPageState extends ConsumerState<TutorWalletPage> {
                                   ),
                                 ),
                                 
-                                // REJECTION REASON EXPANDED
+                                // REJECTION REASON EXPANDED (PREMIUM REDESIGN)
                                 if (req.status == PayoutStatus.rejected && req.rejectionReason != null) ...[
                                   Container(
-                                    margin: const EdgeInsets.only(top: 10),
-                                    padding: const EdgeInsets.all(12),
+                                    margin: const EdgeInsets.only(top: 14),
+                                    padding: const EdgeInsets.all(14),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFDC2626).withValues(alpha: 0.08),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.15)),
+                                      color: const Color(0xFFDC2626).withValues(alpha: isDark ? 0.15 : 0.08),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: isDark ? 0.25 : 0.15)),
                                     ),
-                                    child: Row(
+                                    child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        const Icon(FluentIcons.dismiss_circle_24_regular, color: Color(0xFFDC2626), size: 16),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            'Alasan Penolakan: "${req.rejectionReason}"',
-                                            style: const TextStyle(
-                                              color: Color(0xFFDC2626),
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              height: 1.4,
+                                        Row(
+                                          children: [
+                                            const Icon(FluentIcons.warning_24_filled, color: Color(0xFFDC2626), size: 18),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Penarikan Dana Ditolak Admin',
+                                              style: TextStyle(
+                                                color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFB91C1C),
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w800,
+                                              ),
                                             ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Alasan Penolakan:',
+                                          style: TextStyle(
+                                            color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
                                           ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '"${req.rejectionReason}"',
+                                          style: TextStyle(
+                                            color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            const Icon(FluentIcons.info_16_regular, color: Color(0xFF64748B), size: 14),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                'Saran: Harap periksa kembali nomor rekening dan nama pemilik bank Anda sebelum mengajukan penarikan baru.',
+                                                style: TextStyle(
+                                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w500,
+                                                  height: 1.3,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),

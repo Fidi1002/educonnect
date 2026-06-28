@@ -127,7 +127,7 @@ class TutorProfileRepository {
     // 1. Fetch completed sessions
     final sessionsData = await _client
         .from('booking_sessions')
-        .select('duration_minutes, session_start')
+        .select('session_start, session_end')
         .eq('tutor_uid', tutorUid)
         .eq('status', 'confirmed');
 
@@ -138,13 +138,16 @@ class TutorProfileRepository {
     final weekdayCounts = List<int>.filled(7, 0);
 
     for (final row in sessions) {
-      final duration = row['duration_minutes'] as int? ?? 0;
-      totalMinutes += duration;
-
       final startStr = row['session_start'] as String?;
-      if (startStr != null) {
+      final endStr = row['session_end'] as String?;
+
+      if (startStr != null && endStr != null) {
         final start = DateTime.tryParse(startStr)?.toLocal();
-        if (start != null) {
+        final end = DateTime.tryParse(endStr)?.toLocal();
+        if (start != null && end != null) {
+          final duration = end.difference(start).inMinutes;
+          totalMinutes += duration;
+
           final weekdayIndex = start.weekday - 1;
           if (weekdayIndex >= 0 && weekdayIndex < 7) {
             weekdayCounts[weekdayIndex] += 1;

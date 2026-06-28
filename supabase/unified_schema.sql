@@ -4354,3 +4354,108 @@ create trigger trg_auto_approve_payout_requests
   on public.payout_requests
   for each row
   execute function public.auto_approve_payout_requests();
+
+
+-- Function to scan for ended sessions and trigger attendance validation notifications
+create or replace function public.check_and_trigger_session_end_notifications()
+returns void
+language plpgsql
+security definer
+as $$
+declare
+  item record;
+  now_utc timestamp with time zone := now();
+begin
+  for item in
+    select bs.id, bs.tutor_uid, bs.student_uid, b.subject
+    from public.booking_sessions bs
+    join public.bookings b on b.id = bs.booking_id
+    where bs.status = 'scheduled'
+      and bs.session_end < now_utc
+      and not exists (
+        select 1 from public.app_notifications
+        where category = 'session_ended'
+          and target_id = bs.id::text
+      )
+  loop
+    -- Send notification to tutor to validate presence
+    insert into public.app_notifications (
+      user_uid,
+      actor_uid,
+      category,
+      title,
+      body,
+      target_type,
+      target_id,
+      is_read
+    ) values (
+      item.tutor_uid,
+      item.student_uid,
+      'session_change',
+      'Sesi Belajar Telah Berakhir',
+      'Sesi pelajaran ' || item.subject || ' telah selesai. Silakan lakukan validasi kehadiran agar dapat mengirimkan materi/PR.',
+      'booking_session',
+      item.id::text,
+      false
+    );
+
+    -- Send notification to student to wait/confirm
+    insert into public.app_notifications (
+      user_uid,
+      actor_uid,
+      category,
+      title,
+      body,
+      target_type,
+      target_id,
+      is_read
+    ) values (
+      item.student_uid,
+      item.tutor_uid,
+      'session_change',
+      'Sesi Belajar Telah Berakhir',
+      'Sesi pelajaran ' || item.subject || ' telah selesai. Harap tunggu tutor memvalidasi kehadiran.',
+      'booking_session',
+      item.id::text,
+      false
+    );
+  end loop;
+end;
+$$;
+
+grant execute on function public.check_and_trigger_session_end_notifications() to authenticated;
+grant execute on function public.check_and_trigger_session_end_notifications() to service_role;
+
+-- Milestone week 24 - Enable pg_net extension
+create extension if not exists pg_net with schema extensions;
+
+-- Function to trigger dispatch-push Edge Function via HTTP POST
+create or replace function public.trigger_push_dispatch()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_url text;
+begin
+  v_url := coalesce(
+    current_setting('app.settings.supabase_url', true),
+    'https://vkhmleulohwavtdvkwdb.supabase.co'
+  ) || '/functions/v1/dispatch-push';
+
+  perform net.http_post(
+    url := v_url,
+    headers := '{"Content-Type": "application/json"}'::jsonb,
+    body := '{}'::jsonb
+  );
+  return new;
+end;
+$$;
+
+-- Trigger to dispatch enqueued push delivery queue messages
+drop trigger if exists trg_push_dispatch on public.push_delivery_queue;
+create trigger trg_push_dispatch
+after insert on public.push_delivery_queue
+for each statement
+execute function public.trigger_push_dispatch();

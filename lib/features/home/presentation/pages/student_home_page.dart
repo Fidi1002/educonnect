@@ -173,6 +173,8 @@ class _HomeBody extends ConsumerWidget {
       filter: filter,
     );
     final categories = _buildCategories(tutors);
+    final nearbyTutors = tutors.where((t) => t.distanceFromUserKm != null).toList()
+      ..sort((a, b) => a.distanceFromUserKm!.compareTo(b.distanceFromUserKm!));
     const radiusOptions = <double>[1, 5, 10, 20];
     final bookings =
         ref.watch(myStudentBookingsProvider).valueOrNull ?? const [];
@@ -263,6 +265,30 @@ class _HomeBody extends ConsumerWidget {
             onOpenTutorSearch: () => context.pushNamed(TutorListPage.routeName),
           ),
            const SizedBox(height: 16),
+          if (nearbyTutors.isNotEmpty) ...[
+            Text(
+              'Tutor di Sekitar Anda',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: isDark ? Colors.white : const Color(0xFF4B176E),
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 100,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: nearbyTutors.length,
+                itemBuilder: (context, index) {
+                  return _NearbyTutorCard(tutor: nearbyTutors[index]);
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+            const _MapRadarBanner(),
+            const SizedBox(height: 24),
+          ],
 
           // Section: Rekomendasi Pintar (Fase 3)
           recommendedTutorsAsync.when(
@@ -405,7 +431,23 @@ class _HomeBody extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
+                    Material(
+                      color: const Color(0xFF4B176E),
+                      borderRadius: BorderRadius.circular(18),
+                      child: InkWell(
+                        onTap: () => StudentPreferencesSheet.show(context),
+                        borderRadius: BorderRadius.circular(18),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          child: const Icon(
+                            FluentIcons.hat_graduation_24_regular,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Material(
                       color: const Color(0xFFFF1377),
                       borderRadius: BorderRadius.circular(18),
@@ -437,9 +479,14 @@ class _HomeBody extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 _LocationBadge(
-                  locationText: locationText,
+                  locationText: (profile?.address ?? '').isNotEmpty
+                      ? 'Alamat Utama: ${profile!.address}'
+                      : locationText,
                   onRefresh: onRefreshLocation,
                   locationError: locationError,
+                  helperText: (profile?.address ?? '').isNotEmpty
+                      ? 'Berdasarkan alamat utama di profil Anda'
+                      : 'Aktifkan GPS / atur alamat utama untuk mencari tutor terdekat',
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -1600,17 +1647,18 @@ class _HomeworkProgressList extends StatelessWidget {
     );
   }
 }
-
 class _LocationBadge extends StatelessWidget {
   const _LocationBadge({
     required this.locationText,
     required this.onRefresh,
     this.locationError,
+    this.helperText,
   });
 
   final String locationText;
   final VoidCallback onRefresh;
   final String? locationError;
+  final String? helperText;
 
   void _showGPSGuideDialog(BuildContext context, String error) {
     String title = 'Masalah Akses Lokasi';
@@ -1737,6 +1785,17 @@ class _LocationBadge extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                if (helperText != null && !hasError) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    helperText!,
+                    style: TextStyle(
+                      color: isDark ? Colors.white60 : Colors.black54,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
                 if (hasError) ...[
                   const SizedBox(height: 2),
                   GestureDetector(
@@ -1941,4 +2000,257 @@ class _RecommendedTutorCard extends StatelessWidget {
     );
   }
 }
+
+class _NearbyTutorCard extends StatelessWidget {
+  const _NearbyTutorCard({required this.tutor});
+
+  final TutorSummary tutor;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      width: 250,
+      margin: const EdgeInsets.only(right: 16, bottom: 4),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1B2336) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0)),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: const Color(0xFF4B176E).withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: () => context.pushNamed(
+            TutorDetailPage.routeName,
+            pathParameters: {'tutorId': tutor.uid},
+          ),
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundImage: tutor.photoUrl.isNotEmpty
+                          ? NetworkImage(tutor.photoUrl)
+                          : null,
+                      child: tutor.photoUrl.isEmpty
+                          ? const Icon(Icons.person, size: 28)
+                          : null,
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: Colors.amber,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.star,
+                        color: Colors.white,
+                        size: 8,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.location_on, color: Colors.white, size: 9),
+                            const SizedBox(width: 3),
+                            Text(
+                              tutor.distanceFromUserKm != null
+                                  ? '${tutor.distanceFromUserKm!.toStringAsFixed(1)} km'
+                                  : '0.0 km',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        tutor.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        tutor.subjects.isEmpty ? 'Umum' : tutor.subjects.join(', '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MapRadarBanner extends StatelessWidget {
+  const _MapRadarBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4B176E), Color(0xFFFF1377)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFF1377).withValues(alpha: 0.15),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          onTap: () {
+            context.push('${TutorListPage.routePath}?map=true');
+          },
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Eksplorasi Radar Peta Tutor',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Lihat sebaran lokasi tentor les di sekitar rumah Anda secara interaktif.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Buka Radar Peta',
+                              style: TextStyle(
+                                color: Color(0xFF4B176E),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                              ),
+                            ),
+                            SizedBox(width: 6),
+                            Icon(
+                              Icons.arrow_forward,
+                              color: Color(0xFF4B176E),
+                              size: 14,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const Icon(
+                      Icons.map_outlined,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 

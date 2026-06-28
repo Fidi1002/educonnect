@@ -7,6 +7,11 @@ final tutorReviewsProvider = FutureProvider.family<List<TutorReview>, String>((r
   return repo.getReviewsByTutor(tutorUid);
 });
 
+final hasReviewedBookingProvider = FutureProvider.family<bool, String>((ref, bookingId) async {
+  final repo = ref.watch(tutorReviewRepositoryProvider);
+  return repo.hasReviewed(bookingId);
+});
+
 final tutorReviewControllerProvider = Provider<TutorReviewController>((ref) {
   return TutorReviewController(ref);
 });
@@ -34,5 +39,7 @@ class TutorReviewController {
 
     // Refresh daftar ulasan untuk tutor ini
     _ref.invalidate(tutorReviewsProvider(tutorUid));
+    // Refresh status ulasan pemesanan terkait
+    _ref.invalidate(hasReviewedBookingProvider(bookingId));
   }
 }

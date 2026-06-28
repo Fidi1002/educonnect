@@ -1,10 +1,8 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
 import 'package:educonnect/features/auth/domain/models/app_user_role.dart';
-import 'package:educonnect/features/auth/presentation/pages/auth_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 class RoleOnboardingPage extends ConsumerStatefulWidget {
   const RoleOnboardingPage({super.key});
@@ -78,11 +76,8 @@ class _RoleOnboardingPageState extends ConsumerState<RoleOnboardingPage> {
 
     try {
       await ref.read(authControllerProvider).setRole(_selectedRole!);
-      await ref.read(authControllerProvider).signOut();
-      if (!mounted) {
-        return;
-      }
-      context.go(AuthPage.routePath);
+      // GoRouter will automatically redirect the user to the correct dashboard
+      // reactively based on the user's updated profile.
     } on Exception catch (error) {
       if (!mounted) {
         return;

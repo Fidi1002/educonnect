@@ -11,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
 
@@ -25,16 +24,21 @@ class EditProfilePage extends ConsumerStatefulWidget {
 class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
 
   bool _isInitialized = false;
   bool _isEditing = false; // Toggles between Read-Only and Edit Mode
   String _currentPhotoUrl = '';
   File? _selectedImage;
   String? _selectedSchoolLevel;
+  String _preferredTutorGender = 'any';
 
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -60,12 +64,17 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     try {
       final controller = ref.read(authControllerProvider);
       final profile = ref.read(currentUserProfileProvider).value;
-      await controller.updateUserProfile(
-        displayName: _nameController.text.trim(),
-        currentPhotoUrl: _currentPhotoUrl,
-        newPhoto: _selectedImage,
-        schoolLevel: profile?.role == AppUserRole.student ? _selectedSchoolLevel : null,
-      );
+      await controller.runAuthTask(() async {
+        await controller.updateUserProfile(
+          displayName: _nameController.text.trim(),
+          currentPhotoUrl: _currentPhotoUrl,
+          newPhoto: _selectedImage,
+          schoolLevel: profile?.role == AppUserRole.student ? _selectedSchoolLevel : null,
+          phoneNumber: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+          address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+          preferredTutorGender: _preferredTutorGender,
+        );
+      });
       
       if (!mounted) return;
       
@@ -148,6 +157,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                       : 'Pengguna EduConnect';
                   _currentPhotoUrl = profile.photoUrl;
                   _selectedSchoolLevel = profile.schoolLevel;
+                  _phoneController.text = profile.phoneNumber ?? '';
+                  _addressController.text = profile.address ?? '';
+                  _preferredTutorGender = profile.preferredTutorGender ?? 'any';
                   _isInitialized = true;
                 }
 
@@ -173,7 +185,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // Avatar Area with dynamic camera badge
+                      // Avatar Area with overlay camera badge
                       Center(
                         child: Stack(
                           children: [
@@ -191,43 +203,53 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                                   ),
                                 ],
                               ),
-                              child: CircleAvatar(
-                                radius: 60,
-                                backgroundColor: TutorUi.lavender,
-                                backgroundImage: avatarImage,
-                                child: (_selectedImage == null && _currentPhotoUrl.isEmpty)
-                                    ? const Icon(
-                                        FluentIcons.person_24_regular,
-                                        size: 50,
-                                        color: TutorUi.ink,
-                                      )
-                                    : null,
+                              child: GestureDetector(
+                                onTap: (_isEditing && !isSaving) ? _pickImage : null,
+                                child: CircleAvatar(
+                                  radius: 60,
+                                  backgroundColor: TutorUi.lavender,
+                                  backgroundImage: avatarImage,
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      if (_selectedImage == null && _currentPhotoUrl.isEmpty)
+                                        const Icon(
+                                          FluentIcons.person_24_regular,
+                                          size: 50,
+                                          color: TutorUi.ink,
+                                        ),
+                                      if (_isEditing)
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(alpha: 0.45),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: const Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                FluentIcons.camera_24_regular,
+                                                color: Colors.white,
+                                                size: 24,
+                                              ),
+                                              SizedBox(height: 4),
+                                              Text(
+                                                'Ubah Foto',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                            if (_isEditing)
-                              Positioned(
-                                right: 0,
-                                bottom: 0,
-                                child: Semantics(
-                                  label: 'Pilih foto profil baru dari galeri',
-                                  button: true,
-                                  child: GestureDetector(
-                                    onTap: isSaving ? null : _pickImage,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context).colorScheme.primary,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        FluentIcons.camera_24_regular,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ),
-                                ).animate().scale(delay: 100.ms, duration: 200.ms),
-                              ),
                           ],
                         ),
                       ),
@@ -249,12 +271,37 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                           FluentIcons.mail_24_regular,
                         ),
                         const SizedBox(height: 16),
+                        _buildReadOnlyCard(
+                          context,
+                          'Nomor WhatsApp',
+                          profile.phoneNumber?.isNotEmpty == true ? profile.phoneNumber! : 'Belum diisi',
+                          FluentIcons.phone_24_regular,
+                        ),
+                        const SizedBox(height: 16),
                         if (profile.role == AppUserRole.student) ...[
                           _buildReadOnlyCard(
                             context,
                             translations.schoolLevel,
-                            profile.schoolLevel ?? 'SD / SMP / SMA',
+                            profile.schoolLevel ?? 'Belum memilih',
                             FluentIcons.book_24_regular,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildReadOnlyCard(
+                            context,
+                            'Preferensi Gender Tutor',
+                            profile.preferredTutorGender == 'male'
+                                ? 'Laki-laki'
+                                : profile.preferredTutorGender == 'female'
+                                    ? 'Perempuan'
+                                    : 'Semua Gender',
+                            FluentIcons.people_24_regular,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildReadOnlyCard(
+                            context,
+                            'Alamat Belajar Utama',
+                            profile.address?.isNotEmpty == true ? profile.address! : 'Belum diisi',
+                            FluentIcons.location_24_regular,
                           ),
                           const SizedBox(height: 16),
                         ],
@@ -267,7 +314,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                           FluentIcons.shield_keyhole_24_regular,
                         ),
                       ] else ...[
-                        // If in Edit Mode, display TextFormFields
+                        // If in Edit Mode, display Form Fields
                         Text(
                           translations.fullName,
                           style: TextStyle(
@@ -291,14 +338,43 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                                 return 'Nama wajib diisi.';
                               }
                               if (value.trim().length < 3) {
-                                return 'Nama terlalu pendek.';
+                                  return 'Nama terlalu pendek.';
                               }
                               return null;
                             },
                           ),
                         ),
+                        const SizedBox(height: 20),
+
+                        Text(
+                          'Nomor WhatsApp / Telepon',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _phoneController,
+                          enabled: !isSaving,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            hintText: 'Contoh: 081234567890',
+                            prefixIcon: Icon(FluentIcons.phone_24_regular),
+                          ),
+                          validator: (value) {
+                            if (value != null && value.isNotEmpty) {
+                              if (value.length < 9) {
+                                return 'Nomor telepon tidak valid.';
+                              }
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
                         if (profile.role == AppUserRole.student) ...[
-                          const SizedBox(height: 24),
                           Text(
                             translations.schoolLevel,
                             style: TextStyle(
@@ -308,38 +384,146 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Semantics(
-                            label: 'Pilihan tingkat sekolah',
-                            child: DropdownButtonFormField<String>(
-                              initialValue: _selectedSchoolLevel,
-                              decoration: const InputDecoration(),
-                              items: [
-                                DropdownMenuItem(
-                                  value: 'SD',
-                                  child: Text(translations.chooseFromSD),
+                          // Custom horizontal segmented cards for school level
+                          Row(
+                            children: ['SD', 'SMP', 'SMA'].map((level) {
+                              final isSelected = _selectedSchoolLevel == level;
+                              String label = '';
+                              if (level == 'SD') label = 'SD (Dasar)';
+                              if (level == 'SMP') label = 'SMP (Menengah)';
+                              if (level == 'SMA') label = 'SMA (Atas)';
+
+                              return Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: Ink(
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? const Color(0xFF4B176E)
+                                          : (isDark ? const Color(0xFF28354E) : Colors.white),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? const Color(0xFF4B176E)
+                                            : (isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0)),
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: InkWell(
+                                      onTap: isSaving
+                                          ? null
+                                          : () {
+                                              setState(() {
+                                                _selectedSchoolLevel = level;
+                                              });
+                                            },
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              level == 'SD'
+                                                  ? FluentIcons.reading_list_24_regular
+                                                  : level == 'SMP'
+                                                      ? FluentIcons.book_24_regular
+                                                      : FluentIcons.hat_graduation_24_regular,
+                                              color: isSelected
+                                                  ? Colors.white
+                                                  : (isDark ? Colors.white70 : const Color(0xFF4B176E)),
+                                              size: 20,
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              label,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: isSelected
+                                                    ? Colors.white
+                                                    : (isDark ? Colors.white70 : const Color(0xFF4A5568)),
+                                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                DropdownMenuItem(
-                                  value: 'SMP',
-                                  child: Text(translations.chooseFromSMP),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Tingkat sekolah digunakan untuk merekomendasikan tutor yang sesuai dengan kurikulum belajar Anda.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          Text(
+                            'Preferensi Gender Tutor',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ChoiceChip(
+                                  label: const Center(child: Text('Semua')),
+                                  selected: _preferredTutorGender == 'any',
+                                  onSelected: isSaving ? null : (selected) {
+                                    if (selected) setState(() => _preferredTutorGender = 'any');
+                                  },
                                 ),
-                                DropdownMenuItem(
-                                  value: 'SMA',
-                                  child: Text(translations.chooseFromSMA),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ChoiceChip(
+                                  label: const Center(child: Text('Laki-laki')),
+                                  selected: _preferredTutorGender == 'male',
+                                  onSelected: isSaving ? null : (selected) {
+                                    if (selected) setState(() => _preferredTutorGender = 'male');
+                                  },
                                 ),
-                              ],
-                              onChanged: isSaving
-                                  ? null
-                                  : (value) {
-                                      setState(() {
-                                        _selectedSchoolLevel = value;
-                                      });
-                                    },
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Tingkat sekolah wajib dipilih.';
-                                }
-                                return null;
-                              },
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ChoiceChip(
+                                  label: const Center(child: Text('Perempuan')),
+                                  selected: _preferredTutorGender == 'female',
+                                  onSelected: isSaving ? null : (selected) {
+                                    if (selected) setState(() => _preferredTutorGender = 'female');
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+
+                          Text(
+                            'Alamat Belajar Utama (Untuk Les Offline)',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _addressController,
+                            enabled: !isSaving,
+                            maxLines: 3,
+                            decoration: const InputDecoration(
+                              hintText: 'Masukkan alamat lengkap rumah Anda (Contoh: Jl. Mawar No. 12, Kel. Menteng)',
+                              prefixIcon: Icon(FluentIcons.location_24_regular),
                             ),
                           ),
                         ],

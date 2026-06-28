@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:educonnect/core/providers/backend_providers.dart';
 import 'package:educonnect/core/services/local_cache_service.dart';
@@ -751,14 +752,27 @@ class SupabaseBookingRepository implements IBookingRepository {
   }
 
   @override
-  Future<void> markSessionDoneByTutor(String sessionId) async {
+  Future<void> markSessionDoneByTutor(String sessionId, {File? photoFile}) async {
     final row = await _client
         .from('booking_sessions')
-        .select('id,tutor_uid,session_end')
+        .select('id,tutor_uid,student_uid,session_end')
         .eq('id', sessionId)
         .maybeSingle();
     if (row == null) {
       throw const PostgrestException(message: 'Sesi tidak ditemukan.');
+    }
+
+    String? photoUrl;
+    if (photoFile != null) {
+      final bucket = _client.storage.from('session-proofs');
+      final extension = photoFile.path.split('.').last.toLowerCase();
+      final filePath = 'sessions/$sessionId/proof_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      await bucket.uploadBinary(
+        filePath,
+        await photoFile.readAsBytes(),
+        fileOptions: const FileOptions(upsert: true),
+      );
+      photoUrl = bucket.getPublicUrl(filePath);
     }
 
     final sessionEnd =
@@ -767,14 +781,30 @@ class SupabaseBookingRepository implements IBookingRepository {
     final nowUtc = DateTime.now().toUtc();
     final tutorMarkedDoneAt = nowUtc.isBefore(sessionEnd) ? sessionEnd : nowUtc;
     final now = DateTime.now().toUtc().toIso8601String();
+    
+    final updateData = <String, dynamic>{
+      'status': BookingSessionStatus.donePendingConfirmation.value,
+      'tutor_marked_done_at': tutorMarkedDoneAt.toIso8601String(),
+      'updated_at': now,
+    };
+    if (photoUrl != null) {
+      updateData['session_photo_url'] = photoUrl;
+    }
+
     await _client
         .from('booking_sessions')
-        .update({
-          'status': BookingSessionStatus.donePendingConfirmation.value,
-          'tutor_marked_done_at': tutorMarkedDoneAt.toIso8601String(),
-          'updated_at': now,
-        })
+        .update(updateData)
         .eq('id', sessionId);
+
+    await _createNotification(
+      userUid: row['student_uid'] as String? ?? '',
+      actorUid: row['tutor_uid'] as String? ?? '',
+      category: 'session_change',
+      title: 'Konfirmasi Kehadiran Sesi',
+      body: 'Tutor menandai sesi telah selesai. Silakan konfirmasi kehadiran dan berikan ulasan.',
+      targetType: 'booking_session',
+      targetId: sessionId,
+    );
 
     await _recalculateTutorConsistency(row['tutor_uid'] as String? ?? '');
   }
@@ -887,7 +917,7 @@ class SupabaseBookingRepository implements IBookingRepository {
   }) async {
     final row = await _client
         .from('booking_sessions')
-        .select('id,booking_id,tutor_uid,status')
+        .select('id,booking_id,tutor_uid,student_uid,status')
         .eq('id', sessionId)
         .maybeSingle();
     if (row == null) {
@@ -916,6 +946,16 @@ class SupabaseBookingRepository implements IBookingRepository {
           'updated_at': now,
         })
         .eq('id', sessionId);
+
+    await _createNotification(
+      userUid: row['tutor_uid'] as String? ?? '',
+      actorUid: row['student_uid'] as String? ?? '',
+      category: 'session_change',
+      title: 'Sesi Dikonfirmasi Murid',
+      body: 'Murid telah mengonfirmasi kehadiran sesi. Anda kini dapat mengirimkan materi & PR.',
+      targetType: 'booking_session',
+      targetId: sessionId,
+    );
 
     await _recalculateTutorRating(row['tutor_uid'] as String? ?? '');
     await _recalculateTutorConsistency(row['tutor_uid'] as String? ?? '');
@@ -1120,7 +1160,11 @@ class SupabaseBookingRepository implements IBookingRepository {
   }
 
   @override
-  Future<void> markHomeworkReviewedByTutor({required String sessionId}) async {
+  Future<void> markHomeworkReviewedByTutor({
+    required String sessionId,
+    required String feedback,
+    required int? grade,
+  }) async {
     final existing = await _client
         .from('session_learning_records')
         .select('id')
@@ -1134,6 +1178,8 @@ class SupabaseBookingRepository implements IBookingRepository {
         .from('session_learning_records')
         .update({
           'homework_status': HomeworkStatus.reviewed.value,
+          'tutor_feedback': feedback.trim(),
+          'homework_grade': grade,
           'reviewed_at': DateTime.now().toUtc().toIso8601String(),
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
@@ -1615,10 +1661,15 @@ class SupabaseBookingRepository implements IBookingRepository {
   }
 
   Future<void> _expireStaleBookings({String? bookingId}) async {
-    await _client.rpc(
-      'expire_stale_bookings',
-      params: {'p_booking_id': bookingId},
-    );
+    try {
+      await _client.rpc(
+        'expire_stale_bookings',
+        params: {'p_booking_id': bookingId},
+      );
+    } catch (_) {
+      // Ignore if database/network transient issues
+    }
+    unawaited(checkSessionEndNotifications());
   }
 
   int _countSessionsInRange({
@@ -1700,6 +1751,28 @@ class SupabaseBookingRepository implements IBookingRepository {
       }
     }
     return bookedSlots;
+  }
+
+  @override
+  Future<void> checkSessionEndNotifications() async {
+    try {
+      await _client.rpc('check_and_trigger_session_end_notifications');
+    } catch (_) {
+      // Ignore if database/network transient issues
+    }
+  }
+
+  @override
+  Future<BookingSession?> fetchSessionById(String sessionId) async {
+    final row = await _client
+        .from('booking_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .maybeSingle();
+    if (row == null) {
+      return null;
+    }
+    return BookingSession.fromMap(row);
   }
 }
 

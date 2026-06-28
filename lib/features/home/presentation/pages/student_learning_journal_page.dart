@@ -646,6 +646,12 @@ class _JournalEntryCard extends StatelessWidget {
                   'Status PR: ${record.homeworkStatus.label}',
                   if (record.studentSubmission.trim().isNotEmpty)
                     'Jawaban saya: ${record.studentSubmission}',
+                  if (record.homeworkStatus == HomeworkStatus.reviewed) ...[
+                    if (record.homeworkGrade != null)
+                      'Nilai PR: ${record.homeworkGrade}/100 🌟',
+                    if (record.tutorFeedback.trim().isNotEmpty)
+                      'Catatan Tutor: ${record.tutorFeedback}',
+                  ],
                 ].join('\n'),
                 accent: const Color(0xFF9A6700),
                 background: const Color(0xFFFFF8E8),

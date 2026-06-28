@@ -26,7 +26,7 @@ class SupabaseUserRepository implements IUserRepository {
     try {
       final map = await _client
           .from('users')
-          .select('uid,email,display_name,photo_url,role,school_level')
+          .select('uid,email,display_name,photo_url,role,school_level,phone_number,address,latitude,longitude,preferred_tutor_gender')
           .eq('uid', uid)
           .maybeSingle();
       if (map == null) {
@@ -91,18 +91,6 @@ class SupabaseUserRepository implements IUserRepository {
       radiusKm: radiusKm,
       maxResults: maxResults,
     );
-
-    yield* Stream<int>.periodic(
-      const Duration(seconds: 20),
-      (tick) => tick,
-    ).asyncMap((_) {
-      return _fetchNearbyTutors(
-        latitude: latitude,
-        longitude: longitude,
-        radiusKm: radiusKm,
-        maxResults: maxResults,
-      );
-    });
   }
 
   @override
@@ -176,11 +164,21 @@ class SupabaseUserRepository implements IUserRepository {
     required String displayName,
     required String photoUrl,
     String? schoolLevel,
+    String? phoneNumber,
+    String? address,
+    double? latitude,
+    double? longitude,
+    String? preferredTutorGender,
   }) async {
     await _client.from('users').update({
       'display_name': displayName.trim(),
       'photo_url': photoUrl.trim(),
       'school_level': schoolLevel,
+      'phone_number': phoneNumber,
+      'address': address,
+      'latitude': latitude,
+      'longitude': longitude,
+      'preferred_tutor_gender': preferredTutorGender,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }).eq('uid', uid);
 
@@ -281,19 +279,6 @@ class SupabaseUserRepository implements IUserRepository {
       radiusKm: radiusKm,
       maxResults: maxResults,
     );
-
-    yield* Stream<int>.periodic(
-      const Duration(seconds: 20),
-      (tick) => tick,
-    ).asyncMap((_) {
-      return _fetchRecommendedTutors(
-        studentUid: studentUid,
-        latitude: latitude,
-        longitude: longitude,
-        radiusKm: radiusKm,
-        maxResults: maxResults,
-      );
-    });
   }
 
   Future<List<TutorSummary>> _fetchRecommendedTutors({

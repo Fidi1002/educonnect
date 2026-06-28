@@ -42,6 +42,20 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
   bool _isGeneratingMarkers = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = GoRouterState.of(context);
+      if (state.uri.queryParameters['map'] == 'true') {
+        setState(() {
+          _isMapView = true;
+        });
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     _mapController?.dispose();

@@ -50,4 +50,13 @@ class TutorReviewRepository {
       'review_text': reviewText.trim(),
     });
   }
+
+  Future<bool> hasReviewed(String bookingId) async {
+    final response = await _client
+        .from('tutor_reviews')
+        .select('id')
+        .eq('booking_id', bookingId)
+        .maybeSingle();
+    return response != null;
+  }
 }

@@ -19,4 +19,5 @@ abstract class IAuthRepository {
   Future<void> signInWithGoogle();
   Future<void> signOut();
   Future<void> sendPasswordResetEmail(String email);
+  Future<void> updatePassword(String newPassword);
 }

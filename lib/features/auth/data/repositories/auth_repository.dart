@@ -84,6 +84,11 @@ class SupabaseAuthRepository implements IAuthRepository {
     return _client.auth.resetPasswordForEmail(email.trim());
   }
 
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    await _client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
   AppAuthUser? _toAppAuthUser(User? user) {
     if (user == null) {
       return null;

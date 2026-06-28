@@ -10,6 +10,11 @@ class AppUserProfile {
     this.preferredSubjects = const <String>[],
     this.maxPricePreference = 0.0,
     this.schoolLevel,
+    this.phoneNumber,
+    this.address,
+    this.latitude,
+    this.longitude,
+    this.preferredTutorGender,
   });
 
   final String uid;
@@ -20,6 +25,11 @@ class AppUserProfile {
   final List<String> preferredSubjects;
   final double maxPricePreference;
   final String? schoolLevel;
+  final String? phoneNumber;
+  final String? address;
+  final double? latitude;
+  final double? longitude;
+  final String? preferredTutorGender;
 
   factory AppUserProfile.fromMap(String uid, Map<String, dynamic> map) {
     final preferred = (map['preferred_subjects'] as List<dynamic>? ??
@@ -46,6 +56,11 @@ class AppUserProfile {
       preferredSubjects: preferred,
       maxPricePreference: maxPrice,
       schoolLevel: (map['school_level'] as String?) ?? (map['schoolLevel'] as String?),
+      phoneNumber: (map['phone_number'] as String?) ?? (map['phoneNumber'] as String?),
+      address: (map['address'] as String?) ?? (map['address'] as String?),
+      latitude: map['latitude'] is num ? (map['latitude'] as num).toDouble() : null,
+      longitude: map['longitude'] is num ? (map['longitude'] as num).toDouble() : null,
+      preferredTutorGender: (map['preferred_tutor_gender'] as String?) ?? (map['preferredTutorGender'] as String?),
     );
   }
 
@@ -59,8 +74,12 @@ class AppUserProfile {
       'preferred_subjects': preferredSubjects,
       'max_price_preference': maxPricePreference,
       'school_level': schoolLevel,
+      'phone_number': phoneNumber,
+      'address': address,
+      'latitude': latitude,
+      'longitude': longitude,
+      'preferred_tutor_gender': preferredTutorGender,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
   }
 }
-

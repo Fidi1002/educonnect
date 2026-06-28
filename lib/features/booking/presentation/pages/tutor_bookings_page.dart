@@ -22,6 +22,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:image_picker/image_picker.dart';
 
 enum _TutorBookingQuickFilter {
   all,
@@ -1310,6 +1311,37 @@ class _TutorBookingList extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                if (canMarkDone) ...[
+                                  Container(
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFEE2E2),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: isDark ? const Color(0xFF991B1B) : const Color(0xFFFCA5A5)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.warning_amber_rounded,
+                                          size: 16,
+                                          color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Waktu sesi telah berakhir. Harap lakukan validasi kehadiran agar dapat mengisi materi/PR.',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                                 Row(
                                    crossAxisAlignment: CrossAxisAlignment.center,
                                    children: [
@@ -1626,36 +1658,19 @@ class _TutorBookingList extends ConsumerWidget {
                                           onPressed: isLoading
                                               ? null
                                               : () async {
-                                                  try {
-                                                    await ref
-                                                        .read(
-                                                          bookingControllerProvider,
-                                                        )
-                                                        .markSessionDoneByTutor(
-                                                          session.id,
-                                                        );
-                                                    if (!context.mounted) {
-                                                      return;
-                                                    }
+                                                  final success = await showDialog<bool>(
+                                                    context: context,
+                                                    builder: (_) => _UploadSessionProofDialog(
+                                                      sessionId: session.id,
+                                                    ),
+                                                  );
+                                                  if (success == true && context.mounted) {
                                                     ScaffoldMessenger.of(
                                                       context,
                                                     ).showSnackBar(
                                                       const SnackBar(
                                                         content: Text(
-                                                          'Pertemuan berhasil ditandai selesai dan sekarang menunggu konfirmasi murid.',
-                                                        ),
-                                                      ),
-                                                    );
-                                                  } on Exception catch (error) {
-                                                    if (!context.mounted) {
-                                                      return;
-                                                    }
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          'Gagal update sesi: ${error.toString()}',
+                                                          'Pertemuan berhasil ditandai selesai dengan foto bukti dan sekarang menunggu konfirmasi murid.',
                                                         ),
                                                       ),
                                                     );
@@ -1830,13 +1845,37 @@ class _TutorBookingList extends ConsumerWidget {
                                       child: OutlinedButton.icon(
                                         onPressed: isLoading
                                             ? null
-                                            : () => _showLearningRecordDialog(
-                                                context: context,
-                                                ref: ref,
-                                                booking: item,
-                                                sessionId: session.id,
-                                                existing: learningRecord,
-                                              ),
+                                            : () {
+                                                final isAllowed = session.status ==
+                                                        BookingSessionStatus
+                                                            .donePendingConfirmation ||
+                                                    session.status ==
+                                                        BookingSessionStatus
+                                                            .confirmed ||
+                                                    session.status ==
+                                                        BookingSessionStatus
+                                                            .disputedResolved;
+                                                if (!isAllowed) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Harap tandai sesi selesai terlebih dahulu sebelum mengisi materi atau PR.',
+                                                      ),
+                                                      behavior:
+                                                          SnackBarBehavior.floating,
+                                                    ),
+                                                  );
+                                                  return;
+                                                }
+                                                _showLearningRecordDialog(
+                                                  context: context,
+                                                  ref: ref,
+                                                  booking: item,
+                                                  sessionId: session.id,
+                                                  existing: learningRecord,
+                                                );
+                                              },
                                         icon: const Icon(
                                           FluentIcons.book_24_regular,
                                         ),
@@ -1879,13 +1918,17 @@ class _TutorBookingList extends ConsumerWidget {
                                                       .update({'student_submission': updatedSubmission})
                                                       .eq('session_id', session.id);
                                                   
-                                                  await ref
-                                                      .read(bookingControllerProvider)
-                                                      .markHomeworkReviewed(sessionId: session.id);
-
-                                                  scaffoldMessenger.showSnackBar(
-                                                    const SnackBar(content: Text('Koreksi gambar berhasil disimpan dan PR telah direview!')),
+                                                  if (!context.mounted) return;
+                                                  final success = await showDialog<bool>(
+                                                    context: context,
+                                                    barrierDismissible: false,
+                                                    builder: (_) => _ReviewHomeworkDialog(sessionId: session.id),
                                                   );
+                                                  if (success == true) {
+                                                    scaffoldMessenger.showSnackBar(
+                                                      const SnackBar(content: Text('Koreksi gambar berhasil disimpan dan PR telah direview dengan nilai!')),
+                                                    );
+                                                  }
                                                 }
                                               },
                                               icon: const Icon(Icons.edit, size: 16),
@@ -1904,25 +1947,21 @@ class _TutorBookingList extends ConsumerWidget {
                                           onPressed: isLoading
                                               ? null
                                               : () async {
-                                                  await ref
-                                                      .read(
-                                                        bookingControllerProvider,
-                                                      )
-                                                      .markHomeworkReviewed(
-                                                        sessionId: session.id,
-                                                      );
-                                                  if (!context.mounted) {
-                                                    return;
-                                                  }
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        'PR berhasil ditandai sebagai sudah direview.',
-                                                      ),
-                                                    ),
+                                                  final success = await showDialog<bool>(
+                                                    context: context,
+                                                    builder: (_) => _ReviewHomeworkDialog(sessionId: session.id),
                                                   );
+                                                  if (success == true && context.mounted) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'PR berhasil ditandai sebagai sudah direview dengan nilai.',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
                                                 },
                                           icon: const Icon(Icons.task_alt),
                                           label: const Text('Review PR'),
@@ -2524,4 +2563,348 @@ class SimpleCanvasPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant SimpleCanvasPainter oldDelegate) => true;
+}
+
+class _UploadSessionProofDialog extends ConsumerStatefulWidget {
+  const _UploadSessionProofDialog({required this.sessionId});
+  final String sessionId;
+
+  @override
+  ConsumerState<_UploadSessionProofDialog> createState() => _UploadSessionProofDialogState();
+}
+
+class _UploadSessionProofDialogState extends ConsumerState<_UploadSessionProofDialog> {
+  File? _imageFile;
+  bool _isSaving = false;
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: source,
+      imageQuality: 70,
+      maxWidth: 1000,
+    );
+    if (picked == null) return;
+    setState(() {
+      _imageFile = File(picked.path);
+    });
+  }
+
+  Future<void> _submit() async {
+    if (_imageFile == null) return;
+    setState(() => _isSaving = true);
+    try {
+      await ref.read(bookingControllerProvider).markSessionDoneByTutor(
+        widget.sessionId,
+        photoFile: _imageFile,
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyelesaikan sesi: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: isDark ? const Color(0xFF1B2336) : Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Upload Bukti Sesi Belajar',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF191622),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Silakan ambil foto bersama murid saat les sebagai bukti kehadiran fisik sesi belajar.',
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white70 : Colors.black54,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            if (_imageFile != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  alignment: Alignment.topRight,
+                  children: [
+                    Image.file(
+                      _imageFile!,
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                    IconButton(
+                      icon: const CircleAvatar(
+                        backgroundColor: Colors.black54,
+                        child: Icon(Icons.close, color: Colors.white, size: 18),
+                      ),
+                      onPressed: () => setState(() => _imageFile = null),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('Kamera'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed: () => _pickImage(ImageSource.camera),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.photo),
+                      label: const Text('Galeri'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed: () => _pickImage(ImageSource.gallery),
+                    ),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _isSaving ? null : () => Navigator.pop(context),
+                  child: const Text('Batal'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: (_imageFile == null || _isSaving) ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4B176E),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Selesaikan Sesi'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReviewHomeworkDialog extends ConsumerStatefulWidget {
+  const _ReviewHomeworkDialog({required this.sessionId});
+  final String sessionId;
+
+  @override
+  ConsumerState<_ReviewHomeworkDialog> createState() => _ReviewHomeworkDialogState();
+}
+
+class _ReviewHomeworkDialogState extends ConsumerState<_ReviewHomeworkDialog> {
+  final _feedbackController = TextEditingController();
+  final _gradeController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _feedbackController.dispose();
+    _gradeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSaving = true);
+    try {
+      final gradeText = _gradeController.text.trim();
+      final grade = gradeText.isEmpty ? null : int.tryParse(gradeText);
+      final feedback = _feedbackController.text.trim();
+
+      await ref.read(bookingControllerProvider).markHomeworkReviewed(
+        sessionId: widget.sessionId,
+        feedback: feedback,
+        grade: grade,
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengirim review: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: isDark ? const Color(0xFF1B2336) : Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Text(
+                  'Review Pekerjaan Rumah (PR)',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : const Color(0xFF191622),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  'Berikan nilai dan catatan koreksi bimbingan belajar untuk murid.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Nilai PR (0 - 100) (Opsional)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _gradeController,
+                keyboardType: TextInputType.number,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                decoration: InputDecoration(
+                  hintText: 'Masukkan nilai (misal: 95)',
+                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF090D16) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: isDark ? const BorderSide(color: Color(0xFF28354E)) : BorderSide.none,
+                  ),
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) return null;
+                  final num = int.tryParse(val.trim());
+                  if (num == null || num < 0 || num > 100) {
+                    return 'Nilai harus berkisar antara 0 - 100';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Catatan / Feedback Koreksi (Wajib)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _feedbackController,
+                maxLines: 3,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                decoration: InputDecoration(
+                  hintText: 'Tulis evaluasi, saran belajar, atau koreksi...',
+                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF090D16) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: isDark ? const BorderSide(color: Color(0xFF28354E)) : BorderSide.none,
+                  ),
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Catatan koreksi wajib diisi.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _isSaving ? null : () => Navigator.pop(context),
+                    child: const Text('Batal'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _isSaving ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4B176E),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Kirim Review'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

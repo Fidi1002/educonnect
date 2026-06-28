@@ -55,6 +55,8 @@ class SessionLearningRecord {
     required this.homeworkDescription,
     required this.homeworkStatus,
     required this.studentSubmission,
+    required this.tutorFeedback,
+    required this.homeworkGrade,
     required this.homeworkAssignedAt,
     required this.submittedAt,
     required this.reviewedAt,
@@ -72,6 +74,8 @@ class SessionLearningRecord {
   final String homeworkDescription;
   final HomeworkStatus homeworkStatus;
   final String studentSubmission;
+  final String tutorFeedback;
+  final int? homeworkGrade;
   final DateTime? homeworkAssignedAt;
   final DateTime? submittedAt;
   final DateTime? reviewedAt;
@@ -95,6 +99,8 @@ class SessionLearningRecord {
         map['homework_status'] as String?,
       ),
       studentSubmission: (map['student_submission'] as String?) ?? '',
+      tutorFeedback: (map['tutor_feedback'] as String?) ?? '',
+      homeworkGrade: map['homework_grade'] as int?,
       homeworkAssignedAt: DateTime.tryParse(
         map['homework_assigned_at'] as String? ?? '',
       )?.toLocal(),

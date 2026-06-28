@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:educonnect/core/config/app_config.dart';
 import 'package:educonnect/features/auth/application/auth_controller.dart';
+import 'package:educonnect/features/auth/data/repositories/auth_repository.dart';
 import 'package:educonnect/features/auth/domain/services/auth_error_mapper.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
@@ -344,15 +345,28 @@ class _AuthPageState extends ConsumerState<AuthPage>
       return;
     }
 
-    await _handleAuthAction(() {
-      return ref
-          .read(authControllerProvider)
-          .registerWithEmail(
-            fullName: fullName,
-            email: email,
-            password: password,
-          );
-    });
+    final controller = ref.read(authControllerProvider);
+    try {
+      await controller.runAuthTask(() async {
+        await controller.registerWithEmail(
+          fullName: fullName,
+          email: email,
+          password: password,
+        );
+      });
+      
+      final hasSession = ref.read(authRepositoryProvider).hasActiveSession;
+      if (!hasSession) {
+        _showVerificationDialog(email);
+      }
+    } on Exception catch (error) {
+      final mappedMessage = AuthErrorMapper.messageFrom(error);
+      if (mappedMessage.contains('verifikasi') || mappedMessage.contains('Cek email')) {
+        _showVerificationDialog(email);
+      } else {
+        _showMessage(mappedMessage);
+      }
+    }
   }
 
   Future<void> _onGooglePressed() async {
@@ -381,6 +395,63 @@ class _AuthPageState extends ConsumerState<AuthPage>
     } on Exception catch (error) {
       _showMessage(AuthErrorMapper.messageFrom(error));
     }
+  }
+
+  void _showVerificationDialog(String email) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Row(
+            children: [
+              Icon(
+                FluentIcons.mail_24_regular,
+                color: Theme.of(context).colorScheme.primary,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              const Text('Verifikasi Email'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Akun Anda berhasil dibuat!',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Kami telah mengirimkan tautan konfirmasi ke email:',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                email,
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFFF1377)),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Silakan periksa kotak masuk (inbox) atau folder spam Anda dan klik tautan tersebut untuk memverifikasi akun sebelum masuk ke aplikasi.',
+                style: TextStyle(height: 1.4),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _tabController.animateTo(0); // Switch to login tab
+              },
+              child: const Text('Saya Mengerti'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showMessage(String message) {
