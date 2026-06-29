@@ -26,6 +26,7 @@ class SupabaseBookingRepository implements IBookingRepository {
   final SupabaseClient _client;
   static const Duration _rescheduleDeadline = Duration(hours: 6);
   static const Duration _lateCancelThreshold = Duration(hours: 12);
+  DateTime? _lastNotificationCheckTime;
 
   @override
   Stream<List<BookingItem>> watchStudentBookings(String studentUid) async* {
@@ -483,13 +484,95 @@ class SupabaseBookingRepository implements IBookingRepository {
       throw const PostgrestException(message: 'Waktu reschedule tidak valid.');
     }
 
+    final nowUtc = DateTime.now().toUtc();
+    final pStart = proposedStart.toUtc();
+    final pEnd = proposedEnd.toUtc();
+
+    if (pStart.isBefore(nowUtc.add(const Duration(hours: 1)))) {
+      throw const PostgrestException(
+        message: 'Waktu reschedule yang baru harus minimal 1 jam di masa depan.',
+      );
+    }
+
     await _expireStaleSessionChangeRequests(sessionId: sessionId);
     final session = await _fetchSessionForChange(sessionId);
     _assertRescheduleWindow(sessionStart: session.sessionStartUtc);
     await _ensureNoPendingChangeRequest(sessionId);
 
+    // Verify proposed duration matches original session duration
+    final originalDuration = session.sessionEndUtc.difference(session.sessionStartUtc);
+    final proposedDuration = pEnd.difference(pStart);
+    if (proposedDuration != originalDuration) {
+      throw const PostgrestException(
+        message: 'Durasi sesi reschedule harus sama dengan durasi sesi asli.',
+      );
+    }
+
+    // Verify reschedule limit
+    final count = await getRescheduleCountInLast30Days(session.bookingId);
+    if (count >= 2) {
+      throw const PostgrestException(
+        message: 'Batas reschedule untuk kelas ini (Maks 2x/30 hari) telah tercapai.',
+      );
+    }
+
     final studentUid = session.studentUid;
     final tutorUid = session.tutorUid;
+
+    // Check tutor session overlaps
+    final tutorSessionsData = await _client
+        .from('booking_sessions')
+        .select('id, session_start, session_end, status')
+        .eq('tutor_uid', tutorUid)
+        .neq('id', sessionId);
+
+    for (final row in tutorSessionsData as List) {
+      final status = row['status'] as String? ?? '';
+      if (status == 'cancelled_by_student' ||
+          status == 'cancelled_by_tutor' ||
+          status == 'cancelled_early' ||
+          status == 'cancelled_late' ||
+          status == 'rescheduled') {
+        continue;
+      }
+      final start = DateTime.tryParse(row['session_start'] as String? ?? '')?.toUtc();
+      final end = DateTime.tryParse(row['session_end'] as String? ?? '')?.toUtc();
+      if (start != null && end != null) {
+        if (start.isBefore(pEnd) && end.isAfter(pStart)) {
+          throw const PostgrestException(
+            message: 'Jadwal tutor tumpang tindih dengan sesi mengajar lainnya pada waktu tersebut.',
+          );
+        }
+      }
+    }
+
+    // Check student session overlaps
+    final studentSessionsData = await _client
+        .from('booking_sessions')
+        .select('id, session_start, session_end, status')
+        .eq('student_uid', studentUid)
+        .neq('id', sessionId);
+
+    for (final row in studentSessionsData as List) {
+      final status = row['status'] as String? ?? '';
+      if (status == 'cancelled_by_student' ||
+          status == 'cancelled_by_tutor' ||
+          status == 'cancelled_early' ||
+          status == 'cancelled_late' ||
+          status == 'rescheduled') {
+        continue;
+      }
+      final start = DateTime.tryParse(row['session_start'] as String? ?? '')?.toUtc();
+      final end = DateTime.tryParse(row['session_end'] as String? ?? '')?.toUtc();
+      if (start != null && end != null) {
+        if (start.isBefore(pEnd) && end.isAfter(pStart)) {
+          throw const PostgrestException(
+            message: 'Jadwal murid tumpang tindih dengan sesi belajar lainnya pada waktu tersebut.',
+          );
+        }
+      }
+    }
+
     final requesterRole = requesterUid == tutorUid ? 'tutor' : 'student';
     final targetUid = requesterUid == tutorUid ? studentUid : tutorUid;
 
@@ -501,8 +584,8 @@ class SupabaseBookingRepository implements IBookingRepository {
       'target_uid': targetUid,
       'request_type': 'reschedule',
       'reason': reason.trim(),
-      'proposed_start': proposedStart.toUtc().toIso8601String(),
-      'proposed_end': proposedEnd.toUtc().toIso8601String(),
+      'proposed_start': pStart.toIso8601String(),
+      'proposed_end': pEnd.toIso8601String(),
       'status': 'pending',
     });
 
@@ -511,8 +594,7 @@ class SupabaseBookingRepository implements IBookingRepository {
       actorUid: requesterUid,
       category: 'session_change',
       title: 'Permintaan Reschedule',
-      body:
-          'Ada permintaan reschedule sesi. Cek jadwal untuk menyetujui atau menolak.',
+      body: 'Ada permintaan reschedule sesi. Cek jadwal untuk menyetujui atau menolak.',
       targetType: 'booking_session',
       targetId: sessionId,
     );
@@ -687,6 +769,70 @@ class SupabaseBookingRepository implements IBookingRepository {
         throw const PostgrestException(
           message: 'Data waktu reschedule tidak valid.',
         );
+      }
+
+      // Verify proposed start time is in the future when approving
+      if (proposedStart.isBefore(now.add(const Duration(hours: 1)))) {
+        throw const PostgrestException(
+          message: 'Waktu reschedule yang diusulkan harus minimal 1 jam di masa depan.',
+        );
+      }
+
+      final tutorUid = session['tutor_uid'] as String;
+      final studentUid = session['student_uid'] as String;
+
+      // Check tutor session overlaps for approval
+      final tutorSessionsData = await _client
+          .from('booking_sessions')
+          .select('id, session_start, session_end, status')
+          .eq('tutor_uid', tutorUid)
+          .neq('id', sessionId);
+
+      for (final row in tutorSessionsData as List) {
+        final status = row['status'] as String? ?? '';
+        if (status == 'cancelled_by_student' ||
+            status == 'cancelled_by_tutor' ||
+            status == 'cancelled_early' ||
+            status == 'cancelled_late' ||
+            status == 'rescheduled') {
+          continue;
+        }
+        final start = DateTime.tryParse(row['session_start'] as String? ?? '')?.toUtc();
+        final end = DateTime.tryParse(row['session_end'] as String? ?? '')?.toUtc();
+        if (start != null && end != null) {
+          if (start.isBefore(proposedEnd) && end.isAfter(proposedStart)) {
+            throw const PostgrestException(
+              message: 'Jadwal tutor tumpang tindih dengan sesi mengajar lainnya pada waktu tersebut.',
+            );
+          }
+        }
+      }
+
+      // Check student session overlaps for approval
+      final studentSessionsData = await _client
+          .from('booking_sessions')
+          .select('id, session_start, session_end, status')
+          .eq('student_uid', studentUid)
+          .neq('id', sessionId);
+
+      for (final row in studentSessionsData as List) {
+        final status = row['status'] as String? ?? '';
+        if (status == 'cancelled_by_student' ||
+            status == 'cancelled_by_tutor' ||
+            status == 'cancelled_early' ||
+            status == 'cancelled_late' ||
+            status == 'rescheduled') {
+          continue;
+        }
+        final start = DateTime.tryParse(row['session_start'] as String? ?? '')?.toUtc();
+        final end = DateTime.tryParse(row['session_end'] as String? ?? '')?.toUtc();
+        if (start != null && end != null) {
+          if (start.isBefore(proposedEnd) && end.isAfter(proposedStart)) {
+            throw const PostgrestException(
+              message: 'Jadwal murid tumpang tindih dengan sesi belajar lainnya pada waktu tersebut.',
+            );
+          }
+        }
       }
 
       final inserted = await _client
@@ -1228,7 +1374,7 @@ class SupabaseBookingRepository implements IBookingRepository {
   Future<_SessionChangeContext> _fetchSessionForChange(String sessionId) async {
     final session = await _client
         .from('booking_sessions')
-        .select('id,booking_id,student_uid,tutor_uid,session_start,status')
+        .select('id,booking_id,student_uid,tutor_uid,session_start,session_end,status')
         .eq('id', sessionId)
         .maybeSingle();
     if (session == null) {
@@ -1254,11 +1400,16 @@ class SupabaseBookingRepository implements IBookingRepository {
       );
     }
 
+    final sessionEnd =
+        DateTime.tryParse(session['session_end'] as String? ?? '')?.toUtc() ??
+        DateTime.now().toUtc();
+
     return _SessionChangeContext(
       bookingId: session['booking_id'] as String? ?? '',
       studentUid: session['student_uid'] as String? ?? '',
       tutorUid: session['tutor_uid'] as String? ?? '',
       sessionStartUtc: sessionStart,
+      sessionEndUtc: sessionEnd,
     );
   }
 
@@ -1755,6 +1906,13 @@ class SupabaseBookingRepository implements IBookingRepository {
 
   @override
   Future<void> checkSessionEndNotifications() async {
+    final now = DateTime.now();
+    if (_lastNotificationCheckTime != null &&
+        now.difference(_lastNotificationCheckTime!).inMinutes < 5) {
+      return;
+    }
+    _lastNotificationCheckTime = now;
+
     try {
       await _client.rpc('check_and_trigger_session_end_notifications');
     } catch (_) {
@@ -1782,10 +1940,12 @@ class _SessionChangeContext {
     required this.studentUid,
     required this.tutorUid,
     required this.sessionStartUtc,
+    required this.sessionEndUtc,
   });
 
   final String bookingId;
   final String studentUid;
   final String tutorUid;
   final DateTime sessionStartUtc;
+  final DateTime sessionEndUtc;
 }

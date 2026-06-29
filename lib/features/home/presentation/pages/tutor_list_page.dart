@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:educonnect/core/presentation/widgets/app_feedback_state.dart';
 import 'package:educonnect/features/home/application/nearby_tutor_controller.dart';
 import 'package:educonnect/features/home/application/tutor_controller.dart';
@@ -12,7 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 enum TutorSortOption { ratingDesc, distanceAsc, priceAsc, priceDesc }
 
@@ -34,7 +33,7 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
   
   bool _isMapView = false;
   TutorSummary? _selectedTutorForMap;
-  GoogleMapController? _mapController;
+  late final _mapController = MapController();
 
   List<TutorSummary>? _previousTutors;
   UserLocationState? _previousLocation;
@@ -58,7 +57,6 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
   @override
   void dispose() {
     _searchController.dispose();
-    _mapController?.dispose();
     super.dispose();
   }
 
@@ -257,24 +255,36 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
         : {
             if (userLocation != null)
               Marker(
-                markerId: const MarkerId('user_location'),
-                position: LatLng(userLocation.latitude, userLocation.longitude),
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-                infoWindow: const InfoWindow(title: 'Lokasi Anda'),
+                point: LatLng(userLocation.latitude, userLocation.longitude),
+                width: 40,
+                height: 40,
+                child: const Icon(
+                  Icons.my_location,
+                  color: Colors.blueAccent,
+                  size: 32,
+                ),
               ),
           };
 
     return Stack(
       children: [
-        GoogleMap(
-          initialCameraPosition: CameraPosition(
-            target: center,
-            zoom: 12,
+        FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: center,
+            initialZoom: 12.0,
           ),
-          onMapCreated: (controller) => _mapController = controller,
-          markers: markers,
-          myLocationButtonEnabled: false,
-          zoomControlsEnabled: false,
+          children: [
+            TileLayer(
+              urlTemplate: isDark
+                  ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                  : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+              userAgentPackageName: 'com.educonnect.app',
+            ),
+            MarkerLayer(
+              markers: markers.toList(),
+            ),
+          ],
         ),
         
         Positioned(
@@ -654,10 +664,14 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
     if (userLocation != null) {
       newMarkers.add(
         Marker(
-          markerId: const MarkerId('user_location'),
-          position: LatLng(userLocation.latitude, userLocation.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-          infoWindow: const InfoWindow(title: 'Lokasi Anda'),
+          point: LatLng(userLocation.latitude, userLocation.longitude),
+          width: 40,
+          height: 40,
+          child: const Icon(
+            Icons.my_location,
+            color: Colors.blueAccent,
+            size: 32,
+          ),
         ),
       );
     }
@@ -689,18 +703,28 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
         final tutor = cluster.first;
         newMarkers.add(
           Marker(
-            markerId: MarkerId(tutor.uid),
-            position: LatLng(tutor.latitude, tutor.longitude),
-            onTap: () {
-              setState(() {
-                _selectedTutorForMap = tutor;
-              });
-            },
+            point: LatLng(tutor.latitude, tutor.longitude),
+            width: 50,
+            height: 50,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedTutorForMap = tutor;
+                });
+              },
+              child: CircleAvatar(
+                radius: 20,
+                backgroundColor: const Color(0xFFFF1377), // Accent border
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundImage: NetworkImage(tutor.photoUrl),
+                ),
+              ),
+            ),
           ),
         );
       } else {
         // Cluster Marker
-        final firstTutor = cluster.first;
         double totalLat = 0;
         double totalLng = 0;
         for (final t in cluster) {
@@ -710,20 +734,32 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
         final double avgLat = totalLat / cluster.length;
         final double avgLng = totalLng / cluster.length;
 
-        final BitmapDescriptor clusterIcon = await _getClusterMarkerIcon(
-          80,
-          '${cluster.length}',
-          const Color(0xFF4B176E),
-        );
-
         newMarkers.add(
           Marker(
-            markerId: MarkerId('cluster_${firstTutor.uid}'),
-            position: LatLng(avgLat, avgLng),
-            icon: clusterIcon,
-            onTap: () {
-              _showClusterTutorListSheet(context, cluster);
-            },
+            point: LatLng(avgLat, avgLng),
+            width: 50,
+            height: 50,
+            child: GestureDetector(
+              onTap: () {
+                _showClusterTutorListSheet(context, cluster);
+              },
+              child: CircleAvatar(
+                radius: 20,
+                backgroundColor: const Color(0xFFFF1377),
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: const Color(0xFF4B176E),
+                  child: Text(
+                    '${cluster.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         );
       }
@@ -735,38 +771,6 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
         _isGeneratingMarkers = false;
       });
     }
-  }
-
-  Future<BitmapDescriptor> _getClusterMarkerIcon(int size, String text, Color color) async {
-    final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
-    final Canvas canvas = Canvas(pictureRecorder);
-    
-    final Paint paintPrimary = Paint()..color = color;
-    final Paint paintWhite = Paint()..color = Colors.white;
-    final Paint paintAccent = Paint()..color = const Color(0xFFFF1377);
-
-    canvas.drawCircle(ui.Offset(size / 2, size / 2), size / 2.0, paintAccent);
-    canvas.drawCircle(ui.Offset(size / 2, size / 2), size / 2.2, paintWhite);
-    canvas.drawCircle(ui.Offset(size / 2, size / 2), size / 2.5, paintPrimary);
-
-    final TextPainter painter = TextPainter(textDirection: ui.TextDirection.ltr);
-    painter.text = TextSpan(
-      text: text,
-      style: TextStyle(
-        fontSize: size / 3,
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
-      ),
-    );
-    painter.layout();
-    painter.paint(
-      canvas,
-      ui.Offset(size / 2 - painter.width / 2, size / 2 - painter.height / 2),
-    );
-
-    final ui.Image img = await pictureRecorder.endRecording().toImage(size, size);
-    final ByteData? data = await img.toByteData(format: ui.ImageByteFormat.png);
-    return BitmapDescriptor.bytes(data!.buffer.asUint8List());
   }
 
   void _showClusterTutorListSheet(BuildContext context, List<TutorSummary> clusterTutors) {
@@ -859,10 +863,9 @@ class _TutorListPageState extends ConsumerState<TutorListPage> {
                         setState(() {
                           _selectedTutorForMap = tutor;
                         });
-                        _mapController?.animateCamera(
-                          CameraUpdate.newLatLng(
-                            LatLng(tutor.latitude, tutor.longitude),
-                          ),
+                        _mapController.move(
+                          LatLng(tutor.latitude, tutor.longitude),
+                          14.0,
                         );
                       },
                       child: Container(

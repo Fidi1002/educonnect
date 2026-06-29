@@ -9,7 +9,8 @@ import 'package:educonnect/features/tutor/domain/models/tutor_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 class TutorProfileFormPage extends ConsumerStatefulWidget {
   const TutorProfileFormPage({super.key});
@@ -341,45 +342,61 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
     double initialLat = _latitude ?? -6.2000;
     double initialLng = _longitude ?? 106.8166;
     LatLng selectedPosition = LatLng(initialLat, initialLng);
-    final Set<Marker> markers = {
-      Marker(
-        markerId: const MarkerId('selected_tutor_loc'),
-        position: selectedPosition,
-        draggable: true,
-      )
-    };
 
     showDialog<void>(
       context: context,
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        return AlertDialog(
-          backgroundColor: isDark ? const Color(0xFF131926) : Colors.white,
-          title: Text(
-            'Geser Marker ke Lokasi Mengajar',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 350,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: selectedPosition,
-                  zoom: 14,
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final markers = [
+              Marker(
+                point: selectedPosition,
+                width: 40,
+                height: 40,
+                child: const Icon(
+                  Icons.location_on,
+                  color: Colors.red,
+                  size: 32,
                 ),
-                markers: markers,
-                onTap: (LatLng tapped) {
-                  selectedPosition = tapped;
-                  (context as Element).markNeedsBuild();
-                },
-                onCameraMove: (CameraPosition position) {
-                  selectedPosition = position.target;
-                },
+              )
+            ];
+
+            return AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF131926) : Colors.white,
+              title: Text(
+                'Ketuk Peta untuk Menentukan Lokasi Mengajar',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
               ),
-            ),
-          ),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 350,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: FlutterMap(
+                    options: MapOptions(
+                      initialCenter: selectedPosition,
+                      initialZoom: 14.0,
+                      onTap: (tapPosition, point) {
+                        setDialogState(() {
+                          selectedPosition = point;
+                        });
+                      },
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: isDark
+                            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                            : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                        userAgentPackageName: 'com.educonnect.app',
+                      ),
+                      MarkerLayer(
+                        markers: markers,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -400,6 +417,8 @@ class _TutorProfileFormPageState extends ConsumerState<TutorProfileFormPage> {
         );
       },
     );
+  },
+);
   }
 
   Future<void> _onSavePressed() async {

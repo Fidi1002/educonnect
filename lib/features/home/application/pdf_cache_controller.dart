@@ -92,6 +92,15 @@ class PdfCacheNotifier extends StateNotifier<PdfCacheState> {
         if (response is DownloadProgress) {
           state = PdfCacheState.downloading(response.progress ?? 0.0);
         } else if (response is FileInfo) {
+          final fileBytes = await response.file.readAsBytes();
+          if (fileBytes.length < 4 ||
+              fileBytes[0] != 0x25 || // '%'
+              fileBytes[1] != 0x50 || // 'P'
+              fileBytes[2] != 0x44 || // 'D'
+              fileBytes[3] != 0x46) { // 'F'
+            await DefaultCacheManager().removeFile(_ebook.fileUrl);
+            throw Exception('Berkas yang diunduh bukan PDF valid. Periksa izin akses (RLS Policy) di Supabase Storage untuk bucket ebooks.');
+          }
           state = PdfCacheState.downloaded(response.file.path);
         }
       }

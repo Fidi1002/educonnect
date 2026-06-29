@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DrawingStroke {
@@ -143,7 +144,21 @@ class _VirtualClassroomPageState extends State<VirtualClassroomPage> with Ticker
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
 
-      final pdf = pw.Document();
+      pw.ThemeData theme;
+      try {
+        final fontRegular = await PdfGoogleFonts.robotoRegular();
+        final fontBold = await PdfGoogleFonts.robotoBold();
+        final fontItalic = await PdfGoogleFonts.robotoItalic();
+        theme = pw.ThemeData.withFont(
+          base: fontRegular,
+          bold: fontBold,
+          italic: fontItalic,
+        );
+      } catch (_) {
+        theme = pw.ThemeData();
+      }
+
+      final pdf = pw.Document(theme: theme);
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,

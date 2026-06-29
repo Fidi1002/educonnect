@@ -6,7 +6,21 @@ import 'package:printing/printing.dart';
 
 class InvoicePdfGenerator {
   static Future<void> generateAndShareInvoice(StudentTransaction tx, String studentName) async {
-    final pdf = pw.Document();
+    pw.ThemeData theme;
+    try {
+      final fontRegular = await PdfGoogleFonts.robotoRegular();
+      final fontBold = await PdfGoogleFonts.robotoBold();
+      final fontItalic = await PdfGoogleFonts.robotoItalic();
+      theme = pw.ThemeData.withFont(
+        base: fontRegular,
+        bold: fontBold,
+        italic: fontItalic,
+      );
+    } catch (_) {
+      theme = pw.ThemeData();
+    }
+
+    final pdf = pw.Document(theme: theme);
 
     final currencyFormat = NumberFormat.currency(
       locale: 'id_ID',

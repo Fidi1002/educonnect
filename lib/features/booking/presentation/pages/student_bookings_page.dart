@@ -821,6 +821,7 @@ class _BookingCard extends ConsumerWidget {
         focusedSessionId != null &&
         focusedSessionId!.isNotEmpty &&
         session.id == focusedSessionId;
+    final currentUid = ref.watch(authStateProvider).value?.uid ?? '';
     final request = _findPendingRequest(session.id, requests);
     final learningRecord = _findLearningRecord(session.id, learningRecords);
     final canConfirm =
@@ -1183,16 +1184,89 @@ class _BookingCard extends ConsumerWidget {
                   color: isDark ? const Color(0xFF2E1A20) : const Color(0xFFFEE2E2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.red),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Reschedule/Batal diajukan: ${request.reason}',
-                        style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.w600),
-                      ),
+                    Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.red),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Reschedule/Batal diajukan: ${request.reason}',
+                            style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
                     ),
+                    if (request.targetUid == currentUid) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: paymentLoading
+                                  ? null
+                                  : () async {
+                                      try {
+                                        await ref
+                                            .read(bookingControllerProvider)
+                                            .respondSessionChangeRequest(
+                                              requestId: request.id,
+                                              approved: false,
+                                            );
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Permintaan ditolak.')),
+                                        );
+                                      } catch (e) {
+                                        if (!context.mounted) return;
+                                        final errorMsg = e.toString().replaceAll('PostgrestException:', '').trim();
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Gagal menolak permintaan: $errorMsg'),
+                                            backgroundColor: Colors.red.shade800,
+                                          ),
+                                        );
+                                      }
+                                    },
+                              child: const Text('Tolak'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: paymentLoading
+                                  ? null
+                                  : () async {
+                                      try {
+                                        await ref
+                                            .read(bookingControllerProvider)
+                                            .respondSessionChangeRequest(
+                                              requestId: request.id,
+                                              approved: true,
+                                            );
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Permintaan disetujui.')),
+                                        );
+                                      } catch (e) {
+                                        if (!context.mounted) return;
+                                        final errorMsg = e.toString().replaceAll('PostgrestException:', '').trim();
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Gagal menyetujui permintaan: $errorMsg'),
+                                            backgroundColor: Colors.red.shade800,
+                                          ),
+                                        );
+                                      }
+                                    },
+                              child: const Text('Setujui'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -2113,17 +2187,35 @@ class _BookingCard extends ConsumerWidget {
       reasonController.dispose();
       return;
     }
-    await ref
-        .read(bookingControllerProvider)
-        .requestSessionReschedule(
-          sessionId: session.id,
-          proposedStart: selectedDateTime!,
-          proposedEnd: selectedDateTime!.add(
-            Duration(minutes: durationMinutes),
-          ),
-          reason: reasonController.text,
-        );
-    reasonController.dispose();
+    try {
+      await ref
+          .read(bookingControllerProvider)
+          .requestSessionReschedule(
+            sessionId: session.id,
+            proposedStart: selectedDateTime!,
+            proposedEnd: selectedDateTime!.add(
+              Duration(minutes: durationMinutes),
+            ),
+            reason: reasonController.text,
+          );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Permintaan reschedule berhasil dikirim.'),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      final errorMsg = e.toString().replaceAll('PostgrestException:', '').trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengajukan reschedule: $errorMsg'),
+          backgroundColor: Colors.red.shade800,
+        ),
+      );
+    } finally {
+      reasonController.dispose();
+    }
   }
 
   Future<void> _showConfirmDialog({

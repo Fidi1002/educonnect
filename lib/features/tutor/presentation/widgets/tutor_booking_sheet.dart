@@ -22,6 +22,7 @@ class _TutorBookingSheetState extends ConsumerState<TutorBookingSheet> {
   int _currentStep = 1; // 1 = Pilih Paket, 2 = Pilih Jadwal & Metode
   int _selectedMonths = 1;
   int _selectedSessionsPerWeek = 2; // Default to 2 sessions per week (supports 1, 2, or 3)
+  String? _selectedSubject;
 
   final _selectedSlots = <TutorAvailabilitySlot>[];
   String _meetingType = 'online';
@@ -29,6 +30,12 @@ class _TutorBookingSheetState extends ConsumerState<TutorBookingSheet> {
 
   int get _totalSessions => _selectedMonths * 4 * _selectedSessionsPerWeek;
   num get _totalPrice => _totalSessions * widget.tutor.pricePerHour;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedSubject = widget.tutor.subjects.firstOrNull;
+  }
 
   @override
   void dispose() {
@@ -107,6 +114,68 @@ class _TutorBookingSheetState extends ConsumerState<TutorBookingSheet> {
         ),
         const SizedBox(height: 24),
 
+        if (widget.tutor.subjects.isNotEmpty) ...[
+          Text(
+            'Mata Pelajaran',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 42,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: widget.tutor.subjects.length,
+              itemBuilder: (context, idx) {
+                final subject = widget.tutor.subjects[idx];
+                final isSelected = _selectedSubject == subject;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFF4B176E)
+                          : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFFFF1377)
+                            : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        width: isSelected ? 2.0 : 1.0,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => setState(() => _selectedSubject = subject),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Center(
+                            child: Text(
+                              subject,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF4A5568)),
+                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+
         Text(
           'Durasi Paket (Bulan)',
           style: TextStyle(
@@ -121,31 +190,35 @@ class _TutorBookingSheetState extends ConsumerState<TutorBookingSheet> {
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: Ink(
+                child: Container(
                   decoration: BoxDecoration(
                     color: isSelected
                         ? const Color(0xFF4B176E)
-                        : (isDark ? const Color(0xFF28354E) : Colors.white),
+                        : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
                     border: Border.all(
                       color: isSelected
-                          ? const Color(0xFF4B176E)
-                          : (isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0)),
+                          ? const Color(0xFFFF1377)
+                          : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      width: isSelected ? 2.0 : 1.0,
                     ),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: InkWell(
-                    onTap: () => setState(() => _selectedMonths = months),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Center(
-                        child: Text(
-                          '$months Bln',
-                          style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : (isDark ? Colors.white70 : const Color(0xFF4A5568)),
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => setState(() => _selectedMonths = months),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: Text(
+                            '$months Bln',
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF4A5568)),
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
@@ -173,34 +246,38 @@ class _TutorBookingSheetState extends ConsumerState<TutorBookingSheet> {
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: Ink(
+                child: Container(
                   decoration: BoxDecoration(
                     color: isSelected
                         ? const Color(0xFF4B176E)
-                        : (isDark ? const Color(0xFF28354E) : Colors.white),
+                        : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
                     border: Border.all(
                       color: isSelected
-                          ? const Color(0xFF4B176E)
-                          : (isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0)),
+                          ? const Color(0xFFFF1377)
+                          : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      width: isSelected ? 2.0 : 1.0,
                     ),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: InkWell(
-                    onTap: () => setState(() {
-                      _selectedSessionsPerWeek = sessions;
-                      _selectedSlots.clear(); // Bersihkan slot lama jika frekuensi diubah
-                    }),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Center(
-                        child: Text(
-                          '$sessions Sesi',
-                          style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : (isDark ? Colors.white70 : const Color(0xFF4A5568)),
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => setState(() {
+                        _selectedSessionsPerWeek = sessions;
+                        _selectedSlots.clear(); // Bersihkan slot lama jika frekuensi diubah
+                      }),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: Text(
+                            '$sessions Sesi',
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF4A5568)),
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
@@ -254,8 +331,8 @@ class _TutorBookingSheetState extends ConsumerState<TutorBookingSheet> {
                   ),
                   Text(
                     'Rp $_totalPrice',
-                    style: const TextStyle(
-                      color: Color(0xFF4B176E),
+                    style: TextStyle(
+                      color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
                       fontWeight: FontWeight.w800,
                       fontSize: 20,
                     ),
@@ -374,86 +451,90 @@ class _TutorBookingSheetState extends ConsumerState<TutorBookingSheet> {
                               b.startTime == slot.startTime &&
                               b.endTime == slot.endTime);
 
-                          return Ink(
+                          return Container(
                             decoration: BoxDecoration(
                               color: isBooked
                                   ? (isDark ? const Color(0xFF2D1B22) : const Color(0xFFFFF5F5))
                                   : isSelected
                                       ? const Color(0xFF4B176E)
-                                      : (isDark ? const Color(0xFF28354E) : Colors.white),
+                                      : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
                               border: Border.all(
                                 color: isBooked
                                     ? (isDark ? const Color(0xFF4E1D24) : const Color(0xFFFEB2B2))
                                     : isSelected
-                                        ? const Color(0xFF4B176E)
-                                        : (isDark ? const Color(0xFF28354E) : const Color(0xFFE2E8F0)),
+                                        ? const Color(0xFFFF1377)
+                                        : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                width: isSelected ? 2.0 : 1.0,
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: InkWell(
-                              onTap: isBooked
-                                  ? null
-                                  : () {
-                                      setState(() {
-                                        if (isSelected) {
-                                          _selectedSlots.remove(slot);
-                                        } else {
-                                          if (_selectedSlots.length < _selectedSessionsPerWeek) {
-                                            _selectedSlots.add(slot);
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: isBooked
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          if (isSelected) {
+                                            _selectedSlots.remove(slot);
                                           } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  'Kamu hanya bisa memilih $_selectedSessionsPerWeek jadwal.',
+                                            if (_selectedSlots.length < _selectedSessionsPerWeek) {
+                                              _selectedSlots.add(slot);
+                                            } else {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Kamu hanya bisa memilih $_selectedSessionsPerWeek jadwal.',
+                                                  ),
+                                                  duration: const Duration(seconds: 2),
                                                 ),
-                                                duration: const Duration(seconds: 2),
-                                              ),
-                                            );
+                                              );
+                                            }
                                           }
-                                        }
-                                      });
-                                    },
-                              borderRadius: BorderRadius.circular(12),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                child: isBooked
-                                    ? Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            FluentIcons.lock_closed_24_regular,
-                                            size: 14,
-                                            color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFE53E3E),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            '${slot.startLabel} - ${slot.endLabel}',
-                                            style: TextStyle(
+                                        });
+                                      },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  child: isBooked
+                                      ? Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              FluentIcons.lock_closed_24_regular,
+                                              size: 14,
                                               color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFE53E3E),
-                                              decoration: TextDecoration.lineThrough,
-                                              fontSize: 13,
                                             ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            '(Penuh)',
-                                            style: TextStyle(
-                                              color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFE53E3E),
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              '${slot.startLabel} - ${slot.endLabel}',
+                                              style: TextStyle(
+                                                color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFE53E3E),
+                                                decoration: TextDecoration.lineThrough,
+                                                fontSize: 13,
+                                              ),
                                             ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              '(Penuh)',
+                                              style: TextStyle(
+                                                color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFE53E3E),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Text(
+                                          '${slot.startLabel} - ${slot.endLabel}',
+                                          style: TextStyle(
+                                            color: isSelected
+                                                ? Colors.white
+                                                : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF4A5568)),
+                                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
                                           ),
-                                        ],
-                                      )
-                                    : Text(
-                                        '${slot.startLabel} - ${slot.endLabel}',
-                                        style: TextStyle(
-                                          color: isSelected
-                                              ? Colors.white
-                                              : (isDark ? Colors.white70 : const Color(0xFF4A5568)),
-                                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
                                         ),
-                                      ),
+                                ),
                               ),
                             ),
                           );
@@ -626,7 +707,7 @@ class _TutorBookingSheetState extends ConsumerState<TutorBookingSheet> {
 
       await ctrl.createBooking(
         tutorUid: widget.tutor.uid,
-        subject: widget.tutor.subjects.firstOrNull ?? 'Mapel Umum',
+        subject: _selectedSubject ?? 'Mapel Umum',
         packageStartDate: DateTime.now().add(const Duration(days: 1)),
         packageMonths: _selectedMonths,
         weeklySlots: realSlots,

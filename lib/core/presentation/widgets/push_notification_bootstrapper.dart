@@ -14,6 +14,8 @@ import 'package:educonnect/features/booking/application/booking_controller.dart'
 import 'package:educonnect/features/booking/domain/models/booking_session.dart';
 import 'package:educonnect/features/booking/domain/models/booking_session_status.dart';
 import 'package:educonnect/core/services/local_notification_service.dart';
+import 'package:educonnect/features/notifications/application/notification_controller.dart';
+import 'package:educonnect/features/notifications/domain/models/app_notification.dart';
 
 class PushNotificationBootstrapper extends ConsumerStatefulWidget {
   const PushNotificationBootstrapper({required this.child, super.key});
@@ -34,6 +36,8 @@ class _PushNotificationBootstrapperState
   _studentSessionsSubscription;
   ProviderSubscription<AsyncValue<List<BookingSession>>>?
   _tutorSessionsSubscription;
+  ProviderSubscription<AsyncValue<List<AppNotification>>>?
+  _notificationsSubscription;
 
   bool get _supportsMobileNotificationBootstrap =>
       !kIsWeb &&
@@ -91,6 +95,101 @@ class _PushNotificationBootstrapperState
         },
       );
     }
+
+    _notificationsSubscription = ref.listenManual(
+      myNotificationsProvider,
+      (previous, next) {
+        final newNotifications = next.valueOrNull;
+        final oldNotifications = previous?.valueOrNull;
+        if (newNotifications == null) {
+          return;
+        }
+
+        if (oldNotifications == null || oldNotifications.isEmpty) {
+          return;
+        }
+
+        final now = DateTime.now();
+        final newlyAddedUnread = newNotifications.where((n) {
+          if (n.isRead) return false;
+          final isNew = !oldNotifications.any((oldN) => oldN.id == n.id);
+          if (!isNew) return false;
+          final age = now.difference(n.createdAt);
+          return age.inSeconds.abs() <= 15;
+        }).toList();
+
+        for (final notification in newlyAddedUnread) {
+          rootScaffoldMessengerKey.currentState?.showSnackBar(
+            SnackBar(
+              duration: const Duration(seconds: 5),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: const Color(0xFF4B176E),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              content: Row(
+                children: [
+                  const Icon(
+                    Icons.notifications_active_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          notification.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          notification.body,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              action: SnackBarAction(
+                label: 'Lihat',
+                textColor: const Color(0xFFFF1377),
+                onPressed: () async {
+                  await ref.read(notificationControllerProvider).markAsRead(notification.id);
+                  final router = ref.read(routerProvider);
+                  final bookingId = await ref
+                      .read(notificationControllerProvider)
+                      .resolveBookingIdFromTarget(
+                        targetType: notification.targetType,
+                        targetId: notification.targetId,
+                      );
+                  if (bookingId != null && bookingId.isNotEmpty) {
+                    final role = ref.read(currentUserProfileProvider).valueOrNull?.role;
+                    if (role == AppUserRole.tutor) {
+                      router.push('/tutor/bookings?sessionId=${notification.targetId}');
+                    } else {
+                      router.push('/student/bookings?sessionId=${notification.targetId}');
+                    }
+                  }
+                },
+              ),
+            ),
+          );
+        }
+      },
+    );
   }
 
   void _scheduleLocalReminders(
@@ -98,13 +197,16 @@ class _PushNotificationBootstrapperState
     required bool isTutor,
   }) {
     for (final session in sessions) {
+      final id1 = session.id.hashCode ^ (isTutor ? 1 : 0);
+      final id2 = id1 + 1;
+
       if (session.status == BookingSessionStatus.scheduled &&
           session.sessionStart.isAfter(DateTime.now())) {
         final h1 = session.sessionStart.subtract(const Duration(hours: 1));
         if (h1.isAfter(DateTime.now())) {
           unawaited(
             LocalNotificationService.scheduleSessionReminder(
-              id: session.id.hashCode ^ (isTutor ? 1 : 0),
+              id: id1,
               title: isTutor
                   ? 'Persiapan Mengajar (1 Jam)'
                   : 'Reminder Kelas (1 Jam)',
@@ -114,13 +216,15 @@ class _PushNotificationBootstrapperState
               scheduledTime: h1,
             ),
           );
+        } else {
+          unawaited(LocalNotificationService.cancelReminder(id1));
         }
 
         final m15 = session.sessionStart.subtract(const Duration(minutes: 15));
         if (m15.isAfter(DateTime.now())) {
           unawaited(
             LocalNotificationService.scheduleSessionReminder(
-              id: (session.id.hashCode ^ (isTutor ? 1 : 0)) + 1,
+              id: id2,
               title: isTutor
                   ? 'Sesi Mengajar Segera Mulai'
                   : 'Sesi Belajar Segera Mulai',
@@ -130,7 +234,12 @@ class _PushNotificationBootstrapperState
               scheduledTime: m15,
             ),
           );
+        } else {
+          unawaited(LocalNotificationService.cancelReminder(id2));
         }
+      } else {
+        unawaited(LocalNotificationService.cancelReminder(id1));
+        unawaited(LocalNotificationService.cancelReminder(id2));
       }
     }
   }
@@ -210,6 +319,7 @@ class _PushNotificationBootstrapperState
     _authSubscription?.close();
     _studentSessionsSubscription?.close();
     _tutorSessionsSubscription?.close();
+    _notificationsSubscription?.close();
     _onMessageSubscription?.cancel();
     _onMessageOpenedAppSubscription?.cancel();
     super.dispose();

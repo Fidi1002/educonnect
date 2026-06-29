@@ -320,6 +320,7 @@ class _TutorHomeScaffold extends StatelessWidget {
             totalReviews: tutorProfile?.totalReviews ?? 0,
             consistencyScore: tutorProfile?.consistencyScore ?? 0,
             activeStudents: activeStudents,
+            maxStudentCapacity: tutorProfile?.maxStudentCapacity ?? 2,
             pendingHomeworkCount: pendingHomeworkCount,
           ),
           const SizedBox(height: 16),
@@ -329,7 +330,7 @@ class _TutorHomeScaffold extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
-            childAspectRatio: 1.45,
+            childAspectRatio: 1.4,
             children: [
               _MetricCard(
                 title: 'Sesi Hari Ini',
@@ -473,6 +474,7 @@ class _TutorHeroCard extends StatelessWidget {
     required this.totalReviews,
     required this.consistencyScore,
     required this.activeStudents,
+    required this.maxStudentCapacity,
     required this.pendingHomeworkCount,
   });
 
@@ -481,6 +483,7 @@ class _TutorHeroCard extends StatelessWidget {
   final int totalReviews;
   final double consistencyScore;
   final int activeStudents;
+  final int maxStudentCapacity;
   final int pendingHomeworkCount;
 
   @override
@@ -563,7 +566,7 @@ class _TutorHeroCard extends StatelessWidget {
                 label: 'Consistency',
                 value: '${consistencyScore.toStringAsFixed(0)}%',
               ),
-              _HeroPill(label: 'Murid Aktif', value: '$activeStudents / 2'),
+              _HeroPill(label: 'Murid Aktif', value: '$activeStudents / $maxStudentCapacity'),
               _HeroPill(label: 'PR Pending', value: '$pendingHomeworkCount'),
             ],
           ),
@@ -635,7 +638,7 @@ class _MetricCard extends StatelessWidget {
         : accentColor;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: displayColor,
         borderRadius: BorderRadius.circular(18),
@@ -643,19 +646,44 @@ class _MetricCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(icon, color: displayAccentColor),
-          const Spacer(),
-          Text(
-            value,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, color: displayAccentColor, size: 24),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: displayAccentColor,
+                    ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 3),
-          Text(note, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                note,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: isDark ? Colors.white60 : Colors.black54,
+                      fontSize: 10.5,
+                      height: 1.2,
+                    ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ],
       ),
     );

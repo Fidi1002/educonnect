@@ -1544,14 +1544,29 @@ class _TutorBookingListState extends ConsumerState<_TutorBookingList> {
                                           child: OutlinedButton(
                                             onPressed: isLoading
                                                 ? null
-                                                : () => ref
-                                                      .read(
-                                                        bookingControllerProvider,
-                                                      )
-                                                      .respondSessionChangeRequest(
-                                                        requestId: request.id,
-                                                        approved: false,
-                                                      ),
+                                                : () async {
+                                                    try {
+                                                      await ref
+                                                          .read(bookingControllerProvider)
+                                                          .respondSessionChangeRequest(
+                                                            requestId: request.id,
+                                                            approved: false,
+                                                          );
+                                                      if (!context.mounted) return;
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        const SnackBar(content: Text('Permintaan ditolak.')),
+                                                      );
+                                                    } catch (e) {
+                                                      if (!context.mounted) return;
+                                                      final errorMsg = e.toString().replaceAll('PostgrestException:', '').trim();
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text('Gagal menolak permintaan: $errorMsg'),
+                                                          backgroundColor: Colors.red.shade800,
+                                                        ),
+                                                      );
+                                                    }
+                                                  },
                                             child: const Text('Tolak'),
                                           ),
                                         ),
@@ -1560,14 +1575,29 @@ class _TutorBookingListState extends ConsumerState<_TutorBookingList> {
                                           child: FilledButton(
                                             onPressed: isLoading
                                                 ? null
-                                                : () => ref
-                                                      .read(
-                                                        bookingControllerProvider,
-                                                      )
-                                                      .respondSessionChangeRequest(
-                                                        requestId: request.id,
-                                                        approved: true,
-                                                      ),
+                                                : () async {
+                                                    try {
+                                                      await ref
+                                                          .read(bookingControllerProvider)
+                                                          .respondSessionChangeRequest(
+                                                            requestId: request.id,
+                                                            approved: true,
+                                                          );
+                                                      if (!context.mounted) return;
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        const SnackBar(content: Text('Permintaan disetujui.')),
+                                                      );
+                                                    } catch (e) {
+                                                      if (!context.mounted) return;
+                                                      final errorMsg = e.toString().replaceAll('PostgrestException:', '').trim();
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text('Gagal menyetujui permintaan: $errorMsg'),
+                                                          backgroundColor: Colors.red.shade800,
+                                                        ),
+                                                      );
+                                                    }
+                                                  },
                                             child: const Text('Setujui'),
                                           ),
                                         ),

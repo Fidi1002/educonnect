@@ -544,11 +544,6 @@ class _HomeBody extends ConsumerWidget {
             ),
           ],
 
-          if (dashboard.activeTutors.isNotEmpty) ...[
-            const SizedBox(height: 32),
-            _ActiveTutorSection(dashboard: dashboard),
-          ],
-
           const SizedBox(height: 32),
 
           // Section: Tutor Categories
@@ -1114,83 +1109,6 @@ class _HeroMiniMetric extends StatelessWidget {
           Text(label, style: const TextStyle(color: Colors.white70)),
         ],
       ),
-    );
-  }
-}
-
-class _ActiveTutorSection extends StatelessWidget {
-  const _ActiveTutorSection({required this.dashboard});
-
-  final _StudentDashboardSnapshot dashboard;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Tutor Aktif',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 116,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: dashboard.activeTutors.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 10),
-            itemBuilder: (context, index) {
-              final tutor = dashboard.activeTutors[index];
-              final isDark = Theme.of(context).brightness == Brightness.dark;
-              return Container(
-                width: 210,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1B2336) : const Color(0xFFF7F9FF),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: isDark ? const Color(0xFF28354E) : const Color(0xFFC9D8F2)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFFFF1377) : const Color(0xFF4B176E),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        FluentIcons.person_24_regular,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      tutor.tutorName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : const Color(0xFF1F1630),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      tutor.subject,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF6D6380)),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 }
